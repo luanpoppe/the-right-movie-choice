@@ -1,0 +1,22 @@
+{
+  "name": "the-right-movie-choice",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx watch src/server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "4.20.6",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "dotenv": "17.2.2",
+    "fastify": "^5.6.1",
+    "zod": "4.1.11"
+  }
+}
