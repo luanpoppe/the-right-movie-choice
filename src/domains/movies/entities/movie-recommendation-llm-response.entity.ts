@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const MovieRecommendationLLMResponseDto = z.object({
+export const MovieRecommendationSchema = z.object({
   movies: z.array(
     z.object({
       title: z.string().nonempty(),

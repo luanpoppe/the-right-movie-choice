@@ -1,5 +1,5 @@
 import { Langchain } from "@/lib/langchain/langchain";
-import { MovieRecommendationLLMResponseDto } from "../../http/dto/movie-recommendation-llm-response.dto";
+import { MovieRecommendationSchema } from "../../entities/movie-recommendation-llm-response.entity";
 import { MovieRecommendationResponseDto } from "../../http/dto/movie-recommendation.dto";
 import z from "zod";
 import { IChatHistoryRepository } from "@/repositories/chat-history.repository";
@@ -23,7 +23,7 @@ export class GetMovieRecommendationUseCase {
     );
 
     const structuredMoviesParsed =
-      MovieRecommendationLLMResponseDto.parse(structuredMovies);
+      MovieRecommendationSchema.parse(structuredMovies);
 
     console.log({ structuredMoviesParsed });
 
@@ -57,14 +57,14 @@ export class GetMovieRecommendationUseCase {
     const resposta = await this.lg.callWithStructuredOutput({
       model: this.model,
       prompt,
-      schema: MovieRecommendationLLMResponseDto,
+      schema: MovieRecommendationSchema,
     });
 
     return resposta;
   }
 
   private async getChatResponse(
-    movies: z.infer<typeof MovieRecommendationLLMResponseDto>,
+    movies: z.infer<typeof MovieRecommendationSchema>,
     userMessage: string
   ) {
     const prompt = this.lg.prompt.create({
