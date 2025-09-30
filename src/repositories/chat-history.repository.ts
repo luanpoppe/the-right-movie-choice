@@ -1,12 +1,8 @@
-import {
-  ChatHistoryEntity,
-  ChatHistoryEntityTuple,
-} from "@/entities/chat-history.entity";
-import z from "zod";
+import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 
 export interface IChatHistoryRepository {
   addMessage(
-    newMessage: z.infer<typeof ChatHistoryEntityTuple>[],
+    newMessage: ChatHistoryEntity,
     chatId: string
   ): Promise<ChatHistoryEntity>;
 

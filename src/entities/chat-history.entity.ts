@@ -7,9 +7,4 @@ export const ChatHistoryEntityTuple = z.tuple([
 
 export const ChatHistoryEntitySchema = z.array(ChatHistoryEntityTuple);
 
-export type ChatHistoryEntityType = z.infer<typeof ChatHistoryEntitySchema>;
-
-export type ChatHistoryEntity = {
-  // chatHistory: BaseMessagePromptTemplateLike[];
-  chatHistory: ChatHistoryEntityType;
-};
+export type ChatHistoryEntity = z.infer<typeof ChatHistoryEntitySchema>;

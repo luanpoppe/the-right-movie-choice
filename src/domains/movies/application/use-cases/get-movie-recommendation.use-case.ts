@@ -25,19 +25,16 @@ export class GetMovieRecommendationUseCase {
     await this.chatHistoryRepository.addMessage(
       [
         ["user", userMessage],
-        ["ai", chatResponse.response as string],
+        ["ai", chatResponse.response.toString()],
       ],
       "chatId"
     );
 
     console.log({ chatResponse });
 
-    const redisValue = await this.chatHistoryRepository.getHistory("chatId");
-    console.log({ redisValue });
-
     return {
       movies: structuredMoviesParsed,
-      response: chatResponse.response as string,
+      response: chatResponse.response.toString(),
     };
   }
 
