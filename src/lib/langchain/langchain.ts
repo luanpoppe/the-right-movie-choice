@@ -32,6 +32,8 @@ export class Langchain {
     const structuredLLM = model.withStructuredOutput(schema);
     const result = await structuredLLM.invoke(prompt);
 
+    console.log("result: ", result);
+
     return result;
   }
 }

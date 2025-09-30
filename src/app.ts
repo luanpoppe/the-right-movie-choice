@@ -8,6 +8,8 @@ app.setErrorHandler((error, app, reply) => {
   if (error instanceof ZodError) {
     return reply.status(400).send(z.treeifyError(error));
   }
+
+  return reply.status(500).send({ error: error.message });
 });
 
 app.register(moviesControllers);
