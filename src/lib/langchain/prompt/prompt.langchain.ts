@@ -1,5 +1,6 @@
 import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 import {
+  AIMessage,
   BaseMessage,
   HumanMessage,
   SystemMessage,
@@ -52,12 +53,19 @@ export class PromptLangchain {
     return promptWithParams.toChatMessages();
   }
 
-  createChatHistory(userMessage: string, { chatHistory }: ChatHistoryEntity) {
-    const messages: BaseMessagePromptTemplateLike[] = [];
+  createChatHistory(userMessage: string, chatHistory: ChatHistoryEntity) {
+    const messages: BaseMessage[] = [];
+    const chatHistoryFormatted = chatHistory.map((m) => {
+      if (m[0] == "system") return new SystemMessage(m[1]);
+      else if (m[0] == "user") return new HumanMessage(m[1]);
+      else if (m[0] == "ai") return new AIMessage(m[1]);
 
-    messages.push(...chatHistory);
+      throw new Error();
+    });
 
-    messages.push(["user", userMessage]);
+    messages.push(...chatHistoryFormatted);
+
+    messages.push(new HumanMessage(userMessage));
 
     return messages;
   }

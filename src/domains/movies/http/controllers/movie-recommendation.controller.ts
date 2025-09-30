@@ -12,7 +12,7 @@ export async function movieRecommendationController(
 
   const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
 
-  const resposta = await useCase.execute(userMessage);
+  const resposta = await useCase.execute(userMessage, "test id");
 
   return reply.status(200).send({ resposta });
 }

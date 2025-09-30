@@ -3,6 +3,7 @@ import { MovieRecommendationLLMResponseDto } from "../../http/dto/movie-recommen
 import { MovieRecommendationResponseDto } from "../../http/dto/movie-recommendation.dto";
 import z from "zod";
 import { IChatHistoryRepository } from "@/repositories/chat-history.repository";
+import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 
 export class GetMovieRecommendationUseCase {
   private lg = new Langchain();
@@ -10,10 +11,17 @@ export class GetMovieRecommendationUseCase {
 
   constructor(private chatHistoryRepository: IChatHistoryRepository) {}
 
-  async execute(userMessage: string): Promise<MovieRecommendationResponseDto> {
+  async execute(
+    userMessage: string,
+    chatId: string
+  ): Promise<MovieRecommendationResponseDto> {
+    const chatHistory = await this.chatHistoryRepository.getHistory(chatId);
+
     const structuredMovies = await this.getStructuredMoviesRecommendation(
-      userMessage
+      userMessage,
+      chatHistory
     );
+
     const structuredMoviesParsed =
       MovieRecommendationLLMResponseDto.parse(structuredMovies);
 
@@ -27,7 +35,7 @@ export class GetMovieRecommendationUseCase {
         ["user", userMessage],
         ["ai", chatResponse.response.toString()],
       ],
-      "chatId"
+      chatId
     );
 
     console.log({ chatResponse });
@@ -38,11 +46,11 @@ export class GetMovieRecommendationUseCase {
     };
   }
 
-  private async getStructuredMoviesRecommendation(userMessage: string) {
-    const prompt = this.lg.prompt.create({
-      systemaMessage: `Você é uma IA que deve ajudar uma pessoa ou um grupo de pessoas a definir o próximo filme a ser assistido. Você irá receber o pedido do usuário e deverá indicar 03 filmes que atendam aos critérios informados pelo usuário, informando título do filme, diretor, atores e atrizes, ano de lançamento do filme, em qual plataforma de streaming é possível assistir aos filmes em questão, uma breve sinopse do filme, a duração do filme em minutos, a nota do filme no IMDb.`,
-      userMessage,
-    });
+  private async getStructuredMoviesRecommendation(
+    userMessage: string,
+    chatHistory: ChatHistoryEntity
+  ) {
+    const prompt = this.lg.prompt.createChatHistory(userMessage, chatHistory);
 
     const resposta = await this.lg.callWithStructuredOutput({
       model: this.model,
