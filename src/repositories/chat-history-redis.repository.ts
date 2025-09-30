@@ -6,12 +6,20 @@ import { ChatHistoryEntitySchema } from "@/entities/chat-history.entity";
 export class ChatHistoryRedisRepository implements IChatHistoryRepository {
   constructor(private redis: Redis) {}
 
-  async addMessage(newMessage: ChatHistoryEntity, chatId: string) {
+  async addMessage(
+    newMessage: ChatHistoryEntity,
+    chatId: string,
+    expirationInSeconds: number
+  ) {
     const currentValue = await this.redis.get(chatId);
     const currentValueParsed = ChatHistoryEntitySchema.parse(currentValue);
     currentValueParsed.push(...newMessage);
 
-    await this.redis.set(chatId, currentValueParsed);
+    await this.redis.setWithExpiration(
+      chatId,
+      currentValueParsed,
+      expirationInSeconds
+    );
 
     return currentValueParsed;
   }

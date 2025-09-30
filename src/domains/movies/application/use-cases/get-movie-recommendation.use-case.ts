@@ -25,20 +25,22 @@ export class GetMovieRecommendationUseCase {
     const structuredMoviesParsed =
       MovieRecommendationLLMResponseDto.parse(structuredMovies);
 
+    console.log({ structuredMoviesParsed });
+
     const chatResponse = await this.getChatResponse(
       structuredMoviesParsed,
       userMessage
     );
 
+    const twoMinutesInSeconds = 120;
     await this.chatHistoryRepository.addMessage(
       [
         ["user", userMessage],
         ["ai", chatResponse.response.toString()],
       ],
-      chatId
+      chatId,
+      twoMinutesInSeconds
     );
-
-    console.log({ chatResponse });
 
     return {
       movies: structuredMoviesParsed,
