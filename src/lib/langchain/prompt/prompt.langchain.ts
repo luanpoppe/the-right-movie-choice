@@ -53,7 +53,7 @@ export class PromptLangchain {
     return promptWithParams.toChatMessages();
   }
 
-  createChatHistory(userMessage: string, chatHistory: ChatHistoryEntity) {
+  parseChatHistory(chatHistory: ChatHistoryEntity) {
     const messages: BaseMessage[] = [];
     const chatHistoryFormatted = chatHistory.map((m) => {
       if (m[0] == "system") return new SystemMessage(m[1]);
@@ -64,8 +64,6 @@ export class PromptLangchain {
     });
 
     messages.push(...chatHistoryFormatted);
-
-    messages.push(new HumanMessage(userMessage));
 
     return messages;
   }
