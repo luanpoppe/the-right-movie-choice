@@ -5,6 +5,8 @@ import z, { ZodError } from "zod";
 const app = fastify();
 
 app.setErrorHandler((error, app, reply) => {
+  console.log({ error });
+
   if (error instanceof ZodError) {
     return reply.status(400).send(z.treeifyError(error));
   }

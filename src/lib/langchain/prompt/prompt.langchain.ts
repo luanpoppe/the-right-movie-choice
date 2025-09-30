@@ -1,3 +1,4 @@
+import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 import {
   BaseMessage,
   HumanMessage,
@@ -49,5 +50,15 @@ export class PromptLangchain {
     const promptWithParams = await promptTemplate.invoke(inputVariables);
 
     return promptWithParams.toChatMessages();
+  }
+
+  createChatHistory(userMessage: string, { chatHistory }: ChatHistoryEntity) {
+    const messages: BaseMessagePromptTemplateLike[] = [];
+
+    messages.push(...chatHistory);
+
+    messages.push(["user", userMessage]);
+
+    return messages;
   }
 }

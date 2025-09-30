@@ -6,5 +6,6 @@ export const MovieRecommendationRequestDtoSchema = z.object({
 });
 
 export type MovieRecommendationResponseDto = {
-  response: z.infer<typeof MovieRecommendationLLMResponseDto>;
+  movies: z.infer<typeof MovieRecommendationLLMResponseDto>;
+  response: string;
 };

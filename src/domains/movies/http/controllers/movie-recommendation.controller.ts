@@ -1,6 +1,8 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { MovieRecommendationRequestDtoSchema } from "../dto/movie-recommendation.dto";
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
+import { ChatHistoryRedisRepository } from "@/repositories/chat-history-redis.repository";
+import { Redis } from "@/lib/redis/redis";
 
 export async function movieRecommendationController(
   request: FastifyRequest,
@@ -10,7 +12,9 @@ export async function movieRecommendationController(
     request.body
   );
 
-  const useCase = new GetMovieRecommendationUseCase();
+  const redis = new Redis();
+  const chatHistoryRepository = new ChatHistoryRedisRepository(redis);
+  const useCase = new GetMovieRecommendationUseCase(chatHistoryRepository);
 
   const resposta = await useCase.execute(userMessage);
 
