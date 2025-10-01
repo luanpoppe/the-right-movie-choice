@@ -1,5 +1,5 @@
 import fastify from "fastify";
-import { moviesControllers } from "./domains/movies/http/controllers/routes";
+import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";

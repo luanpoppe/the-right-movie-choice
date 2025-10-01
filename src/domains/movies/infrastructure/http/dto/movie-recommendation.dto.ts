@@ -1,5 +1,5 @@
 import z from "zod";
-import { SingleMovieReccomendationSchema } from "../../entities/movie-recommendation-llm-response.entity";
+import { SingleMovieReccomendationSchema } from "../../../domain/entities/movie-recommendation-llm-response.entity";
 
 export const MovieRecommendationRequestDtoSchema = z.object({
   userMessage: z.string().nonempty(),

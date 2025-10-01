@@ -1,4 +1,4 @@
-import { ChatHistoryEntity } from "@/entities/chat-history.entity";
+import { ChatHistoryEntity } from "../entities/chat-history.entity";
 
 export interface IChatHistoryRepository {
   addMessage(
