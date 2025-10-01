@@ -19,23 +19,9 @@ Esta é uma API de recomendação de filmes construída com **Node.js** e **Type
 
 ## 🏛️ Análise Arquitetural
 
-O projeto é uma implementação prática da **Clean Architecture**, priorizando a separação de responsabilidades. A **Regra de Dependência** é o pilar central: todas as dependências apontam para as camadas internas.
+O projeto é uma implementação prática da **Clean Architecture**, uma abordagem que organiza o software em camadas concêntricas. O princípio fundamental é a **Regra de Dependência**, que dita que as dependências do código devem apontar sempre para dentro, das camadas externas (detalhes de tecnologia) para as camadas internas (regras de negócio).
 
-```
-
-Camadas:
-\+--------------------------------------------------------------------------+
-|  Infrastructure (Frameworks, Drivers, Ferramentas Externas)              |
-| +----------------------------------------------------------------------+ |
-| |  Application (Casos de Uso e Interfaces/Ports)                       | |
-| | +------------------------------------------------------------------+ | |
-| | |  Domain (Entidades e Regras de Negócio Puras)                    | | |
-| | +------------------------------------------------------------------+ | |
-| +----------------------------------------------------------------------+ |
-\+--------------------------------------------------------------------------+
-\---\> Direção das Dependências ---\>
-
-```
+Isso significa que a camada de **Infrastructure** (onde residem frameworks e drivers de banco de dados) depende da camada de **Application** (que orquestra os casos de uso), que por sua vez depende da camada de **Domain** (o núcleo com as regras de negócio puras). Essa estrutura garante que a lógica de negócio permaneça isolada e independente de detalhes de implementação, como o banco de dados ou a API da web, tornando o sistema mais testável, flexível e fácil de manter.
 
 ### Estrutura e Princípios SOLID
 
