@@ -5,17 +5,16 @@ import z from "zod";
 import { IChatHistoryRepository } from "@/repositories/chat-history.repository";
 import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 import { WrongMovieSchemaFromLlmException } from "../../exceptions/wrong-movie-schema-from-llm.exception";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 export class GetMovieRecommendationUseCase {
-  private lg = new Langchain();
-  private model = this.lg.model.gemini();
+  constructor(
+    private chatHistoryRepository: IChatHistoryRepository,
+    private langchain: Langchain,
+    private model: BaseChatModel
+  ) {}
 
-  constructor(private chatHistoryRepository: IChatHistoryRepository) {}
-
-  async execute(
-    userMessage: string,
-    chatId: string
-  ): Promise<MovieRecommendationResponseDTO> {
+  async execute(userMessage: string, chatId: string) {
     const chatHistory = await this.chatHistoryRepository.getHistory(chatId);
 
     const structuredMovies = await this.getStructuredMoviesRecommendation(
@@ -60,9 +59,9 @@ export class GetMovieRecommendationUseCase {
     newChatHistory.unshift(["system", systemPrompt]);
     newChatHistory.push(["user", userMessage]);
 
-    const prompt = this.lg.prompt.parseChatHistory(newChatHistory);
+    const prompt = this.langchain.prompt.parseChatHistory(newChatHistory);
 
-    const resposta = await this.lg.callWithStructuredOutput({
+    const resposta = await this.langchain.callWithStructuredOutput({
       model: this.model,
       prompt,
       schema: MovieRecommendationSchema,
@@ -84,7 +83,7 @@ Filmes sugeridos: ${JSON.stringify(movies)}`;
     console.log({ newChatHistory });
     newChatHistory.push(["user", userMessage]);
 
-    const prompt = this.lg.prompt.parseChatHistory(newChatHistory);
+    const prompt = this.langchain.prompt.parseChatHistory(newChatHistory);
 
     const response = await this.model.invoke(prompt);
     return { response: response.content };
