@@ -1,11 +1,11 @@
 import z from "zod";
-import { MovieRecommendationSchema } from "../../entities/movie-recommendation-llm-response.entity";
+import { SingleMovieReccomendationSchema } from "../../entities/movie-recommendation-llm-response.entity";
 
 export const MovieRecommendationRequestDtoSchema = z.object({
   userMessage: z.string().nonempty(),
 });
 
-export type MovieRecommendationResponseDto = {
-  movies: z.infer<typeof MovieRecommendationSchema>;
+export type MovieRecommendationResponseDTO = {
+  movies: z.infer<typeof SingleMovieReccomendationSchema>[];
   response: string;
 };

@@ -5,6 +5,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3333),
   GEMINI_API_KEY: z.string(),
   REDIS_URL: z.string(),
+  NODE_ENV: z.enum(["dev", "prod", "test"]),
 });
 
 const result = envSchema.safeParse(process.env);

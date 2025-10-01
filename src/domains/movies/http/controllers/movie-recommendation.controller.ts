@@ -1,7 +1,11 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import { MovieRecommendationRequestDtoSchema } from "../dto/movie-recommendation.dto";
+import {
+  MovieRecommendationRequestDtoSchema,
+  MovieRecommendationResponseDTO,
+} from "../dto/movie-recommendation.dto";
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 import { HeadersDTOSchema } from "@/http/dto/headers.dto";
+import { MissingHeaderException } from "@/exceptions/missing-header.exception";
 
 export async function movieRecommendationController(
   request: FastifyRequest,
@@ -11,11 +15,17 @@ export async function movieRecommendationController(
     request.body
   );
 
-  const { chatid } = HeadersDTOSchema.parse(request.headers);
+  const parsed = HeadersDTOSchema.safeParse(request.headers);
+  if (!parsed.success) throw new MissingHeaderException("chatid");
+  const { chatid } = parsed.data;
 
   const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
 
-  const resposta = await useCase.execute(userMessage, chatid);
+  const { movies, response } = await useCase.execute(userMessage, chatid);
+  const responseBody: MovieRecommendationResponseDTO = {
+    response,
+    movies,
+  };
 
-  return reply.status(200).send({ resposta });
+  return reply.status(200).send(responseBody);
 }
