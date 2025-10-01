@@ -1,5 +1,5 @@
 import { ChatHistoryEntity } from "@/core/entities/chat-history.entity";
-import { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation-llm-response.entity";
+import { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation.entity";
 
 export interface IMovieRecommendationProvider {
   getStructuredMoviesRecommendation(

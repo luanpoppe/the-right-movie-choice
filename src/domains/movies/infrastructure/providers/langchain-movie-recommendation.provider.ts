@@ -3,7 +3,7 @@ import { IMovieRecommendationProvider } from "../../application/providers/movie-
 import {
   MovieRecommendationEntity,
   MovieRecommendationSchema,
-} from "../../domain/entities/movie-recommendation-llm-response.entity";
+} from "../../domain/entities/movie-recommendation.entity";
 import { Langchain } from "@/lib/langchain/langchain";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";

@@ -2,7 +2,7 @@ import {
   ChatHistoryEntity,
   ChatHistoryEntitySchema,
 } from "@/core/entities/chat-history.entity";
-import { IChatHistoryRepository } from "./chat-history.repository";
+import { IChatHistoryRepository } from "../../core/repositories/chat-history.repository";
 import { Redis } from "@/lib/redis/redis";
 
 export class ChatHistoryRedisRepository implements IChatHistoryRepository {

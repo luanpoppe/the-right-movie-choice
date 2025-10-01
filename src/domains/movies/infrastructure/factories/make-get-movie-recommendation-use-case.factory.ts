@@ -1,5 +1,5 @@
 import { Redis } from "@/lib/redis/redis";
-import { ChatHistoryRedisRepository } from "@/core/repositories/chat-history-redis.repository";
+import { ChatHistoryRedisRepository } from "@/infrastructure/repositories/chat-history-redis.repository";
 
 import { Langchain } from "@/lib/langchain/langchain";
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";

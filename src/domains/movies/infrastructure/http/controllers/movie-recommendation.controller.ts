@@ -5,7 +5,7 @@ import {
 } from "../dto/movie-recommendation.dto";
 
 import { MissingHeaderException } from "@/core/exceptions/missing-header.exception";
-import { HeadersDTOSchema } from "@/core/http/dto/headers.dto";
+import { HeadersDTOSchema } from "@/infrastructure/http/dto/headers.dto";
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 
 export async function movieRecommendationController(
