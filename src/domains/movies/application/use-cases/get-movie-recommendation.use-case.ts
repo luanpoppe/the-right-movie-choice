@@ -1,10 +1,10 @@
 import { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
-import { LangchainMovieRecommendationProvider } from "../../infrastructure/providers/langchain-movie-recommendation.provider";
+import { IMovieRecommendationProvider } from "../providers/movie-recommendation.provider";
 
 export class GetMovieRecommendationUseCase {
   constructor(
     private chatHistoryRepository: IChatHistoryRepository,
-    private movieRecommendationProvider: LangchainMovieRecommendationProvider
+    private movieRecommendationProvider: IMovieRecommendationProvider
   ) {}
 
   async execute(userMessage: string, chatId: string) {
