@@ -2,7 +2,7 @@ import { Langchain } from "@/lib/langchain/langchain";
 import { MovieRecommendationSchema } from "../../entities/movie-recommendation-llm-response.entity";
 import { MovieRecommendationResponseDTO } from "../../http/dto/movie-recommendation.dto";
 import z from "zod";
-import { IChatHistoryRepository } from "@/repositories/chat-history.repository";
+import { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
 import { ChatHistoryEntity } from "@/entities/chat-history.entity";
 import { WrongMovieSchemaFromLlmException } from "../../exceptions/wrong-movie-schema-from-llm.exception";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";

@@ -1,4 +1,4 @@
-import { BaseException } from "@/exceptions/base.exception";
+import { BaseException } from "@/core/exceptions/base.exception";
 
 export class WrongMovieSchemaFromLlmException extends BaseException {
   constructor() {

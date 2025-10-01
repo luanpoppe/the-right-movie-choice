@@ -4,8 +4,8 @@ import {
   MovieRecommendationResponseDTO,
 } from "../dto/movie-recommendation.dto";
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
-import { HeadersDTOSchema } from "@/http/dto/headers.dto";
-import { MissingHeaderException } from "@/exceptions/missing-header.exception";
+import { MissingHeaderException } from "@/core/exceptions/missing-header.exception";
+import { HeadersDTOSchema } from "@/core/http/dto/headers.dto";
 
 export async function movieRecommendationController(
   request: FastifyRequest,
