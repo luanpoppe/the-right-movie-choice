@@ -3,8 +3,33 @@ import { moviesControllers } from "./domains/movies/infrastructure/http/controll
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
+import { fastifySwagger } from "@fastify/swagger";
+import { fastifySwaggerUi } from "@fastify/swagger-ui";
+import {
+  jsonSchemaTransform,
+  validatorCompiler,
+  serializerCompiler,
+} from "fastify-type-provider-zod";
+import { ZodTypeProvider } from "fastify-type-provider-zod";
 
-const app = fastify();
+const app = fastify().withTypeProvider<ZodTypeProvider>();
+
+app.setValidatorCompiler(validatorCompiler);
+app.setSerializerCompiler(serializerCompiler);
+
+app.register(fastifySwagger, {
+  openapi: {
+    info: {
+      title: "The Right Movie Choice",
+      version: "1.0.0",
+    },
+  },
+  transform: jsonSchemaTransform,
+});
+
+app.register(fastifySwaggerUi, {
+  routePrefix: "/swagger",
+});
 
 app.setErrorHandler((error, app, reply) => {
   console.log({ error });

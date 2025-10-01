@@ -4,4 +4,4 @@ export const HeadersDTOSchema = z.object({
   chatid: z.string(),
 });
 
-export type CookieDTO = z.infer<typeof HeadersDTOSchema>;
+export type HeadersDTO = z.infer<typeof HeadersDTOSchema>;
