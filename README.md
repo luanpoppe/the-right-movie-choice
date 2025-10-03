@@ -6,6 +6,17 @@
 
 Esta é uma API de recomendação de filmes construída com **Node.js** e **TypeScript**, projetada para ser robusta, escalável e de fácil manutenção. O projeto utiliza IA generativa (Google Gemini) e segue estritamente os princípios da **Clean Architecture** e **SOLID**.
 
+## 🚀 Em Produção (Versão Inicial)
+
+A primeira versão desta API está disponível publicamente em uma instância gratuita da **Oracle Cloud**.
+
+O ambiente de produção foi configurado para garantir performance e estabilidade, utilizando:
+- **PM2:** para gerenciamento e monitoramento do processo do servidor Node.js.
+- **Docker:** para executar o serviço do Redis de forma isolada e consistente.
+
+**A documentação interativa do Swagger para a versão em produção pode ser acessada em:**
+### **[http://164.152.61.119:8080/swagger](http://164.152.61.119:8080/swagger)**
+
 ## 🎬 Features Principais
 
 - **Recomendações via IA:** Sugestões de filmes baseadas em linguagem natural, com informações detalhadas (título, diretor, elenco, ano, streaming, etc.).
@@ -16,6 +27,15 @@ Esta é uma API de recomendação de filmes construída com **Node.js** e **Type
 - **Alta Testabilidade:** A separação de responsabilidades permite a criação de testes unitários focados e eficientes com **Vitest**, validando a lógica de negócio de forma isolada.
 - **Documentação Dinâmica:** A API conta com documentação interativa gerada automaticamente via Swagger, mantendo-se sempre sincronizada com as regras de validação da aplicação.
 - **Validação Robusta:** Utilização de **Zod** para validar variáveis de ambiente, requisições HTTP e o retorno da IA, garantindo a segurança e a previsibilidade dos dados.
+
+## 🌟 Próximos Passos e Melhorias Futuras
+
+Esta é apenas a versão inicial do projeto. O objetivo é evoluir a aplicação com novas funcionalidades, transformando-a em uma plataforma completa de descoberta de filmes. O roadmap inclui:
+
+- **Frontend Interativo:** Desenvolvimento de uma interface de usuário amigável para consumir a API, facilitando a interação e a visualização das recomendações.
+- **Sistema de Contas e Autenticação:** Implementação de funcionalidades de cadastro, login e autenticação para oferecer uma experiência personalizada aos usuários.
+- **Histórico e Listas Pessoais:** Permitir que usuários salvem o histórico de filmes sugeridos e criem listas de "filmes para assistir no futuro".
+- **Conexão Direta com o TMDB via IA:** Criação de um módulo orquestrador (MCP) para que a IA possa fazer requisições diretamente à API do The Movie Database (TMDB), buscando informações em tempo real e enriquecendo ainda mais as recomendações.
 
 ## 🏛️ Análise Arquitetural
 
@@ -54,17 +74,20 @@ A aplicação de cada classe a uma única responsabilidade (ex: um repositório 
 - **Documentação da API:** Fastify Swagger
 - **Variáveis de Ambiente:** Dotenv
 - **Execução em TS:** `tsx`
+- **Gerenciador de Processos (Prod):** PM2
 
 ## 📖 Documentação da API (Swagger + Zod)
 
-Uma vez que a aplicação esteja rodando, a documentação interativa da API pode ser acessada em:
+Para o ambiente de desenvolvimento local, a documentação interativa da API pode ser acessada em:
 **`http://localhost:3333/swagger`**
+
+(Para a versão em produção, acesse o link no topo deste README).
 
 ### A Sinergia entre Swagger e Zod
 
 A grande vantagem desta abordagem é que a documentação da API é gerada a partir dos mesmos schemas do **Zod** que são usados para a validação das requisições. Isso garante que a documentação **nunca ficará dessincronizada** com as regras reais que a API impõe, eliminando uma fonte comum de bugs e inconsistências.
 
-## 🚀 Como Executar o Projeto
+## 🚀 Como Executar o Projeto Localmente
 
 ### Pré-requisitos
 
@@ -73,26 +96,26 @@ A grande vantagem desta abordagem é que a documentação da API é gerada a par
 
 ### Guia Passo a Passo
 
-1.  **Clone o repositório:**
+1.  **Clone o repositório:**
     ```bash
     git clone https://github.com/luanpoppe/the-right-movie-choice.git
     cd the-right-movie-choice
     ```
-2.  **Instale as dependências:**
+2.  **Instale as dependências:**
     ```bash
     npm install
     ```
-3.  **Configure as variáveis de ambiente:**
+3.  **Configure as variáveis de ambiente:**
     Copie o arquivo `.env.example` para um novo arquivo chamado `.env` e preencha sua `GEMINI_API_KEY`.
     ```bash
     cp .env.example .env
     ```
-4.  **Inicie o serviço do Redis:**
+4.  **Inicie o serviço do Redis:**
     Use o Docker Compose para subir o container do Redis em segundo plano.
     ```bash
-    docker-compose up -d
+    docker compose up -d
     ```
-5.  **Execute a aplicação:**
+5.  **Execute a aplicação:**
     ```bash
     npm start
     ```
@@ -106,29 +129,29 @@ Endpoint principal para solicitar recomendações de filmes.
 
 - **Header Obrigatório:**
 
-  - `chatid` (string): Um ID único para identificar e manter o contexto da sessão de conversa.
+  - `chatid` (string): Um ID único para identificar e manter o contexto da sessão de conversa.
 
 - **Corpo da Requisição:**
 
-  ```json
-  {
-    "userMessage": "Quero um filme de comédia leve para relaxar."
-  }
-  ```
+    ```json
+    {
+      "userMessage": "Quero um filme de comédia leve para relaxar."
+    }
+    ```
 
-- **Exemplo de uso com `curl`:**
-  ```bash
-  curl --location 'http://localhost:3333/movie/recommendation' \
-  --header 'chatid: minha-sessao-xyz-789' \
-  --header 'Content-Type: application/json' \
-  --data '{
-      "userMessage": "Sugira um filme de ficção científica com uma boa história."
-  }'
-  ```
+- **Exemplo de uso com `curl` (para a API em produção):**
+    ```bash
+    curl --location 'http://164.152.61.119:8080/movie/recommendation' \
+    --header 'chatid: minha-sessao-xyz-789' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "userMessage": "Sugira um filme de ficção científica com uma boa história."
+    }'
+    ```
 - **Respostas Possíveis:**
-  - `200 OK`: Recomendação gerada com sucesso.
-  - `400 Bad Request`: Requisição inválida (e.g., falta do header `chatid` ou do campo `userMessage`).
-  - `500 Internal Server Error`: Falha interna, como a IA retornando um formato de dados inesperado.
+  - `200 OK`: Recomendação gerada com sucesso.
+  - `400 Bad Request`: Requisição inválida (e.g., falta do header `chatid` ou do campo `userMessage`).
+  - `500 Internal Server Error`: Falha interna, como a IA retornando um formato de dados inesperado.
 
 ## 🧪 Como Executar os Testes
 
