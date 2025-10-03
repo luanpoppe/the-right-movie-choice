@@ -35,14 +35,14 @@ export class GetMovieRecommendationUseCase {
     chatResponse: string,
     chatId: string
   ) {
-    const twoMinutesInSeconds = 120;
+    const tentyMinutesInSeconds = 60 * 20;
     await this.chatHistoryRepository.addMessage(
       [
         ["user", userMessage],
         ["ai", chatResponse],
       ],
       chatId,
-      twoMinutesInSeconds
+      tentyMinutesInSeconds
     );
   }
 }
