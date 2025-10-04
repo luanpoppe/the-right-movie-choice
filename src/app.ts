@@ -5,6 +5,7 @@ import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
+import { fastifyCors } from "@fastify/cors";
 import {
   jsonSchemaTransform,
   validatorCompiler,
@@ -16,6 +17,13 @@ const app = fastify().withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
+
+app.register(fastifyCors, {
+  origin: [/^http:\/\/localhost(:\d+)?$/, /\.vercel\.app$/],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "chatId"],
+  credentials: true,
+});
 
 app.register(fastifySwagger, {
   openapi: {
@@ -33,6 +41,11 @@ app.register(fastifySwaggerUi, {
 
 app.setErrorHandler((error, app, reply) => {
   console.log({ error });
+
+  if (error.validation) {
+    console.log({ errorValidation: error.validation });
+    return reply.status(400).send({ error: error.validation });
+  }
 
   if (error instanceof BaseException) {
     return reply.status(error.statusCode).send({ error: error.message });

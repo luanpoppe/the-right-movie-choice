@@ -15,7 +15,9 @@ export const MovieRecommendationDocs: RouteShorthandOptions = {
     headers: HeadersDTOSchema,
     response: {
       200: MovieRecommendationResponseDTOSchema.describe("Success"),
-      400: z.object({ error: z.string() }).describe("Bad Request"),
+      400: z
+        .object({ error: z.string().or(z.array(z.any())) })
+        .describe("Bad Request"),
       500: z
         .object({
           error: z.enum([
@@ -23,7 +25,7 @@ export const MovieRecommendationDocs: RouteShorthandOptions = {
             "Unkown Error",
           ]),
         })
-        .describe("Internal server error"),
+        .describe("Internal Server Error"),
     },
   },
 };
