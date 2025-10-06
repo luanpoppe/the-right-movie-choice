@@ -7,7 +7,10 @@ export const SingleMovieReccomendationSchema = z.object({
   releaseYear: z.coerce.number(),
   streamingPlatform: z.string(),
   imdbRating: z.coerce.number().describe("Nota do filme no IMDb"),
-  description: z.string().describe("Breve descrição do filme"),
+  synopsis: z.string().describe("Breve sinopse do filme"),
+  whySuggestion: z
+    .string()
+    .describe("Breve motivo pelo qual o filme é uma boa sugestão"),
   durationInMinutes: z.coerce.number().describe("Duração do filme em minutos"),
 });
 
