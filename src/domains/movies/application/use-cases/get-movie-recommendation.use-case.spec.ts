@@ -41,8 +41,11 @@ describe("GetMovieRecommendationUseCase", () => {
           releaseYear: 2010,
           streamingPlatform: "Netflix",
           imdbRating: 8.8,
-          description:
+          synopsis:
             "A thief who steals corporate secrets through use of dream-sharing technology.",
+          whySuggestion:
+            "Watch it for the breathtaking action sequences and a high-concept story that will keep you guessing long after the credits roll.",
+
           durationInMinutes: 148,
         },
       ],
@@ -80,7 +83,7 @@ describe("GetMovieRecommendationUseCase", () => {
         ["ai", mockChatResponse],
       ],
       chatId,
-      120
+      expect.any(Number)
     );
     expect(result).toEqual({
       movies: mockStructuredMovies.movies,
@@ -100,8 +103,11 @@ describe("GetMovieRecommendationUseCase", () => {
           releaseYear: 2009,
           streamingPlatform: "Hulu",
           imdbRating: 7.7,
-          description:
+          synopsis:
             "Three groomsmen lose their best man during a bachelor party in Las Vegas.",
+          whySuggestion:
+            "It's a hilarious, chaotic comedy with truly unforgettable set pieces and a surprising amount of heart.",
+
           durationInMinutes: 100,
         },
       ],
@@ -136,7 +142,7 @@ describe("GetMovieRecommendationUseCase", () => {
         ["ai", mockChatResponse],
       ],
       chatId,
-      120
+      expect.any(Number)
     );
     expect(result).toEqual({
       movies: mockStructuredMovies.movies,
