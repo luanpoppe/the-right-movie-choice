@@ -10,8 +10,8 @@ export class LangchainMoviesQueryExamplesProvider
   constructor(private langchain: Langchain, private model: BaseChatModel) {}
 
   async getQueryExamples() {
-    const rawPrompt = `Entregue uma lista de 03 queries curtos de buscas criativas por filmes.
-    Exemplos de buscas criativas: "Filmes de ação dos anos 80 com personagens femininas fortes", "Filmes dos anos 2000 de fantasia com dragões", "Filmes de ficação científica que envolvam viagem no tempo`;
+    const rawPrompt = `Entregue uma lista de 03 queries curtos de buscas criativas por filmes, em inglês.
+    Exemplos de buscas criativas: "Filmes de ação dos anos 80 com personagens femininas fortes", "Filmes dos anos 2000 de fantasia com dragões", "Filmes de ficação científica que envolvam viagem no tempo. Crie novas buscas, não precisa utilizar os meus exemplos.`;
 
     const prompt = this.langchain.prompt.create({ userMessage: rawPrompt });
 
