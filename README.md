@@ -6,6 +6,8 @@
 
 Esta é uma API de recomendação de filmes construída com **Node.js** e **TypeScript**, projetada para ser robusta, escalável e de fácil manutenção. O projeto utiliza IA generativa (Google Gemini) e segue estritamente os princípios da **Clean Architecture** e **SOLID**.
 
+O repositório é um **monorepo pnpm**. O backend fica em `packages/backend`; `packages/frontend` será adicionado futuramente.
+
 ## 🚀 Em Produção (Versão Inicial)
 
 A primeira versão desta API está disponível publicamente em uma instância gratuita da **Oracle Cloud**.
@@ -92,6 +94,7 @@ A grande vantagem desta abordagem é que a documentação da API é gerada a par
 ### Pré-requisitos
 
 - Node.js (v18 ou superior)
+- [pnpm](https://pnpm.io/) (v10 ou superior)
 - Docker e Docker Compose
 
 ### Guia Passo a Passo
@@ -103,21 +106,22 @@ A grande vantagem desta abordagem é que a documentação da API é gerada a par
     ```
 2.  **Instale as dependências:**
     ```bash
-    npm install
+    pnpm install
     ```
 3.  **Configure as variáveis de ambiente:**
     Copie o arquivo `.env.example` para um novo arquivo chamado `.env` e preencha sua `GEMINI_API_KEY`.
     ```bash
-    cp .env.example .env
+    cp packages/backend/.env.example packages/backend/.env
     ```
 4.  **Inicie o serviço do Redis:**
     Use o Docker Compose para subir o container do Redis em segundo plano.
     ```bash
+    cd packages/backend
     docker compose up -d
     ```
 5.  **Execute a aplicação:**
     ```bash
-    npm start
+    pnpm start
     ```
     O servidor será iniciado em `http://localhost:3333` (ou na porta definida em seu arquivo `.env`).
 
@@ -158,5 +162,5 @@ Endpoint principal para solicitar recomendações de filmes.
 Para rodar a suíte de testes unitários, utilize o seguinte comando:
 
 ```bash
-npm test
+pnpm test
 ```
