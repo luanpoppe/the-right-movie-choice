@@ -4,7 +4,13 @@
   "private": true,
   "packageManager": "pnpm@10.20.0",
   "scripts": {
+    "dev": "pnpm --parallel --filter @the-right-movie-choice/backend --filter @the-right-movie-choice/frontend run dev",
     "start": "pnpm --filter @the-right-movie-choice/backend start",
+    "start:frontend": "pnpm --filter @the-right-movie-choice/frontend start",
+    "build": "pnpm --filter @the-right-movie-choice/frontend build",
+    "build-with-type-check": "pnpm --filter @the-right-movie-choice/frontend build-with-type-check",
+    "lint": "pnpm --filter @the-right-movie-choice/frontend lint",
+    "preview": "pnpm --filter @the-right-movie-choice/frontend preview",
     "test": "pnpm --filter @the-right-movie-choice/backend test"
   }
 }

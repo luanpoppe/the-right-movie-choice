@@ -6,7 +6,7 @@
 
 Esta é uma API de recomendação de filmes construída com **Node.js** e **TypeScript**, projetada para ser robusta, escalável e de fácil manutenção. O projeto utiliza IA generativa (Google Gemini) e segue estritamente os princípios da **Clean Architecture** e **SOLID**.
 
-O repositório é um **monorepo pnpm**. O backend fica em `packages/backend`; `packages/frontend` será adicionado futuramente.
+O repositório é um **monorepo pnpm** com `packages/backend` (API) e `packages/frontend` (React + Vite).
 
 ## 🚀 Em Produção (Versão Inicial)
 
@@ -34,7 +34,7 @@ O ambiente de produção foi configurado para garantir performance e estabilidad
 
 Esta é apenas a versão inicial do projeto. O objetivo é evoluir a aplicação com novas funcionalidades, transformando-a em uma plataforma completa de descoberta de filmes. O roadmap inclui:
 
-- **Frontend Interativo:** Desenvolvimento de uma interface de usuário amigável para consumir a API, facilitando a interação e a visualização das recomendações.
+- **Frontend Interativo:** Interface em `packages/frontend` (React + Vite) para consumir a API.
 - **Sistema de Contas e Autenticação:** Implementação de funcionalidades de cadastro, login e autenticação para oferecer uma experiência personalizada aos usuários.
 - **Histórico e Listas Pessoais:** Permitir que usuários salvem o histórico de filmes sugeridos e criem listas de "filmes para assistir no futuro".
 - **Conexão Direta com o TMDB via IA:** Criação de um módulo orquestrador (MCP) para que a IA possa fazer requisições diretamente à API do The Movie Database (TMDB), buscando informações em tempo real e enriquecendo ainda mais as recomendações.
@@ -124,6 +124,11 @@ A grande vantagem desta abordagem é que a documentação da API é gerada a par
     pnpm start
     ```
     O servidor será iniciado em `http://localhost:3333` (ou na porta definida em seu arquivo `.env`).
+
+6.  **Execute o frontend** (em outro terminal):
+    ```bash
+    pnpm dev
+    ```
 
 ## 📡 Referência da API
 
