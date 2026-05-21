@@ -1,71 +1,78 @@
-# The Right Movie Choice API
+# The Right Movie Choice
 
 [![Status do Projeto](https://img.shields.io/badge/status-ativo-success.svg)]()
 [![Linguagem](https://img.shields.io/badge/linguagem-TypeScript-blue.svg)]()
-[![Framework](https://img.shields.io/badge/framework-Fastify-lightgrey.svg)]()
 
-Esta é uma API de recomendação de filmes construída com **Node.js** e **TypeScript**, projetada para ser robusta, escalável e de fácil manutenção. O projeto utiliza IA generativa (Google Gemini) e segue estritamente os princípios da **Clean Architecture** e **SOLID**.
+Plataforma de recomendação de filmes com **API** (Node.js + Fastify) e **interface web** (React + Vite). O backend usa IA generativa (Google Gemini), segue **Clean Architecture** e **SOLID**; o frontend consome a API para chat e exibição das sugestões.
 
-O repositório é um **monorepo pnpm** com `packages/backend` (API) e `packages/frontend` (React + Vite).
+O repositório é um **monorepo pnpm**:
 
-## 🚀 Em Produção (Versão Inicial)
+```
+packages/
+  backend/   # API Fastify (@the-right-movie-choice/backend)
+  frontend/  # App React + Vite (@the-right-movie-choice/frontend)
+```
 
-A primeira versão desta API está disponível publicamente em uma instância gratuita da **Oracle Cloud**.
+## Em Produção (Versão Inicial)
 
-O ambiente de produção foi configurado para garantir performance e estabilidade, utilizando:
-- **PM2:** para gerenciamento e monitoramento do processo do servidor Node.js.
-- **Docker:** para executar o serviço do Redis de forma isolada e consistente.
+A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM2** e **Redis** via **Docker**.
 
-**A documentação interativa do Swagger para a versão em produção pode ser acessada em:**
-### **[http://164.152.61.119:8080/swagger](http://164.152.61.119:8080/swagger)**
+**Swagger (produção):** [http://164.152.61.119:8080/swagger](http://164.152.61.119:8080/swagger)
 
-## 🎬 Features Principais
+## Features Principais
 
-- **Recomendações via IA:** Sugestões de filmes baseadas em linguagem natural, com informações detalhadas (título, diretor, elenco, ano, streaming, etc.).
-- **Histórico de Conversa:** Persistência de contexto por sessão usando Redis, permitindo recomendações mais inteligentes em interações contínuas.
-- **Saída Estruturada:** A IA é instruída a retornar dados em formato JSON, que são validados com **Zod** para garantir a integridade e consistência das respostas.
-- **Respostas Conversacionais:** Além dos dados dos filmes, a API gera um texto amigável explicando as sugestões, criando uma experiência de chatbot.
-- **Arquitetura Desacoplada:** Construída com base na Clean Architecture, garantindo que a lógica de negócio seja independente de frameworks e tecnologias externas.
-- **Alta Testabilidade:** A separação de responsabilidades permite a criação de testes unitários focados e eficientes com **Vitest**, validando a lógica de negócio de forma isolada.
-- **Documentação Dinâmica:** A API conta com documentação interativa gerada automaticamente via Swagger, mantendo-se sempre sincronizada com as regras de validação da aplicação.
-- **Validação Robusta:** Utilização de **Zod** para validar variáveis de ambiente, requisições HTTP e o retorno da IA, garantindo a segurança e a previsibilidade dos dados.
+### Backend
 
-## 🌟 Próximos Passos e Melhorias Futuras
+- **Recomendações via IA:** Sugestões baseadas em linguagem natural (título, diretor, elenco, ano, streaming, etc.).
+- **Histórico de Conversa:** Contexto por sessão no Redis.
+- **Saída Estruturada:** JSON validado com **Zod**.
+- **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
+- **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
+- **Testes:** **Vitest** para casos de uso e providers.
+- **Documentação:** Swagger gerado a partir dos schemas Zod.
 
-Esta é apenas a versão inicial do projeto. O objetivo é evoluir a aplicação com novas funcionalidades, transformando-a em uma plataforma completa de descoberta de filmes. O roadmap inclui:
+### Frontend
 
-- **Frontend Interativo:** Interface em `packages/frontend` (React + Vite) para consumir a API.
-- **Sistema de Contas e Autenticação:** Implementação de funcionalidades de cadastro, login e autenticação para oferecer uma experiência personalizada aos usuários.
-- **Histórico e Listas Pessoais:** Permitir que usuários salvem o histórico de filmes sugeridos e criem listas de "filmes para assistir no futuro".
-- **Conexão Direta com o TMDB via IA:** Criação de um módulo orquestrador (MCP) para que a IA possa fazer requisições diretamente à API do The Movie Database (TMDB), buscando informações em tempo real e enriquecendo ainda mais as recomendações.
+- **Interface de chat** para pedir recomendações e ver filmes sugeridos.
+- **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
+- **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
 
-## 🏛️ Análise Arquitetural
+## Próximos Passos
 
-O projeto é uma implementação prática da **Clean Architecture**, uma abordagem que organiza o software em camadas concêntricas. O princípio fundamental é a **Regra de Dependência**, que dita que as dependências do código devem apontar sempre para dentro, das camadas externas (detalhes de tecnologia) para as camadas internas (regras de negócio).
+- **Sistema de Contas e Autenticação**
+- **Histórico e Listas Pessoais** por usuário
+- **Conexão com TMDB via IA** (orquestração MCP)
+
+## 🏛️ Análise Arquitetural do Backend
+
+O backend do projeto é uma implementação prática da **Clean Architecture**, uma abordagem que organiza o software em camadas concêntricas. O princípio fundamental é a **Regra de Dependência**, que dita que as dependências do código devem apontar sempre para dentro, das camadas externas (detalhes de tecnologia) para as camadas internas (regras de negócio).
 
 Isso significa que a camada de **Infrastructure** (onde residem frameworks e drivers de banco de dados) depende da camada de **Application** (que orquestra os casos de uso), que por sua vez depende da camada de **Domain** (o núcleo com as regras de negócio puras). Essa estrutura garante que a lógica de negócio permaneça isolada e independente de detalhes de implementação, como o banco de dados ou a API da web, tornando o sistema mais testável, flexível e fácil de manter.
 
 ### Estrutura e Princípios SOLID
 
-- **`src/domain` (Camada de Domínio):** O núcleo da aplicação. Contém as `Entities` (`MovieRecommendationEntity`) e exceções de negócio, sem dependências externas. É a representação pura do problema que estamos resolvendo.
+A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
-- **`src/application` (Camada de Aplicação):** Orquestra os fluxos de negócio.
+- **`domains/.../domain` (Camada de Domínio):** O núcleo da aplicação. Contém as `Entities` (ex: `MovieRecommendationEntity`) e exceções de negócio, sem dependências externas. É a representação pura do problema que estamos resolvendo.
 
-  - **Use Cases:** Contém a lógica da aplicação (`GetMovieRecommendationUseCase`). Ele não sabe _como_ os dados são salvos ou _como_ as recomendações são geradas, apenas que essas operações precisam acontecer.
-  - **Interfaces (Ports):** Define os contratos (`IChatHistoryRepository`, `IMovieRecommendationProvider`) que as camadas externas devem implementar. Isso materializa o **Princípio da Inversão de Dependência (DIP)**, pois os casos de uso dependem de abstrações, não de implementações.
+- **`domains/.../application` (Camada de Aplicação):** Orquestra os fluxos de negócio.
+  - **Use Cases:** Contém a lógica da aplicação (ex: `GetMovieRecommendationUseCase`). Ele não sabe _como_ os dados são salvos ou _como_ as recomendações são geradas, apenas que essas operações precisam acontecer.
+  - **Interfaces (Ports):** Define os contratos (ex: `IChatHistoryRepository`, `IMovieRecommendationProvider`) que as camadas externas devem implementar. Isso materializa o **Princípio da Inversão de Dependência (DIP)**, pois os casos de uso dependem de abstrações, não de implementações.
 
-- **`src/infrastructure` (Camada de Infraestrutura):** A camada mais externa, onde os detalhes de tecnologia residem.
-
+- **`domains/.../infrastructure` (Camada de Infraestrutura):** A camada mais externa, onde os detalhes de tecnologia residem.
   - **Adapters:** Implementa as interfaces da camada de aplicação. `ChatHistoryRedisRepository` é o adapter para o `IChatHistoryRepository`, e `LangchainMovieRecommendationProvider` é o adapter para o `IMovieRecommendationProvider`.
   - **HTTP:** Controladores, DTOs e rotas do Fastify, que servem como ponto de entrada para o mundo exterior.
   - **Factories:** Montam as classes, injetando as dependências concretas (adapters) nas abstrações exigidas pelos casos de uso. Elas garantem que a aplicação seja **Aberta para extensão, mas fechada para modificação (OCP)**.
 
-- **`src/core`:** Contém abstrações (`BaseException`, `IChatHistoryRepository`) que são compartilhadas entre múltiplos domínios, evitando duplicação.
+- **`core`:** Contém abstrações (`BaseException`, `IChatHistoryRepository`) que são compartilhadas entre múltiplos domínios, evitando duplicação.
 
 A aplicação de cada classe a uma única responsabilidade (ex: um repositório apenas persiste dados, um caso de uso apenas orquestra um fluxo) garante o **Princípio da Responsabilidade Única (SRP)**.
 
 ## 🛠️ Tecnologias Utilizadas
 
+O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologias foram divididas entre as frentes:
+
+**Backend:**
 - **Runtime:** Node.js
 - **Linguagem:** TypeScript
 - **Framework Web:** Fastify
@@ -78,94 +85,102 @@ A aplicação de cada classe a uma única responsabilidade (ex: um repositório 
 - **Execução em TS:** `tsx`
 - **Gerenciador de Processos (Prod):** PM2
 
-## 📖 Documentação da API (Swagger + Zod)
+**Frontend:**
+- **Framework UI:** React
+- **Linguagem:** TypeScript
+- **Bundler:** Vite
+- **Estilização:** Tailwind CSS
+- **Componentes:** Radix UI
+- **Requisições:** Axios
+- **Validação:** Zod
 
-Para o ambiente de desenvolvimento local, a documentação interativa da API pode ser acessada em:
-**`http://localhost:3333/swagger`**
+## Documentação da API (Swagger)
 
-(Para a versão em produção, acesse o link no topo deste README).
+**Local:** `http://localhost:3333/swagger` (com o backend rodando).
 
-### A Sinergia entre Swagger e Zod
+A documentação é gerada a partir dos mesmos schemas **Zod** usados na validação das requisições.
 
-A grande vantagem desta abordagem é que a documentação da API é gerada a partir dos mesmos schemas do **Zod** que são usados para a validação das requisições. Isso garante que a documentação **nunca ficará dessincronizada** com as regras reais que a API impõe, eliminando uma fonte comum de bugs e inconsistências.
-
-## 🚀 Como Executar o Projeto Localmente
+## Como Executar Localmente
 
 ### Pré-requisitos
 
-- Node.js (v18 ou superior)
-- [pnpm](https://pnpm.io/) (v10 ou superior)
-- Docker e Docker Compose
+- Node.js (v18+)
+- [pnpm](https://pnpm.io/) (v10+; o projeto fixa `pnpm@10.20.0` via `packageManager`)
+- Docker e Docker Compose (Redis)
 
-### Guia Passo a Passo
+### Passo a passo
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone https://github.com/luanpoppe/the-right-movie-choice.git
-    cd the-right-movie-choice
-    ```
-2.  **Instale as dependências:**
-    ```bash
-    pnpm install
-    ```
-3.  **Configure as variáveis de ambiente:**
-    Copie o arquivo `.env.example` para um novo arquivo chamado `.env` e preencha sua `GEMINI_API_KEY`.
-    ```bash
-    cp packages/backend/.env.example packages/backend/.env
-    ```
-4.  **Inicie o serviço do Redis:**
-    Use o Docker Compose para subir o container do Redis em segundo plano.
-    ```bash
-    cd packages/backend
-    docker compose up -d
-    ```
-5.  **Execute a aplicação:**
-    ```bash
-    pnpm start
-    ```
-    O servidor será iniciado em `http://localhost:3333` (ou na porta definida em seu arquivo `.env`).
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/luanpoppe/the-right-movie-choice-full.git
+   cd the-right-movie-choice-full
+   ```
 
-6.  **Execute o frontend** (em outro terminal):
-    ```bash
-    pnpm dev
-    ```
+2. **Instale as dependências (raiz):**
+   ```bash
+   pnpm install
+   ```
 
-## 📡 Referência da API
+3. **Variáveis de ambiente:**
+   ```bash
+   cp packages/backend/.env.example packages/backend/.env
+   cp packages/frontend/.env.example packages/frontend/.env
+   ```
+   No backend, preencha `GEMINI_API_KEY`. No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`).
+
+4. **Redis:**
+   ```bash
+   cd packages/backend
+   docker compose up -d
+   cd ../..
+   ```
+
+5. **Subir backend e frontend juntos (recomendado):**
+   ```bash
+   pnpm dev
+   ```
+   - API: `http://localhost:3333` (porta configurável em `packages/backend/.env`)
+   - UI: `http://localhost:5173` (Vite)
+
+### Comandos na raiz
+
+| Comando | Descrição |
+|---------|-----------|
+| `pnpm dev` | Backend + frontend em paralelo (mesmo terminal) |
+| `pnpm start` | Apenas backend (watch) |
+| `pnpm start:frontend` | Apenas frontend (Vite) |
+| `pnpm build` | Build de produção do frontend |
+| `pnpm lint` | ESLint no frontend |
+| `pnpm test` | Testes unitários do backend |
+
+Comandos também podem ser executados dentro de `packages/backend` ou `packages/frontend`.
+
+## Referência da API
 
 ### `POST /movie/recommendation`
 
-Endpoint principal para solicitar recomendações de filmes.
+- **Header obrigatório:** `chatid` (string) — ID da sessão de conversa.
+- **Body:**
+  ```json
+  {
+    "userMessage": "Quero um filme de comédia leve para relaxar."
+  }
+  ```
 
-- **Header Obrigatório:**
+**Exemplo (produção):**
+```bash
+curl --location 'http://164.152.61.119:8080/movie/recommendation' \
+  --header 'chatid: minha-sessao-xyz-789' \
+  --header 'Content-Type: application/json' \
+  --data '{"userMessage": "Sugira um filme de ficção científica com uma boa história."}'
+```
 
-  - `chatid` (string): Um ID único para identificar e manter o contexto da sessão de conversa.
+**Respostas:** `200`, `400` (validação), `500` (erro interno / schema da IA).
 
-- **Corpo da Requisição:**
-
-    ```json
-    {
-      "userMessage": "Quero um filme de comédia leve para relaxar."
-    }
-    ```
-
-- **Exemplo de uso com `curl` (para a API em produção):**
-    ```bash
-    curl --location 'http://164.152.61.119:8080/movie/recommendation' \
-    --header 'chatid: minha-sessao-xyz-789' \
-    --header 'Content-Type: application/json' \
-    --data '{
-        "userMessage": "Sugira um filme de ficção científica com uma boa história."
-    }'
-    ```
-- **Respostas Possíveis:**
-  - `200 OK`: Recomendação gerada com sucesso.
-  - `400 Bad Request`: Requisição inválida (e.g., falta do header `chatid` ou do campo `userMessage`).
-  - `500 Internal Server Error`: Falha interna, como a IA retornando um formato de dados inesperado.
-
-## 🧪 Como Executar os Testes
-
-Para rodar a suíte de testes unitários, utilize o seguinte comando:
+## Testes
 
 ```bash
 pnpm test
 ```
+
+Roda os testes unitários do pacote `packages/backend`.
