@@ -1,5 +1,6 @@
 import fastify from "fastify";
 import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
+import { usersControllers } from "./modules/users/infrastructure/http/controllers/routes";
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
@@ -60,5 +61,6 @@ app.setErrorHandler((error, app, reply) => {
 });
 
 app.register(moviesControllers);
+app.register(usersControllers);
 
 export { app };

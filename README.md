@@ -28,7 +28,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída Estruturada:** JSON validado com **Zod**.
 - **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
 - **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
-- **Usuários (persistência):** Módulo `users` com **Prisma 7** + **PostgreSQL** (entidade, repositório, `CreateUserUseCase` com hash **bcrypt**). Rotas HTTP e autenticação ainda não expostas.
+- **Cadastro de usuários:** Módulo `users` com **Prisma 7** + **PostgreSQL**, `CreateUserUseCase` (hash **bcrypt**) e **`POST /users/register`** documentado no Swagger (tag `users`). Login/JWT ainda não implementado.
 - **Testes:** **Vitest** para casos de uso e providers.
 - **Documentação:** Swagger gerado a partir dos schemas Zod.
 
@@ -40,7 +40,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ## Próximos Passos
 
-- **Autenticação e rotas HTTP de usuário** (JWT/sessão, `POST /users/register`, etc.)
+- **Autenticação de usuário** (JWT/sessão, login)
 - **Histórico e Listas Pessoais** por usuário
 - **Conexão com TMDB via IA** (orquestração MCP)
 
@@ -198,6 +198,29 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
 ```
 
 **Respostas:** `200`, `400` (validação), `500` (erro interno / schema da IA).
+
+### `POST /users/register`
+
+- **Body:**
+  ```json
+  {
+    "email": "usuario@example.com",
+    "name": "Nome do Usuário",
+    "password": "senha12345"
+  }
+  ```
+  A senha deve ter no mínimo 8 caracteres.
+
+**Exemplo (local):**
+```bash
+curl -X POST http://localhost:3333/users/register \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"usuario@example.com\",\"name\":\"Nome\",\"password\":\"senha12345\"}"
+```
+
+**Respostas:** `201` (usuário criado, sem `passwordHash`), `400` (validação), `409` (e-mail já cadastrado).
+
+> Em produção, este endpoint ainda não está disponível (PostgreSQL local apenas).
 
 ## Testes
 
