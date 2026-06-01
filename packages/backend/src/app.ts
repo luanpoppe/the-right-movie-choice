@@ -6,6 +6,7 @@ import { authControllers } from "./modules/auth/infrastructure/http/controllers/
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
+import { PrismaUtil } from "./shared/utils/prisma.util";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
 import { fastifyCors } from "@fastify/cors";
@@ -56,8 +57,13 @@ app.setErrorHandler((error, app, reply) => {
 
   if (error instanceof BaseException) {
     return reply.status(error.statusCode).send({ error: error.message });
-  } else if (error instanceof ZodError)
+  } else if (error instanceof ZodError) {
     return reply.status(400).send(z.treeifyError(error));
+  }
+
+  if (PrismaUtil.isUniqueConstraintViolation(error)) {
+    return reply.status(409).send({ error: "Resource already exists" });
+  }
 
   const isProd = env.NODE_ENV === "prod";
 
