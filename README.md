@@ -15,7 +15,7 @@ packages/
 
 ## Em Produção (Versão Inicial)
 
-A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM2** e **Redis** via **Docker**.
+A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM2** e **Redis** via **Docker**. O PostgreSQL do módulo de usuários é usado no ambiente local; o deploy em produção ainda não inclui esse banco.
 
 **Swagger (produção):** [http://164.152.61.119:8080/swagger](http://164.152.61.119:8080/swagger)
 
@@ -28,6 +28,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída Estruturada:** JSON validado com **Zod**.
 - **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
 - **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
+- **Usuários (persistência):** Módulo `users` com **Prisma 7** + **PostgreSQL** (entidade, repositório, `CreateUserUseCase` com hash **bcrypt**). Rotas HTTP e autenticação ainda não expostas.
 - **Testes:** **Vitest** para casos de uso e providers.
 - **Documentação:** Swagger gerado a partir dos schemas Zod.
 
@@ -39,7 +40,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ## Próximos Passos
 
-- **Sistema de Contas e Autenticação**
+- **Autenticação e rotas HTTP de usuário** (JWT/sessão, `POST /users/register`, etc.)
 - **Histórico e Listas Pessoais** por usuário
 - **Conexão com TMDB via IA** (orquestração MCP)
 
@@ -53,18 +54,21 @@ Isso significa que a camada de **Infrastructure** (onde residem frameworks e dri
 
 A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
-- **`domains/.../domain` (Camada de Domínio):** O núcleo da aplicação. Contém as `Entities` (ex: `MovieRecommendationEntity`) e exceções de negócio, sem dependências externas. É a representação pura do problema que estamos resolvendo.
+- **`domains/...` (ex.: filmes):** Bounded contexts legados em `src/domains/movies`, com `domain`, `application` e `infrastructure`.
 
-- **`domains/.../application` (Camada de Aplicação):** Orquestra os fluxos de negócio.
-  - **Use Cases:** Contém a lógica da aplicação (ex: `GetMovieRecommendationUseCase`). Ele não sabe _como_ os dados são salvos ou _como_ as recomendações são geradas, apenas que essas operações precisam acontecer.
-  - **Interfaces (Ports):** Define os contratos (ex: `IChatHistoryRepository`, `IMovieRecommendationProvider`) que as camadas externas devem implementar. Isso materializa o **Princípio da Inversão de Dependência (DIP)**, pois os casos de uso dependem de abstrações, não de implementações.
+- **`modules/...` (ex.: usuários):** Novos contextos em `src/modules/users`, mesma separação de camadas. O domínio inclui entidades, exceções e **ports de repositório** (ex.: `IUserRepository` em `domain/repositories`).
 
-- **`domains/.../infrastructure` (Camada de Infraestrutura):** A camada mais externa, onde os detalhes de tecnologia residem.
-  - **Adapters:** Implementa as interfaces da camada de aplicação. `ChatHistoryRedisRepository` é o adapter para o `IChatHistoryRepository`, e `LangchainMovieRecommendationProvider` é o adapter para o `IMovieRecommendationProvider`.
-  - **HTTP:** Controladores, DTOs e rotas do Fastify, que servem como ponto de entrada para o mundo exterior.
-  - **Factories:** Montam as classes, injetando as dependências concretas (adapters) nas abstrações exigidas pelos casos de uso. Elas garantem que a aplicação seja **Aberta para extensão, mas fechada para modificação (OCP)**.
+- **`domain` (Camada de Domínio):** Entidades (ex.: `UserEntity`, `MovieRecommendationEntity`), exceções de negócio e contratos de persistência, sem dependências externas.
 
-- **`core`:** Contém abstrações (`BaseException`, `IChatHistoryRepository`) que são compartilhadas entre múltiplos domínios, evitando duplicação.
+- **`application` (Camada de Aplicação):** Orquestra fluxos via **use cases** (ex.: `GetMovieRecommendationUseCase`, `CreateUserUseCase`). Depende de abstrações do domínio, não de Prisma ou Redis diretamente (**DIP**).
+
+- **`infrastructure` (Camada de Infraestrutura):** Adapters concretos (`PrismaUserRepository`, `ChatHistoryRedisRepository`), **mappers**, **factories** de composição e, onde aplicável, HTTP (controllers, DTOs, rotas Fastify).
+
+- **`core`:** Abstrações compartilhadas entre contextos (`BaseException`, `IChatHistoryRepository`).
+
+- **`shared`:** Utilitários e constantes transversais (ex.: `PrismaUtil`, `BCRYPT_SALT_ROUNDS`).
+
+- **`lib`:** Clientes técnicos (ex.: `lib/prisma`, `lib/redis`, LangChain).
 
 A aplicação de cada classe a uma única responsabilidade (ex: um repositório apenas persiste dados, um caso de uso apenas orquestra um fluxo) garante o **Princípio da Responsabilidade Única (SRP)**.
 
@@ -79,7 +83,9 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Validação de Schemas:** Zod
 - **Testes:** Vitest
 - **IA Generativa:** Google Gemini via Langchain
-- **Banco de Dados (Cache):** Redis (com `ioredis`)
+- **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
+- **Banco de Dados:** PostgreSQL (persistência) + Redis (cache de histórico de chat, `ioredis`)
+- **Senhas:** bcrypt
 - **Documentação da API:** Fastify Swagger
 - **Variáveis de Ambiente:** Dotenv
 - **Execução em TS:** `tsx`
@@ -104,9 +110,9 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
 
 ### Pré-requisitos
 
-- Node.js (v18+)
+- Node.js (v20.19+ recomendado para Prisma 7; mínimo v18+)
 - [pnpm](https://pnpm.io/) (v10+; o projeto fixa `pnpm@10.20.0` via `packageManager`)
-- Docker e Docker Compose (Redis)
+- Docker e Docker Compose (Redis e PostgreSQL)
 
 ### Passo a passo
 
@@ -126,16 +132,24 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    cp packages/backend/.env.example packages/backend/.env
    cp packages/frontend/.env.example packages/frontend/.env
    ```
-   No backend, preencha `GEMINI_API_KEY`. No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`).
+   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL` e, se usar Docker local, `POSTGRES_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT` (ex.: `5433` nos dois, se `5432` já estiver em uso no host). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`).
 
-4. **Redis:**
+4. **Infraestrutura (Redis + PostgreSQL):**
    ```bash
    cd packages/backend
    docker compose up -d
    cd ../..
    ```
 
-5. **Subir backend e frontend juntos (recomendado):**
+5. **Banco de dados (Prisma)** — após configurar o `.env`:
+   ```bash
+   cd packages/backend
+   pnpm db:generate
+   pnpm db:migrate
+   ```
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (ex.: `User`).
+
+6. **Subir backend e frontend juntos (recomendado):**
    ```bash
    pnpm dev
    ```
@@ -154,6 +168,14 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
 | `pnpm test` | Testes unitários do backend |
 
 Comandos também podem ser executados dentro de `packages/backend` ou `packages/frontend`.
+
+### Comandos do backend (`packages/backend`)
+
+| Comando | Descrição |
+|---------|-----------|
+| `pnpm db:generate` | Gera o Prisma Client |
+| `pnpm db:migrate` | Aplica migrations em desenvolvimento |
+| `pnpm db:studio` | Abre o Prisma Studio |
 
 ## Referência da API
 
