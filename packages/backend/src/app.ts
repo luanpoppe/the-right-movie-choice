@@ -1,6 +1,8 @@
 import fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
 import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
 import { usersControllers } from "./modules/users/infrastructure/http/controllers/routes";
+import { authControllers } from "./modules/auth/infrastructure/http/controllers/routes";
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
@@ -18,6 +20,10 @@ const app = fastify().withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
+
+app.register(fastifyCookie, {
+  secret: env.COOKIE_SECRET,
+});
 
 app.register(fastifyCors, {
   origin: [/^http:\/\/localhost(:\d+)?$/, /\.vercel\.app$/],
@@ -62,5 +68,6 @@ app.setErrorHandler((error, app, reply) => {
 
 app.register(moviesControllers);
 app.register(usersControllers);
+app.register(authControllers);
 
 export { app };
