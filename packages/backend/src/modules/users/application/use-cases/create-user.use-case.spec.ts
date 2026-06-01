@@ -31,7 +31,12 @@ describe("CreateUserUseCase", () => {
     userRepository = {
       findById: vi.fn().mockResolvedValue(null),
       findByEmail: vi.fn().mockResolvedValue(null),
+      findByGoogleId: vi.fn().mockResolvedValue(null),
+      findAuthByEmail: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue(mockUser),
+      createWithGoogle: vi.fn(),
+      linkGoogleAccount: vi.fn(),
+      setPasswordHash: vi.fn().mockResolvedValue(mockUser),
     };
 
     useCase = new CreateUserUseCase(userRepository);
@@ -48,7 +53,7 @@ describe("CreateUserUseCase", () => {
 
     expect(bcrypt.hash).toHaveBeenCalledWith(
       "plain-password",
-      BCRYPT_SALT_ROUNDS
+      BCRYPT_SALT_ROUNDS,
     );
     expect(userRepository.create).toHaveBeenCalledWith({
       email: input.email,
@@ -58,18 +63,48 @@ describe("CreateUserUseCase", () => {
     expect(result).toEqual(mockUser);
   });
 
-  it("should throw UserAlreadyExistsException when email is already registered", async () => {
-    vi.mocked(userRepository.findByEmail).mockResolvedValue(mockUser);
+  it("should set password when email exists from Google-only account", async () => {
+    vi.mocked(userRepository.findAuthByEmail).mockResolvedValue({
+      id: 1,
+      email: "user@example.com",
+      name: "Test User",
+      passwordHash: null,
+      googleId: "google-sub",
+    });
+
+    const result = await useCase.execute({
+      email: "user@example.com",
+      name: "Test User",
+      password: "plain-password",
+    });
+
+    expect(userRepository.setPasswordHash).toHaveBeenCalledWith(
+      1,
+      "hashed-password",
+    );
+    expect(userRepository.create).not.toHaveBeenCalled();
+    expect(result).toEqual(mockUser);
+  });
+
+  it("should throw UserAlreadyExistsException when email already has a password", async () => {
+    vi.mocked(userRepository.findAuthByEmail).mockResolvedValue({
+      id: 1,
+      email: "user@example.com",
+      name: "Test User",
+      passwordHash: "existing-hash",
+      googleId: null,
+    });
 
     await expect(
       useCase.execute({
         email: "user@example.com",
         name: "Test User",
         password: "plain-password",
-      })
+      }),
     ).rejects.toBeInstanceOf(UserAlreadyExistsException);
 
     expect(bcrypt.hash).not.toHaveBeenCalled();
     expect(userRepository.create).not.toHaveBeenCalled();
+    expect(userRepository.setPasswordHash).not.toHaveBeenCalled();
   });
 });

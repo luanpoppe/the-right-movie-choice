@@ -14,11 +14,16 @@ export class CreateUserUseCase {
   constructor(private userRepository: IUserRepository) {}
 
   async execute(input: CreateUserInput): Promise<UserEntity> {
-    const existingUser = await this.userRepository.findByEmail(input.email);
+    const authProfile = await this.userRepository.findAuthByEmail(input.email);
 
-    if (existingUser) throw new UserAlreadyExistsException(input.email);
+    if (authProfile?.passwordHash)
+      throw new UserAlreadyExistsException(input.email);
 
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
+
+    if (authProfile) {
+      return this.userRepository.setPasswordHash(authProfile.id, passwordHash);
+    }
 
     return this.userRepository.create({
       email: input.email,

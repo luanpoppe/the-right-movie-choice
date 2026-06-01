@@ -1,7 +1,7 @@
 export type UserCredentials = {
   id: number;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
 };
 
 export interface IUserCredentialsRepository {
