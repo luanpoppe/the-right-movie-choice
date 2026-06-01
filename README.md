@@ -28,7 +28,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída Estruturada:** JSON validado com **Zod**.
 - **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
 - **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
-- **Cadastro de usuários:** Módulo `users` com **Prisma 7** + **PostgreSQL**, `CreateUserUseCase` (hash **bcrypt**) e **`POST /users/register`** documentado no Swagger (tag `users`). Login/JWT ainda não implementado.
+- **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh) e logout que revoga o refresh.
 - **Testes:** **Vitest** para casos de uso e providers.
 - **Documentação:** Swagger gerado a partir dos schemas Zod.
 
@@ -40,7 +40,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ## Próximos Passos
 
-- **Autenticação de usuário** (JWT/sessão, login)
+- **Middleware de rotas protegidas** (`Authorization: Bearer`)
 - **Histórico e Listas Pessoais** por usuário
 - **Conexão com TMDB via IA** (orquestração MCP)
 
@@ -56,7 +56,7 @@ A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
 - **`domains/...` (ex.: filmes):** Bounded contexts legados em `src/domains/movies`, com `domain`, `application` e `infrastructure`.
 
-- **`modules/...` (ex.: usuários):** Novos contextos em `src/modules/users`, mesma separação de camadas. O domínio inclui entidades, exceções e **ports de repositório** (ex.: `IUserRepository` em `domain/repositories`).
+- **`modules/...` (ex.: `users`, `auth`):** Contextos em `src/modules/*`, mesma separação de camadas. O domínio inclui entidades, exceções e **ports** (ex.: `IUserRepository`, `IRefreshTokenRepository`).
 
 - **`domain` (Camada de Domínio):** Entidades (ex.: `UserEntity`, `MovieRecommendationEntity`), exceções de negócio e contratos de persistência, sem dependências externas.
 
@@ -86,6 +86,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
 - **Banco de Dados:** PostgreSQL (persistência) + Redis (cache de histórico de chat, `ioredis`)
 - **Senhas:** bcrypt
+- **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`)
 - **Documentação da API:** Fastify Swagger
 - **Variáveis de Ambiente:** Dotenv
 - **Execução em TS:** `tsx`
@@ -132,7 +133,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    cp packages/backend/.env.example packages/backend/.env
    cp packages/frontend/.env.example packages/frontend/.env
    ```
-   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL` e, se usar Docker local, `POSTGRES_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT` (ex.: `5433` nos dois, se `5432` já estiver em uso no host). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`).
+   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`, `COOKIE_SECRET` e, se usar Docker local, `POSTGRES_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT` (ex.: `5433` nos dois, se `5432` já estiver em uso no host). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`) — requisições autenticadas devem usar `withCredentials: true` no Axios para enviar o cookie de refresh.
 
 4. **Infraestrutura (Redis + PostgreSQL):**
    ```bash
@@ -176,6 +177,10 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 | `pnpm db:generate` | Gera o Prisma Client |
 | `pnpm db:migrate` | Aplica migrations em desenvolvimento |
 | `pnpm db:studio` | Abre o Prisma Studio |
+
+### Postman
+
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local**; o Postman guarda o cookie `refreshToken` após o login para usar em **Refresh** e **Logout**.
 
 ## Referência da API
 
@@ -221,6 +226,39 @@ curl -X POST http://localhost:3333/users/register \
 **Respostas:** `201` (usuário criado, sem `passwordHash`), `400` (validação), `409` (e-mail já cadastrado).
 
 > Em produção, este endpoint ainda não está disponível (PostgreSQL local apenas).
+
+### `POST /auth/login`
+
+- **Body:** `{ "email", "password" }`
+- **Resposta `200`:** `{ "accessToken", "expiresIn", "tokenType": "Bearer" }` + cookie httpOnly `refreshToken`
+- **Respostas:** `401` credenciais inválidas
+
+**Exemplo (local, salvar cookie em arquivo):**
+```bash
+curl -X POST http://localhost:3333/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d "{\"email\":\"usuario@example.com\",\"password\":\"senha12345\"}"
+```
+
+### `POST /auth/refresh`
+
+- **Cookie:** `refreshToken` (enviado automaticamente pelo navegador/Postman)
+- **Resposta `200`:** novo access token no body + novo cookie de refresh (rotação)
+- **Respostas:** `401` refresh inválido ou ausente
+
+```bash
+curl -X POST http://localhost:3333/auth/refresh -b cookies.txt -c cookies.txt
+```
+
+### `POST /auth/logout`
+
+- **Cookie:** `refreshToken`
+- **Resposta:** `204` (revoga no Redis e limpa o cookie)
+
+```bash
+curl -X POST http://localhost:3333/auth/logout -b cookies.txt
+```
 
 ## Testes
 
