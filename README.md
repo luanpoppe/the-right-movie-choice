@@ -28,7 +28,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída Estruturada:** JSON validado com **Zod**.
 - **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
 - **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
-- **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh) e logout que revoga o refresh.
+- **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail).
 - **Testes:** **Vitest** para casos de uso e providers.
 - **Documentação:** Swagger gerado a partir dos schemas Zod.
 
@@ -37,6 +37,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Interface de chat** para pedir recomendações e ver filmes sugeridos.
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
 - **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
+- **Autenticação:** telas `/login` e `/register` com senha ou botão Google (`@react-oauth/google`).
 
 ## Próximos Passos
 
@@ -86,7 +87,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
 - **Banco de Dados:** PostgreSQL (persistência) + Redis (cache de histórico de chat, `ioredis`)
 - **Senhas:** bcrypt
-- **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`)
+- **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
 - **Documentação da API:** Fastify Swagger
 - **Variáveis de Ambiente:** Dotenv
 - **Execução em TS:** `tsx`
@@ -103,7 +104,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 
 ## Documentação da API (Swagger)
 
-**Local:** `http://localhost:3333/swagger` (com o backend rodando).
+**Local:** `http://localhost:3010/swagger` (com o backend rodando).
 
 A documentação é gerada a partir dos mesmos schemas **Zod** usados na validação das requisições.
 
@@ -133,7 +134,13 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    cp packages/backend/.env.example packages/backend/.env
    cp packages/frontend/.env.example packages/frontend/.env
    ```
-   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`, `COOKIE_SECRET` e, se usar Docker local, `POSTGRES_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT` (ex.: `5433` nos dois, se `5432` já estiver em uso no host). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3333`) — requisições autenticadas devem usar `withCredentials: true` no Axios para enviar o cookie de refresh.
+   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`, `COOKIE_SECRET`, `GOOGLE_CLIENT_ID` e, se usar Docker local, `POSTGRES_PORT` e `REDIS_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT`; em `REDIS_URL`, use a mesma porta de `REDIS_PORT` (ex.: `localhost:6380` se `REDIS_PORT=6380`). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3010`) e `VITE_GOOGLE_CLIENT_ID` deve ser o **mesmo Client ID** do backend — requisições autenticadas devem usar `withCredentials: true` no Axios para enviar o cookie de refresh.
+
+   **Google Cloud Console (OAuth):**
+   1. Crie credenciais **OAuth 2.0** do tipo **Aplicativo da Web**.
+   2. Em **Origens JavaScript autorizadas**, adicione `http://localhost:3009` (e a URL do frontend em produção).
+   3. Copie o **Client ID** para `GOOGLE_CLIENT_ID` (backend) e `VITE_GOOGLE_CLIENT_ID` (frontend).
+   4. Não é necessário configurar URI de redirecionamento para o fluxo GIS + ID token usado pelo app.
 
 4. **Infraestrutura (Redis + PostgreSQL):**
    ```bash
@@ -154,8 +161,8 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    ```bash
    pnpm dev
    ```
-   - API: `http://localhost:3333` (porta configurável em `packages/backend/.env`)
-   - UI: `http://localhost:5173` (Vite)
+   - API: `http://localhost:3010` (porta configurável em `packages/backend/.env`)
+   - UI: `http://localhost:3009` (Vite)
 
 ### Comandos na raiz
 
@@ -218,14 +225,23 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
 
 **Exemplo (local):**
 ```bash
-curl -X POST http://localhost:3333/users/register \
+curl -X POST http://localhost:3010/users/register \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"usuario@example.com\",\"name\":\"Nome\",\"password\":\"senha12345\"}"
 ```
 
-**Respostas:** `201` (usuário criado, sem `passwordHash`), `400` (validação), `409` (e-mail já cadastrado).
+**Respostas:** `201` (usuário criado, sem `passwordHash`), `400` (validação), `409` (e-mail já cadastrado com senha). Se o e-mail existir apenas via Google, o cadastro nativo **define a senha** na mesma conta.
 
 > Em produção, este endpoint ainda não está disponível (PostgreSQL local apenas).
+
+### `POST /auth/google`
+
+- **Body:** `{ "idToken": "<JWT do Google Identity Services>" }`
+- **Resposta `200`:** igual ao login (`accessToken` + cookie `refreshToken`)
+- **Comportamento:** cria conta Google-only, ou vincula `googleId` a usuário nativo com o mesmo e-mail
+- **Respostas:** `401` (token inválido ou e-mail não verificado), `409` (conta já vinculada a outro Google)
+
+> O `idToken` é obtido no browser (botão Google no frontend ou DevTools). Testar via curl exige colar um token válido de curta duração.
 
 ### `POST /auth/login`
 
@@ -235,7 +251,7 @@ curl -X POST http://localhost:3333/users/register \
 
 **Exemplo (local, salvar cookie em arquivo):**
 ```bash
-curl -X POST http://localhost:3333/auth/login \
+curl -X POST http://localhost:3010/auth/login \
   -H "Content-Type: application/json" \
   -c cookies.txt \
   -d "{\"email\":\"usuario@example.com\",\"password\":\"senha12345\"}"
@@ -248,7 +264,7 @@ curl -X POST http://localhost:3333/auth/login \
 - **Respostas:** `401` refresh inválido ou ausente
 
 ```bash
-curl -X POST http://localhost:3333/auth/refresh -b cookies.txt -c cookies.txt
+curl -X POST http://localhost:3010/auth/refresh -b cookies.txt -c cookies.txt
 ```
 
 ### `POST /auth/logout`
@@ -257,7 +273,7 @@ curl -X POST http://localhost:3333/auth/refresh -b cookies.txt -c cookies.txt
 - **Resposta:** `204` (revoga no Redis e limpa o cookie)
 
 ```bash
-curl -X POST http://localhost:3333/auth/logout -b cookies.txt
+curl -X POST http://localhost:3010/auth/logout -b cookies.txt
 ```
 
 ## Testes

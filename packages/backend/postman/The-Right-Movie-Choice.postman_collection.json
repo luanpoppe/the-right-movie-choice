@@ -2,13 +2,13 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\nVariáveis da coleção:\n- `baseUrl` — URL da API (padrão: http://localhost:3333)\n- `chatId` — ID da sessão de chat (header `chatid` nas rotas de filmes)\n\nAuth: execute Login primeiro; o Postman armazena o cookie `refreshToken` para Refresh e Logout (Cookie Jar ativo).",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\nVariáveis da coleção:\n- `baseUrl` — URL da API (padrão: http://localhost:3010)\n- `chatId` — ID da sessão de chat (header `chatid` nas rotas de filmes)\n\nAuth: execute Login ou Google Auth primeiro; o Postman armazena o cookie `refreshToken` para Refresh e Logout (Cookie Jar ativo). Para Google Auth, cole um `idToken` válido obtido no login do frontend.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3333"
+      "value": "http://localhost:3010"
     },
     {
       "key": "chatId",
@@ -91,6 +91,30 @@
     {
       "name": "Auth",
       "item": [
+        {
+          "name": "Google auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<cole-o-id-token-do-google-aqui>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/google",
+            "description": "Autentica com ID token do Google. Vincula à conta nativa se o e-mail coincidir. Obtenha o token via login no frontend (DevTools > Network > POST /auth/google)."
+          },
+          "response": []
+        },
         {
           "name": "Login",
           "request": {
