@@ -14,3 +14,9 @@ export const AuthTokensResponseDTOSchema = z.object({
 });
 
 export type AuthTokensResponse = z.infer<typeof AuthTokensResponseDTOSchema>;
+
+export const GoogleAuthRequestDTOSchema = z.object({
+  idToken: z.string().min(1),
+});
+
+export type GoogleAuthRequest = z.infer<typeof GoogleAuthRequestDTOSchema>;

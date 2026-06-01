@@ -13,6 +13,8 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().default(604800), // 7 days
   REFRESH_COOKIE_NAME: z.string().default("refreshToken"),
   COOKIE_SECRET: z.string().min(1),
+
+  GOOGLE_CLIENT_ID: z.string().min(1),
 });
 
 const result = envSchema.safeParse(process.env);
