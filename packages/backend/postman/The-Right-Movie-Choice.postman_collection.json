@@ -1,0 +1,92 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "The Right Movie Choice API",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\nVariáveis da coleção:\n- `baseUrl` — URL da API (padrão: http://localhost:3333)\n- `chatId` — ID da sessão de chat (header `chatid` nas rotas de filmes)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3333"
+    },
+    {
+      "key": "chatId",
+      "value": "minha-sessao-local"
+    }
+  ],
+  "item": [
+    {
+      "name": "Movies",
+      "item": [
+        {
+          "name": "Get query examples",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/queries",
+            "description": "Retorna exemplos de perguntas para pedir recomendações de filmes."
+          },
+          "response": []
+        },
+        {
+          "name": "Movie recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "chatid",
+                "value": "{{chatId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userMessage\": \"Quero um filme de comédia leve para relaxar.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/recommendation",
+            "description": "Gera recomendações de filmes com base na mensagem do usuário. Requer header `chatid`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@example.com\",\n  \"name\": \"Nome do Usuário\",\n  \"password\": \"senha12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/users/register",
+            "description": "Cadastra um novo usuário. Senha mínima: 8 caracteres. Respostas: 201, 400, 409."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
