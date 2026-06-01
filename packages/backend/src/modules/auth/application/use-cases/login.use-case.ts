@@ -1,18 +1,14 @@
 import bcrypt from "bcrypt";
-import { randomUUID } from "node:crypto";
 import { IUserCredentialsRepository } from "@/modules/users/domain/repositories/user-credentials.repository";
 import { InvalidCredentialsException } from "../../domain/exceptions/invalid-credentials.exception";
-import { IRefreshTokenRepository } from "../../domain/repositories/refresh-token.repository";
 import { AuthTokensResult } from "../dtos/auth-tokens.dto";
 import { LoginInput } from "../dtos/login.dto";
-import { IAccessTokenProvider } from "../providers/access-token.provider";
+import { AuthSessionFacade } from "../facades/auth-session.facade";
 
 export class LoginUseCase {
   constructor(
     private userCredentialsRepository: IUserCredentialsRepository,
-    private refreshTokenRepository: IRefreshTokenRepository,
-    private accessTokenProvider: IAccessTokenProvider,
-    private refreshTokenTtlSeconds: number,
+    private authSessionFacade: AuthSessionFacade,
   ) {}
 
   async execute(input: LoginInput): Promise<AuthTokensResult> {
@@ -20,31 +16,19 @@ export class LoginUseCase {
       input.email,
     );
 
-    if (!credentials) throw new InvalidCredentialsException();
+    if (!credentials || !credentials.passwordHash) {
+      throw new InvalidCredentialsException();
+    }
 
     const passwordMatches = await bcrypt.compare(
       input.password,
       credentials.passwordHash,
     );
 
-    if (!passwordMatches) throw new InvalidCredentialsException();
+    if (!passwordMatches) {
+      throw new InvalidCredentialsException();
+    }
 
-    const refreshTokenId = randomUUID();
-
-    await this.refreshTokenRepository.save(
-      refreshTokenId,
-      credentials.id,
-      this.refreshTokenTtlSeconds,
-    );
-
-    const { accessToken, expiresIn } = await this.accessTokenProvider.sign(
-      credentials.id,
-    );
-
-    return {
-      accessToken,
-      expiresIn,
-      refreshTokenId,
-    };
+    return this.authSessionFacade.issue(credentials.id);
   }
 }

@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import bcrypt from "bcrypt";
 import { LoginUseCase } from "../login.use-case";
 import { IUserCredentialsRepository } from "@/modules/users/domain/repositories/user-credentials.repository";
-import { IRefreshTokenRepository } from "../../../domain/repositories/refresh-token.repository";
-import { IAccessTokenProvider } from "../../providers/access-token.provider";
+import { AuthSessionFacade } from "../../facades/auth-session.facade";
 import { InvalidCredentialsException } from "../../../domain/exceptions/invalid-credentials.exception";
 
 vi.mock("bcrypt", () => ({
@@ -12,17 +11,16 @@ vi.mock("bcrypt", () => ({
   },
 }));
 
-vi.mock("node:crypto", () => ({
-  randomUUID: vi.fn(() => "refresh-token-id"),
-}));
-
 describe("LoginUseCase", () => {
-  const refreshTokenTtlSeconds = 604800;
-
   let userCredentialsRepository: IUserCredentialsRepository;
-  let refreshTokenRepository: IRefreshTokenRepository;
-  let accessTokenProvider: IAccessTokenProvider;
+  let authSessionFacade: AuthSessionFacade;
   let useCase: LoginUseCase;
+
+  const tokensResult = {
+    accessToken: "access-token",
+    expiresIn: 900,
+    refreshTokenId: "refresh-token-id",
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,29 +34,14 @@ describe("LoginUseCase", () => {
       }),
     };
 
-    refreshTokenRepository = {
-      save: vi.fn().mockResolvedValue(undefined),
-      findUserIdByTokenId: vi.fn(),
-      delete: vi.fn(),
-    };
+    authSessionFacade = {
+      issue: vi.fn().mockResolvedValue(tokensResult),
+    } as unknown as AuthSessionFacade;
 
-    accessTokenProvider = {
-      sign: vi.fn().mockResolvedValue({
-        accessToken: "access-token",
-        expiresIn: 900,
-      }),
-      verify: vi.fn(),
-    };
-
-    useCase = new LoginUseCase(
-      userCredentialsRepository,
-      refreshTokenRepository,
-      accessTokenProvider,
-      refreshTokenTtlSeconds
-    );
+    useCase = new LoginUseCase(userCredentialsRepository, authSessionFacade);
   });
 
-  it("should return tokens and persist refresh token on valid credentials", async () => {
+  it("should return tokens on valid credentials", async () => {
     const result = await useCase.execute({
       email: "user@example.com",
       password: "plain-password",
@@ -66,38 +49,43 @@ describe("LoginUseCase", () => {
 
     expect(bcrypt.compare).toHaveBeenCalledWith(
       "plain-password",
-      "hashed-password"
+      "hashed-password",
     );
-    expect(refreshTokenRepository.save).toHaveBeenCalledWith(
-      "refresh-token-id",
-      1,
-      refreshTokenTtlSeconds
-    );
-    expect(accessTokenProvider.sign).toHaveBeenCalledWith(1);
-    expect(result).toEqual({
-      accessToken: "access-token",
-      expiresIn: 900,
-      refreshTokenId: "refresh-token-id",
-    });
+    expect(authSessionFacade.issue).toHaveBeenCalledWith(1);
+    expect(result).toEqual(tokensResult);
   });
 
   it("should throw InvalidCredentialsException when user is not found", async () => {
     vi.mocked(userCredentialsRepository.findByEmail).mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ email: "user@example.com", password: "plain-password" })
+      useCase.execute({ email: "user@example.com", password: "plain-password" }),
     ).rejects.toBeInstanceOf(InvalidCredentialsException);
 
-    expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+    expect(authSessionFacade.issue).not.toHaveBeenCalled();
+  });
+
+  it("should throw InvalidCredentialsException when password hash is null", async () => {
+    vi.mocked(userCredentialsRepository.findByEmail).mockResolvedValue({
+      id: 1,
+      email: "user@example.com",
+      passwordHash: null,
+    });
+
+    await expect(
+      useCase.execute({ email: "user@example.com", password: "plain-password" }),
+    ).rejects.toBeInstanceOf(InvalidCredentialsException);
+
+    expect(authSessionFacade.issue).not.toHaveBeenCalled();
   });
 
   it("should throw InvalidCredentialsException when password does not match", async () => {
     vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
     await expect(
-      useCase.execute({ email: "user@example.com", password: "wrong-password" })
+      useCase.execute({ email: "user@example.com", password: "wrong-password" }),
     ).rejects.toBeInstanceOf(InvalidCredentialsException);
 
-    expect(refreshTokenRepository.save).not.toHaveBeenCalled();
+    expect(authSessionFacade.issue).not.toHaveBeenCalled();
   });
 });
