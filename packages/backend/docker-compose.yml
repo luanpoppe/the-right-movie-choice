@@ -1,15 +1,17 @@
+name: movie-choice
+
 services:
   redis:
     image: "redis:latest"
-    container_name: redis
+    container_name: movie-choice-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
 
   postgres:
     image: postgres:16
-    container_name: postgres
+    container_name: movie-choice-postgres
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     environment:
