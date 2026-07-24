@@ -23,14 +23,18 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ### Backend
 
-- **Recomendações via IA:** Sugestões baseadas em linguagem natural (título, diretor, elenco, ano, streaming, etc.).
-- **Histórico de Conversa:** Contexto por sessão no Redis.
-- **Saída Estruturada:** JSON validado com **Zod**.
-- **Respostas Conversacionais:** Texto amigável além dos dados dos filmes.
-- **Arquitetura Desacoplada:** Clean Architecture no pacote `packages/backend`.
-- **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail).
-- **Testes:** **Vitest** para casos de uso e providers.
-- **Documentação:** Swagger gerado a partir dos schemas Zod.
+- **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão.
+- **Sugestões de busca via IA:** `GET /movie/queries` gera exemplos criativos de prompts para iniciar uma conversa.
+- **Histórico de conversa:** Contexto por sessão no Redis, identificado pelo header `chatid`.
+- **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
+- **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
+- **Rotas públicas de filmes:** Recomendações e sugestões de busca **não exigem autenticação** (middleware protegido ainda não implementado).
+- **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
+- **Logging estruturado:** **Pino** (`lib/logger`) nos fluxos de auth e cadastro.
+- **CORS:** `@fastify/cors` com `credentials: true` para `localhost` e deploys `*.vercel.app`.
+- **Arquitetura desacoplada:** Clean Architecture no pacote `packages/backend`.
+- **Testes:** **Vitest** para casos de uso, providers e mappers.
+- **Documentação:** Swagger gerado a partir dos schemas Zod via `fastify-type-provider-zod`.
 
 ### Frontend
 
@@ -61,7 +65,7 @@ A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
 - **`domain` (Camada de Domínio):** Entidades (ex.: `UserEntity`, `MovieRecommendationEntity`), exceções de negócio e contratos de persistência, sem dependências externas.
 
-- **`application` (Camada de Aplicação):** Orquestra fluxos via **use cases** (ex.: `GetMovieRecommendationUseCase`, `CreateUserUseCase`). Depende de abstrações do domínio, não de Prisma ou Redis diretamente (**DIP**).
+- **`application` (Camada de Aplicação):** Orquestra fluxos via **use cases** (ex.: `GetMovieRecommendationUseCase`, `GetMoviesQueryExamplesUseCase`, `CreateUserUseCase`, `LoginUseCase`). Depende de abstrações do domínio, não de Prisma ou Redis diretamente (**DIP**).
 
 - **`infrastructure` (Camada de Infraestrutura):** Adapters concretos (`PrismaUserRepository`, `ChatHistoryRedisRepository`), **mappers**, **factories** de composição e, onde aplicável, HTTP (controllers, DTOs, rotas Fastify).
 
@@ -69,9 +73,16 @@ A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
 - **`shared`:** Utilitários e constantes transversais (ex.: `PrismaUtil`, `BCRYPT_SALT_ROUNDS`).
 
-- **`lib`:** Clientes técnicos (ex.: `lib/prisma`, `lib/redis`, LangChain).
+- **`lib`:** Clientes e utilitários técnicos (`lib/prisma`, `lib/redis`, `lib/langchain`, `lib/logger`).
 
 A aplicação de cada classe a uma única responsabilidade (ex: um repositório apenas persiste dados, um caso de uso apenas orquestra um fluxo) garante o **Princípio da Responsabilidade Única (SRP)**.
+
+### Bootstrap HTTP (`src/app.ts`)
+
+- Validação e serialização com **fastify-type-provider-zod**.
+- **Cookies** assinados (`@fastify/cookie`) para o refresh token.
+- **CORS** com headers permitidos: `Content-Type`, `Authorization`, `chatId`.
+- **Error handler** global: `BaseException`, erros Zod, violações de unique do Prisma (`409`) e mensagem genérica em produção.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -81,17 +92,19 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Runtime:** Node.js
 - **Linguagem:** TypeScript
 - **Framework Web:** Fastify
-- **Validação de Schemas:** Zod
+- **Validação / OpenAPI:** Zod + `fastify-type-provider-zod`
 - **Testes:** Vitest
-- **IA Generativa:** Google Gemini via Langchain
+- **IA generativa:** Google Gemini via LangChain
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
-- **Banco de Dados:** PostgreSQL (persistência) + Redis (cache de histórico de chat, `ioredis`)
+- **Banco de dados:** PostgreSQL (usuários) + Redis (histórico de chat e refresh tokens, `ioredis`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
-- **Documentação da API:** Fastify Swagger
-- **Variáveis de Ambiente:** Dotenv
+- **HTTP:** `@fastify/cors`
+- **Logging:** Pino
+- **Documentação da API:** `@fastify/swagger` + `@fastify/swagger-ui`
+- **Variáveis de ambiente:** Dotenv (validadas em `src/env.ts`)
 - **Execução em TS:** `tsx`
-- **Gerenciador de Processos (Prod):** PM2
+- **Gerenciador de processos (prod):** PM2
 
 **Frontend:**
 - **Framework UI:** React
@@ -104,7 +117,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 
 ## Documentação da API (Swagger)
 
-**Local:** `http://localhost:3010/swagger` (com o backend rodando).
+**Local:** `http://localhost:3333/swagger` (porta padrão de `PORT` em `packages/backend/.env`; ajuste se alterar o `.env`).
 
 A documentação é gerada a partir dos mesmos schemas **Zod** usados na validação das requisições.
 
@@ -134,7 +147,21 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    cp packages/backend/.env.example packages/backend/.env
    cp packages/frontend/.env.example packages/frontend/.env
    ```
-   No backend, preencha `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`, `COOKIE_SECRET`, `GOOGLE_CLIENT_ID` e, se usar Docker local, `POSTGRES_PORT` e `REDIS_PORT`. A porta em `DATABASE_URL` deve ser a mesma de `POSTGRES_PORT`; em `REDIS_URL`, use a mesma porta de `REDIS_PORT` (ex.: `localhost:6380` se `REDIS_PORT=6380`). No frontend, `VITE_BACKEND_URL` aponta para a API (padrão: `http://localhost:3010`) e `VITE_GOOGLE_CLIENT_ID` deve ser o **mesmo Client ID** do backend — requisições autenticadas devem usar `withCredentials: true` no Axios para enviar o cookie de refresh.
+   No backend, preencha as variáveis abaixo (ver `packages/backend/.env.example`). A porta em `DATABASE_URL` deve coincidir com `POSTGRES_PORT`; em `REDIS_URL`, use a mesma porta de `REDIS_PORT` (padrão Docker: `localhost:6379`). No frontend, `VITE_BACKEND_URL` deve apontar para a mesma porta da API (`http://localhost:3333` por padrão) e `VITE_GOOGLE_CLIENT_ID` deve ser o **mesmo Client ID** do backend.
+
+   | Variável | Descrição |
+   |----------|-----------|
+   | `NODE_ENV` | `dev`, `prod` ou `test` |
+   | `PORT` | Porta HTTP da API (padrão: `3333`) |
+   | `DATABASE_URL` | Connection string PostgreSQL |
+   | `REDIS_URL` | Host:porta do Redis (sem protocolo) |
+   | `GEMINI_API_KEY` | Chave da API Google Gemini |
+   | `JWT_SECRET` | Segredo para assinar access tokens |
+   | `JWT_ACCESS_EXPIRES_IN` | TTL do access token (padrão: `15m`) |
+   | `REFRESH_TOKEN_TTL_SECONDS` | TTL do refresh no Redis (padrão: `604800` = 7 dias) |
+   | `REFRESH_COOKIE_NAME` | Nome do cookie httpOnly (padrão: `refreshToken`) |
+   | `COOKIE_SECRET` | Segredo para assinar cookies |
+   | `GOOGLE_CLIENT_ID` | Client ID OAuth 2.0 do Google |
 
    **Google Cloud Console (OAuth):**
    1. Crie credenciais **OAuth 2.0** do tipo **Aplicativo da Web**.
@@ -155,13 +182,13 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (ex.: `User`).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (modelo `User`: `email`, `name`, `passwordHash?`, `googleId?`).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
    pnpm dev
    ```
-   - API: `http://localhost:3010` (porta configurável em `packages/backend/.env`)
+   - API: `http://localhost:3333` (porta configurável via `PORT` em `packages/backend/.env`)
    - UI: `http://localhost:3009` (Vite)
 
 ### Comandos na raiz
@@ -191,13 +218,36 @@ Coleção e environments em [`packages/backend/postman`](packages/backend/postma
 
 ## Referência da API
 
+Rotas sob `/movie/*` são **públicas**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem `Authorization`. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+
+> Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
+
 ### `POST /movie/recommendation`
 
-- **Header obrigatório:** `chatid` (string) — ID da sessão de conversa.
+- **Header obrigatório:** `chatid` (string) — ID da sessão de conversa no Redis.
 - **Body:**
   ```json
   {
     "userMessage": "Quero um filme de comédia leve para relaxar."
+  }
+  ```
+- **Resposta `200`:**
+  ```json
+  {
+    "response": "Texto conversacional da IA.",
+    "movies": [
+      {
+        "title": "string",
+        "director": "string",
+        "actors": ["string"],
+        "releaseYear": 2010,
+        "streamingPlatform": "string",
+        "imdbRating": 8.5,
+        "synopsis": "string",
+        "whySuggestion": "string",
+        "durationInMinutes": 120
+      }
+    ]
   }
   ```
 
@@ -209,7 +259,26 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
   --data '{"userMessage": "Sugira um filme de ficção científica com uma boa história."}'
 ```
 
-**Respostas:** `200`, `400` (validação), `500` (erro interno / schema da IA).
+**Respostas:** `200`, `400` (validação / header ausente), `500` (erro interno / schema da IA).
+
+### `GET /movie/queries`
+
+- **Autenticação:** não requerida.
+- **Resposta `200`:**
+  ```json
+  {
+    "queries": [
+      { "queryExample": "Um thriller psicológico para assistir sozinho à noite" }
+    ]
+  }
+  ```
+
+**Exemplo (local):**
+```bash
+curl http://localhost:3333/movie/queries
+```
+
+**Respostas:** `200`, `500` (erro interno / schema da IA).
 
 ### `POST /users/register`
 
@@ -225,7 +294,7 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
 
 **Exemplo (local):**
 ```bash
-curl -X POST http://localhost:3010/users/register \
+curl -X POST http://localhost:3333/users/register \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"usuario@example.com\",\"name\":\"Nome\",\"password\":\"senha12345\"}"
 ```
@@ -251,7 +320,7 @@ curl -X POST http://localhost:3010/users/register \
 
 **Exemplo (local, salvar cookie em arquivo):**
 ```bash
-curl -X POST http://localhost:3010/auth/login \
+curl -X POST http://localhost:3333/auth/login \
   -H "Content-Type: application/json" \
   -c cookies.txt \
   -d "{\"email\":\"usuario@example.com\",\"password\":\"senha12345\"}"
@@ -264,7 +333,7 @@ curl -X POST http://localhost:3010/auth/login \
 - **Respostas:** `401` refresh inválido ou ausente
 
 ```bash
-curl -X POST http://localhost:3010/auth/refresh -b cookies.txt -c cookies.txt
+curl -X POST http://localhost:3333/auth/refresh -b cookies.txt -c cookies.txt
 ```
 
 ### `POST /auth/logout`
@@ -273,7 +342,7 @@ curl -X POST http://localhost:3010/auth/refresh -b cookies.txt -c cookies.txt
 - **Resposta:** `204` (revoga no Redis e limpa o cookie)
 
 ```bash
-curl -X POST http://localhost:3010/auth/logout -b cookies.txt
+curl -X POST http://localhost:3333/auth/logout -b cookies.txt
 ```
 
 ## Testes
@@ -282,4 +351,4 @@ curl -X POST http://localhost:3010/auth/logout -b cookies.txt
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend`.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit` em `packages/backend/vite.config.mts`). Cobertura atual: casos de uso de filmes, auth e users; providers LangChain; mapper de erros Prisma.
