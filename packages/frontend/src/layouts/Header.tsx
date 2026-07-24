@@ -1,5 +1,10 @@
 import { ModeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/auth/context/AuthContext";
+import { AuthService } from "@/features/auth/services/auth.service";
 import { Film } from "lucide-react";
+import { Link } from "react-router";
+import toast from "react-hot-toast";
 
 function ChangeTheme() {
   return (
@@ -33,6 +38,40 @@ function HeaderSubTitle() {
   );
 }
 
+function AuthActions() {
+  const { accessToken, clearSession } = useAuth();
+
+  async function handleLogout() {
+    try {
+      await AuthService.logout();
+      clearSession();
+      toast.success("Sessão encerrada.");
+    } catch {
+      clearSession();
+      toast.error("Não foi possível encerrar a sessão no servidor.");
+    }
+  }
+
+  if (accessToken) {
+    return (
+      <Button variant="outline" size="sm" onClick={handleLogout}>
+        Sair
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" asChild>
+        <Link to="/login">Entrar</Link>
+      </Button>
+      <Button size="sm" asChild>
+        <Link to="/register">Criar conta</Link>
+      </Button>
+    </div>
+  );
+}
+
 export function Header() {
   function reloadPage() {
     window.location.reload();
@@ -40,8 +79,8 @@ export function Header() {
 
   return (
     <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-10 shadow-sm">
-      <div className="flex">
-        <div className="container mx-auto px-6 py-6">
+      <div className="flex items-center">
+        <div className="container mx-auto flex flex-1 items-center justify-between px-6 py-6">
           <div className="flex items-center gap-3">
             <div onClick={reloadPage} className="cursor-pointer">
               <LogoIcon />
@@ -52,6 +91,8 @@ export function Header() {
               <HeaderSubTitle />
             </div>
           </div>
+
+          <AuthActions />
         </div>
 
         <ChangeTheme />

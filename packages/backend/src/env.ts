@@ -2,10 +2,19 @@ import "dotenv/config";
 import z from "zod";
 
 const envSchema = z.object({
-  PORT: z.coerce.number().default(3333),
-  GEMINI_API_KEY: z.string(),
-  REDIS_URL: z.string(),
   NODE_ENV: z.enum(["dev", "prod", "test"]),
+  PORT: z.coerce.number().default(3333),
+  REDIS_URL: z.string(),
+  DATABASE_URL: z.string().min(1),
+  GEMINI_API_KEY: z.string(),
+
+  JWT_SECRET: z.string().min(1),
+  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
+  REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().default(604800), // 7 days
+  REFRESH_COOKIE_NAME: z.string().default("refreshToken"),
+  COOKIE_SECRET: z.string().min(1),
+
+  GOOGLE_CLIENT_ID: z.string().min(1),
 });
 
 const result = envSchema.safeParse(process.env);

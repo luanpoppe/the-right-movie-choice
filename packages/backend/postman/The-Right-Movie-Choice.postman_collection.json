@@ -1,0 +1,165 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "The Right Movie Choice API",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\nVariáveis da coleção:\n- `baseUrl` — URL da API (padrão: http://localhost:3010)\n- `chatId` — ID da sessão de chat (header `chatid` nas rotas de filmes)\n\nAuth: execute Login ou Google Auth primeiro; o Postman armazena o cookie `refreshToken` para Refresh e Logout (Cookie Jar ativo). Para Google Auth, cole um `idToken` válido obtido no login do frontend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3010"
+    },
+    {
+      "key": "chatId",
+      "value": "minha-sessao-local"
+    }
+  ],
+  "item": [
+    {
+      "name": "Movies",
+      "item": [
+        {
+          "name": "Get query examples",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/queries",
+            "description": "Retorna exemplos de perguntas para pedir recomendações de filmes."
+          },
+          "response": []
+        },
+        {
+          "name": "Movie recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "chatid",
+                "value": "{{chatId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userMessage\": \"Quero um filme de comédia leve para relaxar.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/recommendation",
+            "description": "Gera recomendações de filmes com base na mensagem do usuário. Requer header `chatid`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@example.com\",\n  \"name\": \"Nome do Usuário\",\n  \"password\": \"senha12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/users/register",
+            "description": "Cadastra um novo usuário. Senha mínima: 8 caracteres. Respostas: 201, 400, 409."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Google auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<cole-o-id-token-do-google-aqui>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/google",
+            "description": "Autentica com ID token do Google. Vincula à conta nativa se o e-mail coincidir. Obtenha o token via login no frontend (DevTools > Network > POST /auth/google)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@example.com\",\n  \"password\": \"senha12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Retorna accessToken no body e refreshToken em cookie httpOnly. Execute antes de Refresh/Logout."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh access token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/refresh",
+            "description": "Usa o cookie refreshToken do Login. Rotaciona o refresh e retorna novo accessToken."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Revoga refresh no Redis e limpa o cookie."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

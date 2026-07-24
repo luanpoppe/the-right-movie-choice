@@ -32,4 +32,12 @@ export class Redis {
     const value = await this.client.get(key);
     return value ? JSON.parse(value) : [];
   }
+
+  async getString(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  async del(key: string): Promise<void> {
+    await this.client.del(key);
+  }
 }

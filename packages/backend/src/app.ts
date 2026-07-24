@@ -1,8 +1,12 @@
 import fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
 import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
+import { usersControllers } from "./modules/users/infrastructure/http/controllers/routes";
+import { authControllers } from "./modules/auth/infrastructure/http/controllers/routes";
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
+import { PrismaUtil } from "./shared/utils/prisma.util";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
 import { fastifyCors } from "@fastify/cors";
@@ -17,6 +21,10 @@ const app = fastify().withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
+
+app.register(fastifyCookie, {
+  secret: env.COOKIE_SECRET,
+});
 
 app.register(fastifyCors, {
   origin: [/^http:\/\/localhost(:\d+)?$/, /\.vercel\.app$/],
@@ -49,8 +57,13 @@ app.setErrorHandler((error, app, reply) => {
 
   if (error instanceof BaseException) {
     return reply.status(error.statusCode).send({ error: error.message });
-  } else if (error instanceof ZodError)
+  } else if (error instanceof ZodError) {
     return reply.status(400).send(z.treeifyError(error));
+  }
+
+  if (PrismaUtil.isUniqueConstraintViolation(error)) {
+    return reply.status(409).send({ error: "Resource already exists" });
+  }
 
   const isProd = env.NODE_ENV === "prod";
 
@@ -60,5 +73,7 @@ app.setErrorHandler((error, app, reply) => {
 });
 
 app.register(moviesControllers);
+app.register(usersControllers);
+app.register(authControllers);
 
 export { app };
