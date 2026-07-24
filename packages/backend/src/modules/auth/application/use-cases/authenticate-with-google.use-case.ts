@@ -1,3 +1,4 @@
+import { Logger } from "@/lib/logger/logger";
 import { IUserRepository } from "@/modules/users/domain/repositories/user.repository";
 import { GoogleAccountConflictException } from "../../domain/exceptions/google-account-conflict.exception";
 import { AuthTokensResult } from "../dtos/auth-tokens.dto";
@@ -17,13 +18,22 @@ export class AuthenticateWithGoogleUseCase {
   ) {}
 
   async execute(input: GoogleAuthInput): Promise<AuthTokensResult> {
+    Logger.info("🔐 Google login started");
+
     const googleUser = await this.googleIdTokenVerifier.verify(input.idToken);
+
+    Logger.info("🔍 Google token verified", { email: googleUser.email });
 
     const userByGoogleId = await this.userRepository.findByGoogleId(
       googleUser.sub,
     );
 
-    if (userByGoogleId) return this.authSessionFacade.issue(userByGoogleId.id);
+    if (userByGoogleId) {
+      Logger.info("✅ Google login: existing linked account", {
+        userId: userByGoogleId.id,
+      });
+      return this.authSessionFacade.issue(userByGoogleId.id);
+    }
 
     const authProfile = await this.userRepository.findAuthByEmail(
       googleUser.email,
@@ -38,6 +48,11 @@ export class AuthenticateWithGoogleUseCase {
       googleId: googleUser.sub,
     });
 
+    Logger.info("✅ Google account created", {
+      userId: newUser.id,
+      email: newUser.email,
+    });
+
     return this.authSessionFacade.issue(newUser.id);
   }
 
@@ -47,11 +62,15 @@ export class AuthenticateWithGoogleUseCase {
   ) {
     const isGoogleIdDifferent = googleId && googleId !== sub;
     if (isGoogleIdDifferent) {
+      Logger.warn("⚠️ Google login rejected: account linked to another Google ID", {
+        userId: id,
+      });
       throw new GoogleAccountConflictException();
     }
 
     if (!googleId) {
       await this.userRepository.linkGoogleAccount(id, sub);
+      Logger.info("✅ Google account linked to native user", { userId: id });
     }
 
     return this.authSessionFacade.issue(id);
