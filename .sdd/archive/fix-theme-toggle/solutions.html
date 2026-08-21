@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Opções de correção: Botão de tema desalinhado e com menu em vez de toggle — fix-theme-toggle</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#opcoes">Opções</a></li>
+      <li><a href="#recomendacao">Recomendação</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>fix-theme-toggle</strong> / opções de correção</p>
+    <h1>Opções de correção: Botão de tema desalinhado e com menu em vez de toggle</h1>
+    <p class="lp-meta">Bug · atualizado em 2026-08-21 · causa em <a href="diagnosis.html">diagnosis.html</a></p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>O botão está fora da fileira de auth (com margem) e o clique abre um menu de três modos. A persistência em <code>localStorage</code> (<code>vite-ui-theme</code>) já existe; falta alinhar o controle e fazer o clique alternar light↔dark, mantendo <code>system</code> só até a primeira escolha.</p>
+    </details>
+
+    <section id="opcoes">
+      <details class="lp-sec" open>
+        <summary><h2>Opção 1 — Toggle no mesmo flex dos atalhos (recomendada)</h2></summary>
+        <ul>
+          <li><strong>Abordagem</strong>: mover <code>ModeToggle</code> para o mesmo <code>flex items-center</code> de <code>AuthActions</code> (remover <code>ChangeTheme</code>/<code>mt-5</code>). Trocar o <code>DropdownMenu</code> por um <code>Button</code> que lê o tema resolvido (se <code>system</code>, usa <code>prefers-color-scheme</code>) e chama <code>setTheme</code> com o oposto. Não alterar a chave nem o default <code>system</code> do <code>ThemeProvider</code>.</li>
+          <li><strong>Prós</strong>: cobre as duas causas; reusa persistência; atende 1ª visita = system até o clique; pouca superfície.</li>
+          <li><strong>Contras</strong>: some a escolha explícita de "seguir o SO" depois do primeiro clique (só volta limpando o storage).</li>
+          <li><strong>Esforço / risco</strong>: baixo · 1–2 arquivos (<code>Header.tsx</code>, <code>theme-toggle.tsx</code>) · risco baixo.</li>
+        </ul>
+      </details>
+
+      <details class="lp-sec" open>
+        <summary><h2>Opção 2 — Só light/dark no provider</h2></summary>
+        <ul>
+          <li><strong>Abordagem</strong>: além do alinhamento no header, reduzir <code>Theme</code> a <code>"light" | "dark"</code>, default <code>dark</code> (ou <code>light</code>), remover ramo <code>system</code> do <code>ThemeProvider</code>. Toggle vira <code>theme === "dark" ? "light" : "dark"</code>.</li>
+          <li><strong>Prós</strong>: modelo mais simples; um único conceito de tema no app.</li>
+          <li><strong>Contras</strong>: muda o default da 1ª visita (deixa de seguir o SO); quem já tem <code>system</code> no storage precisa de fallback; toca <code>theme-provider.tsx</code> sem necessidade para o diagnóstico.</li>
+          <li><strong>Esforço / risco</strong>: baixo–médio · 3 arquivos · risco de quebrar valor antigo <code>system</code> no localStorage.</li>
+        </ul>
+      </details>
+
+      <details class="lp-sec" open>
+        <summary><h2>Opção 3 — Alinhar e manter o menu</h2></summary>
+        <ul>
+          <li><strong>Abordagem</strong>: só reposicionar o botão na fileira de auth e tirar <code>mt-5</code>. Clique continua abrindo Light/Dark/System.</li>
+          <li><strong>Prós</strong>: menor diff visual de alinhamento.</li>
+          <li><strong>Contras</strong>: não corrige a causa do clique; não atende o esperado (toggle + persistir com um clique).</li>
+          <li><strong>Esforço / risco</strong>: mínimo · 1 arquivo · risco: entrega incompleta.</li>
+        </ul>
+      </details>
+    </section>
+
+    <details class="lp-sec" id="recomendacao" open>
+      <summary><h2>Recomendação</h2></summary>
+      <p>Opção 1: corrige alinhamento e clique sem mexer no contrato do provider, e respeita <code>system</code> até o primeiro clique — o que já foi combinado no diagnóstico.</p>
+      <p>Nota: na implementação, a chave foi renomeada para <code>ui-theme</code> a pedido (divergência da Opção 1 que mantinha <code>vite-ui-theme</code>).</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:bug-fix</code>. Espelho HTML do <code>solutions.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

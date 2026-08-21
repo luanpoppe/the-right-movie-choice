@@ -1,0 +1,13 @@
+id: fix-theme-toggle
+title: Botão de tema desalinhado e com menu em vez de toggle
+created: 2026-08-21
+updated: 2026-08-21
+kind: bugfix
+state: archived
+format: both
+lang: pt-BR
+chunk_size: small
+chosen_solution: "Opção 1 — Toggle no mesmo flex dos atalhos"
+current_chunk: null
+in_review: null
+archived: 2026-08-21

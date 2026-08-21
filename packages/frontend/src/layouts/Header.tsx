@@ -6,14 +6,6 @@ import { Film } from "lucide-react";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
 
-function ChangeTheme() {
-  return (
-    <div className="mt-5 mr-5">
-      <ModeToggle />
-    </div>
-  );
-}
-
 function LogoIcon() {
   return (
     <div className="rounded-2xl bg-gradient-to-br from-primary to-accent p-2.5 shadow-lg shadow-primary/20">
@@ -79,23 +71,22 @@ export function Header() {
 
   return (
     <header className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-10 shadow-sm">
-      <div className="flex items-center">
-        <div className="container mx-auto flex flex-1 items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3">
-            <div onClick={reloadPage} className="cursor-pointer">
-              <LogoIcon />
-            </div>
-            <div onClick={reloadPage} className="cursor-pointer">
-              <HeaderTitle />
-
-              <HeaderSubTitle />
-            </div>
+      <div className="container mx-auto flex items-center justify-between px-6 py-6">
+        <div className="flex items-center gap-3">
+          <div onClick={reloadPage} className="cursor-pointer">
+            <LogoIcon />
           </div>
+          <div onClick={reloadPage} className="cursor-pointer">
+            <HeaderTitle />
 
-          <AuthActions />
+            <HeaderSubTitle />
+          </div>
         </div>
 
-        <ChangeTheme />
+        <div className="flex items-center gap-2">
+          <ModeToggle />
+          <AuthActions />
+        </div>
       </div>
     </header>
   );
