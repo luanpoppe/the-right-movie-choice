@@ -13,6 +13,12 @@ packages/
   frontend/  # App React + Vite (@the-right-movie-choice/frontend)
 ```
 
+## Spec-driven development (`lp:*`)
+
+Mudanças neste projeto (features, bug-fixes, revisões) são conduzidas com o **SDD `lp:*`**, um spec-driven development criado para este fluxo de trabalho. Artefatos ficam em `.sdd/` (config, memória, contexto do domínio, mudanças ativas e arquivo).
+
+O toolkit público está em [luanpoppe/sdd](https://github.com/luanpoppe/sdd). Skills principais: `/lp-new`, `/lp-continue`, `/lp-bug-fix`, `/lp-review`, `/lp-status`.
+
 ## Em Produção (Versão Inicial)
 
 A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM2** e **Redis** via **Docker**. O PostgreSQL do módulo de usuários é usado no ambiente local; o deploy em produção ainda não inclui esse banco.
