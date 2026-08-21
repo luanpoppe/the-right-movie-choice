@@ -6,7 +6,11 @@
 
 <!-- Como o agente deve trabalhar. Carrega SEMPRE. Não pré-supõe nada sobre features. -->
 
-(vazio — entradas serão adicionadas conforme decisões surgirem)
+- Chaves de persistência no cliente usam nome de produto/domínio, não de bundler.
+  - **Quando**: localStorage / sessionStorage
+  - **Por quê**: o nome da ferramenta (Vite, etc.) não diz o que o usuário está salvando
+  - **Exemplo**: tema da UI como `ui-theme` em vez de `vite-ui-theme`
+  - **Registrado em**: 2026-08-21
 
 ## Stack / Domínio
 

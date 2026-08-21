@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Diagnóstico: Botão de tema desalinhado e com menu em vez de toggle — fix-theme-toggle</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#sintomas">Sintomas e reprodução</a></li>
+      <li><a href="#investigacao">Investigação</a></li>
+      <li><a href="#causa">Causa raiz</a></li>
+      <li><a href="#impacto">Impacto</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>fix-theme-toggle</strong> / diagnóstico</p>
+    <h1>Diagnóstico: Botão de tema desalinhado e com menu em vez de toggle</h1>
+    <p class="lp-meta">Bug · atualizado em 2026-08-21 · opções em <a href="solutions.html">solutions.html</a></p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>O controle de tema no header não acompanha os atalhos de conta e o clique não alterna claro/escuro, o que deixa o topo da página desalinhado e impede guardar o tema com um clique.</p>
+    </details>
+
+    <details class="lp-sec" id="sintomas" open>
+      <summary><h2>Sintomas e reprodução</h2></summary>
+      <ul>
+        <li><strong>Sintoma</strong>: no header, o botão circular (ícone de lua no dark) fica mais baixo que "Entrar" / "Criar conta"; o clique abre lista Light / Dark / System.</li>
+        <li><strong>Esperado</strong>: mesma fileira e eixo vertical dos atalhos de auth; um clique alterna light↔dark; persistir no localStorage; sem chave ainda, permanece <code>system</code> até o primeiro clique.</li>
+        <li><strong>Reprodução</strong>: abrir qualquer página com Header → olhar o canto direito → clicar o botão circular.</li>
+        <li><strong>Escopo</strong>: frontend (local e deploy); todas as rotas que usam <code>Header</code>.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="investigacao" open>
+      <summary><h2>Investigação</h2></summary>
+      <ul>
+        <li><code>Header.tsx:9-14</code> — <code>ChangeTheme</code> envolve o toggle com <code>mt-5 mr-5</code>.</li>
+        <li><code>Header.tsx:82-98</code> — o bloco do tema é irmão do <code>container</code>, fora do <code>flex</code> de <code>AuthActions</code>.</li>
+        <li><code>theme-toggle.tsx:16-35</code> — <code>DropdownMenu</code> com três itens; o trigger não chama <code>setTheme</code>.</li>
+        <li><code>theme-provider.tsx:26-31</code> — default <code>system</code>; lê <code>localStorage</code> na chave <code>vite-ui-theme</code>.</li>
+        <li><code>theme-provider.tsx:53-55</code> — <code>setTheme</code> já grava no <code>localStorage</code>.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="causa" open>
+      <summary><h2>Causa raiz</h2></summary>
+      <p>Há duas causas no mesmo header: o controle vive fora da fileira de auth, com margem que o desloca; e o clique abre um menu de três modos em vez de alternar o tema resolvido. A persistência já existe — só entra em light/dark depois de uma escolha no menu.</p>
+    </details>
+
+    <details class="lp-sec" id="impacto" open>
+      <summary><h2>Impacto</h2></summary>
+      <ul>
+        <li><strong>Afeta</strong>: qualquer visitante da SPA (logado ou não); gravidade baixa (só UX do header).</li>
+        <li><strong>Risco de não corrigir</strong>: o topo da página continua desalinhado; a preferência explícita light/dark só muda se o usuário achar o menu.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:bug-fix</code>. Espelho HTML do <code>diagnosis.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>
