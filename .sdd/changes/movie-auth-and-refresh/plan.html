@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano — movie-auth-and-refresh</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes">Decisões macro</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>movie-auth-and-refresh</strong> / plan</p>
+    <h1>Auth nas rotas de filme, refresh silencioso e cota de anônimo</h1>
+    <p class="lp-meta">Atualizado em 2026-08-27</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Visitante usa o chat sem conta, mas <code>/movie/recommendation</code> é público e o SPA não renova o access. Esta mudança limita o anônimo a 2 recomendações (backend + UI), exige sessão JWT para o restante e renova o access no 401 via refresh já existente.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: anônimo pode <code>POST /movie/recommendation</code> até 2 vezes; da 3ª o backend recusa (401). Logado (Bearer válido) é ilimitado. <strong>Por quê</strong>: a regra precisa valer na API, não só na UI. <strong>Alternativa descartada</strong>: API pública com trava só no front; Bearer obrigatório em todo POST (bloqueia as 2 msgs anônimas).</li>
+        <li><strong>Decisão</strong>: <code>GET /movie/queries</code> continua público, sem cota. <strong>Por quê</strong>: não é envio de mensagem no chat. <strong>Alternativa descartada</strong>: contar queries na cota ou exigir Bearer.</li>
+        <li><strong>Decisão</strong>: identificar anônimo por cookie/id persistente, não só por <code>chatid</code>. <strong>Por quê</strong>: novo <code>chatid</code> não deve resetar a cota. <strong>Alternativa descartada</strong>: cota só por <code>chatid</code> ou por IP.</li>
+        <li><strong>Decisão</strong>: refresh silencioso no SPA só após 401 do access (<code>POST /auth/refresh</code> + retry). <strong>Por quê</strong>: reusa cookie httpOnly e <code>AuthService.refresh</code>. <strong>Alternativa descartada</strong>: timer por <code>expiresIn</code> ou os dois.</li>
+        <li><strong>Decisão</strong>: reusar hook Fastify, Redis, <code>chatid</code>, <code>AuthSessionFacade</code>, <code>authClient</code> (<code>withCredentials</code>) e <code>AuthContext</code>. <strong>Por quê</strong>: sessão e chat já existem. <strong>Alternativa descartada</strong>: módulo de guest isolado do auth atual.</li>
+        <li><strong>Decisão</strong>: ordem movie-auth-quota → silent-refresh → guest-chat-lock. <strong>Por quê</strong>: a API define a cota; o refresh evita 401 de access expirado no logado; a UI só trava o input. <strong>Alternativa descartada</strong>: UI antes do backend; refresh antes da cota.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>movie-auth-quota</strong> — Hook nas rotas de filme: Bearer ilimitado; anônimo com cookie de cota (2 POSTs de recommendation); <code>GET /movie/queries</code> público.</li>
+        <li><strong>silent-refresh</strong> — Interceptor no SPA: 401 no access dispara refresh com cookie e retenta a request.</li>
+        <li><strong>guest-chat-lock</strong> — Chat visível sem conta; após 2 envios trava o input e pede criar conta.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro:</strong> cota de 2 recomendações anônimas no backend; Bearer para o restante; cookie de guest; refresh no 401; UI de lock com mensagem para criar conta.</p>
+      <p><strong>Fora:</strong> unlink Google; set-password; Postgres em produção; histórico/listas pessoais; guard que esconde o chat; exigir login para ver a conversa.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new</code>. Espelho HTML do <code>plan.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

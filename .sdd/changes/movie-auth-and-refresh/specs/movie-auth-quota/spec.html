@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: movie-auth-quota — movie-auth-and-refresh</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-auth-and-refresh</a> / specs / <strong>movie-auth-quota</strong> / spec</p>
+    <h1>Spec: Cota anônima e Bearer nas rotas de filme</h1>
+    <p class="lp-meta">Atualizado em 2026-08-27</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>O backend aplica cota de 2 <code>POST /movie/recommendation</code> por visitante (<code>guest-id</code> httpOnly + Redis). Bearer JWT válido ignora a cota. <code>GET /movie/queries</code> permanece público, sem cota. Respostas anônimas de recommendation expõem <code>X-Guest-Remaining</code> para o SPA.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Visitante usa até duas recomendações</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente não envia Bearer válido e tem cookie <code>guest-id</code> (ou o servidor cria um)</li>
+        <li><strong>Quando</strong> faz o 1º ou 2º <code>POST /movie/recommendation</code> e a recomendação retorna 200</li>
+        <li><strong>Então</strong> a cota incrementa no Redis, o cookie <code>guest-id</code> é renovado (TTL 1 dia, httpOnly) e a resposta inclui <code>X-Guest-Remaining</code> (1 após a primeira, 0 após a segunda)</li>
+      </ul>
+      <h3>REQ-2: Terceira recomendação anônima recusada</h3>
+      <ul>
+        <li><strong>Dado que</strong> o visitante já tem 2 POSTs 200 contabilizados para aquele <code>guest-id</code></li>
+        <li><strong>Quando</strong> envia outro <code>POST /movie/recommendation</code> sem Bearer válido</li>
+        <li><strong>Então</strong> a API responde 401 e não chama o LLM; <code>X-Guest-Remaining</code> é 0</li>
+      </ul>
+      <h3>REQ-3: Bearer válido é ilimitado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o <code>Authorization: Bearer</code> verifica com o provider JWT existente (<code>JoseAccessTokenProvider</code>)</li>
+        <li><strong>Quando</strong> faz <code>POST /movie/recommendation</code></li>
+        <li><strong>Então</strong> a cota do cookie/Redis é ignorada e a recomendação segue; header de cota não é obrigatório</li>
+      </ul>
+      <h3>REQ-4: Queries públicas sem cota</h3>
+      <ul>
+        <li><strong>Dado que</strong> qualquer cliente (anônimo ou logado)</li>
+        <li><strong>Quando</strong> chama <code>GET /movie/queries</code></li>
+        <li><strong>Então</strong> a rota não exige Bearer, não incrementa cota e não depende de <code>guest-id</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Bearer presente mas inválido ou expirado → 401; não cai na cota anônima.</li>
+        <li>Falha após aceitar o POST (LLM, schema, etc.) → não incrementa a cota.</li>
+        <li>Novo <code>chatid</code> com o mesmo <code>guest-id</code> → a cota não reseta.</li>
+        <li>Cookie <code>guest-id</code> ausente no 1º POST anônimo → o servidor gera UUID, <code>Set-Cookie</code>, conta a partir do 200.</li>
+        <li>Cookie expirado (TTL 1 dia) → novo <code>guest-id</code> e cota zerada.</li>
+        <li>CORS: expor <code>X-Guest-Remaining</code> (<code>exposedHeaders</code> no <code>@fastify/cors</code>) para o SPA ler o header.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <ul>
+        <li>Rotas atuais: <code>packages/backend/src/domains/movies/infrastructure/http/controllers/routes.ts</code> (<code>POST /movie/recommendation</code>, <code>GET /movie/queries</code>). Header <code>chatid</code> permanece obrigatório no POST.</li>
+        <li>Cookie: nome <code>guest-id</code>, httpOnly, TTL 1 dia, credentials já liberadas no CORS (<code>app.ts</code>).</li>
+        <li>Redis: contador por <code>guest-id</code> (chave de domínio, ex. <code>guest:quota:&lt;id&gt;</code>). Limite = constante nomeada <code>2</code> (não env).</li>
+        <li>Header de resposta (só anônimo no POST recommendation): <code>X-Guest-Remaining</code> com <code>0</code>, <code>1</code> ou <code>2</code>.</li>
+        <li>Verificação JWT: reusar <code>IAccessTokenProvider</code> / <code>JoseAccessTokenProvider</code>; hook Fastify nas rotas de filme.</li>
+        <li>Fora desta spec: interceptor de refresh no SPA; lock do input no chat.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

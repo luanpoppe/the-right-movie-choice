@@ -2,7 +2,7 @@
 > Como as funcionalidades do projeto funcionam (macro + decisões). Mantido pelos fluxos lp:* e por lp:context. LIDO no início de todo fluxo.
 
 ## Áreas / funcionalidades
-- [Recomendações de filmes](recomendacoes-filmes/index.md) — chat com Gemini, histórico Redis e endpoints `/movie/*` (rotas públicas).
+- [Recomendações de filmes](recomendacoes-filmes/index.md) — chat com Gemini, histórico Redis, cota anônima no POST `/movie/recommendation` e `GET /movie/queries` público.
 - [Autenticação e usuários](auth/index.md) — JWT, refresh httpOnly, Google OAuth e cadastro unificado por e-mail.
 - [Frontend](frontend/index.md) — chat de recomendações, login/register e shell (header + tema).
 - [Infraestrutura](infra/index.md) — Docker (Redis/Postgres), Prisma, env, portas e deploy Vercel/Oracle.

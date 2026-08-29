@@ -1,0 +1,32 @@
+id: movie-auth-and-refresh
+title: Auth nas rotas de filme, refresh silencioso e cota de anônimo
+created: 2026-08-21
+updated: 2026-08-27
+state: awaiting-feature-spec
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: movie-auth-quota
+    title: Cota anônima e Bearer nas rotas de filme
+    summary: Hook nas rotas de filme — Bearer ilimitado; anônimo com cookie e 2 POSTs de recommendation; queries público.
+    status: done
+  - slug: silent-refresh
+    title: Refresh silencioso no SPA
+    summary: Interceptor 401 no access chama refresh com cookie e retenta a request.
+    status: pending
+  - slug: guest-chat-lock
+    title: Lock do chat após duas mensagens anônimas
+    summary: Chat visível sem conta; após 2 envios trava o input e pede criar conta.
+    status: pending
+current_feature: null
+current_chunk: null
+in_review:
+  chunks: ["F1.C4"]
+  files:
+    - packages/backend/src/domains/movies/infrastructure/factories/make-movie-recommendation-http.factory.ts
+    - packages/backend/src/domains/movies/infrastructure/http/controllers/routes.ts
+    - packages/backend/src/domains/movies/infrastructure/http/controllers/movie-recommendation.controller.ts
+    - packages/backend/src/app.ts
+    - packages/backend/src/domains/movies/domain/guest-quota.constants.ts
+  updated: 2026-08-27

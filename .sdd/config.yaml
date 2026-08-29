@@ -6,8 +6,9 @@ context_watch: off
 flowchart: on
 context: true
 implementer: subagent
-scribe: subagent
+scribe: main
 tasks_format: md
 tasks_autocontinue: on
 parallel: off
+chunk_order: inside-out
 created: 2026-08-21
