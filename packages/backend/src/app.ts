@@ -10,6 +10,7 @@ import { PrismaUtil } from "./shared/utils/prisma.util";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
 import { fastifyCors } from "@fastify/cors";
+import { GuestQuotaConstants } from "./domains/movies/domain/guest-quota.constants";
 import {
   jsonSchemaTransform,
   validatorCompiler,
@@ -30,6 +31,7 @@ app.register(fastifyCors, {
   origin: [/^http:\/\/localhost(:\d+)?$/, /\.vercel\.app$/],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "chatId"],
+  exposedHeaders: [GuestQuotaConstants.RESPONSE_HEADER_REMAINING],
   credentials: true,
 });
 
