@@ -1,6 +1,7 @@
 import axios from "axios";
 import { AccessTokenStorage } from "@/features/auth/utils/access-token.storage";
 import { env } from "@/utils/env";
+import { StringUtils } from "@/utils/string.utils";
 import { MovieSilentRefresh } from "./movie-silent-refresh";
 
 export const movieClient = axios.create({
@@ -13,10 +14,7 @@ export const movieClient = axios.create({
 
 movieClient.interceptors.request.use((config) => {
   const accessToken = AccessTokenStorage.get();
-  const hasAccessToken =
-    typeof accessToken === "string" && accessToken.length > 0;
-
-  if (!hasAccessToken) {
+  if (StringUtils.isEmptyString(accessToken)) {
     return config;
   }
 
