@@ -3,10 +3,15 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
-import { AuthTokensEnum } from "@/utils/enums/auth.enum";
+import { NavigateFunction, useNavigate } from "react-router";
+import { AccessTokenStorage } from "@/features/auth/utils/access-token.storage";
+import { AuthService } from "@/features/auth/services/auth.service";
+import { SessionExpiredHandler } from "@/lib/api/session-expired.handler";
+import { StringUtils } from "@/utils/string.utils";
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -17,23 +22,37 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const navigate = useNavigate();
   const [accessToken, setAccessTokenState] = useState<string | null>(() =>
-    sessionStorage.getItem(AuthTokensEnum.AUTH_TOKEN),
+    AccessTokenStorage.get(),
   );
 
   const setAccessToken = useCallback((token: string | null) => {
     setAccessTokenState(token);
 
-    if (token) {
-      sessionStorage.setItem(AuthTokensEnum.AUTH_TOKEN, token);
-    } else {
-      sessionStorage.removeItem(AuthTokensEnum.AUTH_TOKEN);
+    if (StringUtils.isEmptyString(token)) {
+      AccessTokenStorage.clear();
+      return;
     }
+
+    AccessTokenStorage.set(token);
   }, []);
 
   const clearSession = useCallback(() => {
     setAccessToken(null);
   }, [setAccessToken]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      void expireSessionAndGoToLogin(clearSession, navigate);
+    };
+
+    SessionExpiredHandler.register(handleSessionExpired);
+
+    return () => {
+      SessionExpiredHandler.unregister();
+    };
+  }, [clearSession, navigate]);
 
   const value = useMemo(
     () => ({ accessToken, setAccessToken, clearSession }),
@@ -41,6 +60,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+async function expireSessionAndGoToLogin(
+  clearSession: () => void,
+  navigate: NavigateFunction,
+): Promise<void> {
+  clearSession();
+
+  try {
+    await AuthService.logout();
+  } catch (error) {
+    console.warn(
+      "[AuthProvider] logout na expiração de sessão falhou; redirecionando para login",
+      error,
+    );
+  }
+
+  navigate("/login");
 }
 
 export function useAuth() {
