@@ -10,7 +10,7 @@ import {
 import { NavigateFunction, useNavigate } from "react-router";
 import { AccessTokenStorage } from "@/features/auth/utils/access-token.storage";
 import { AuthService } from "@/features/auth/services/auth.service";
-import { SessionExpiredHandler } from "@/lib/api/session-expired.handler";
+import { MovieSilentRefresh } from "@/lib/api/movie-silent-refresh";
 import { StringUtils } from "@/utils/string.utils";
 
 type AuthContextValue = {
@@ -47,10 +47,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       void expireSessionAndGoToLogin(clearSession, navigate);
     };
 
-    SessionExpiredHandler.register(handleSessionExpired);
+    MovieSilentRefresh.setOnSessionExpired(handleSessionExpired);
 
     return () => {
-      SessionExpiredHandler.unregister();
+      MovieSilentRefresh.setOnSessionExpired(null);
     };
   }, [clearSession, navigate]);
 

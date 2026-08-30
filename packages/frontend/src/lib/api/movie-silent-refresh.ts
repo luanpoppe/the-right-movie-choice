@@ -14,22 +14,15 @@ type MovieRequestConfig = InternalAxiosRequestConfig & {
 };
 
 export class MovieSilentRefresh {
-  private static logUnregisteredSessionExpired(): void {
-    console.warn(
-      "[MovieSilentRefresh] sessão expirada; handler de navegação ainda não registrado",
-    );
-  }
-
-  private static onSessionExpired: SessionExpiredHandler =
-    this.logUnregisteredSessionExpired;
+  private static onSessionExpired: SessionExpiredHandler | null = null;
   private static inFlightRefresh: Promise<string> | null = null;
 
-  static setOnSessionExpired(handler: SessionExpiredHandler): void {
+  static setOnSessionExpired(handler: SessionExpiredHandler | null): void {
     this.onSessionExpired = handler;
   }
 
   static resetForTests(): void {
-    this.onSessionExpired = this.logUnregisteredSessionExpired;
+    this.onSessionExpired = null;
     this.inFlightRefresh = null;
   }
 
@@ -98,6 +91,7 @@ export class MovieSilentRefresh {
 
   private static notifySessionExpired(): void {
     AccessTokenStorage.clear();
-    this.onSessionExpired();
+    console.warn("[MovieSilentRefresh] sessão expirada");
+    this.onSessionExpired?.();
   }
 }
