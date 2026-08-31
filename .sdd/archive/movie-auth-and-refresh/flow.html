@@ -126,12 +126,12 @@
 <body>
   <header>
     <h1>Fluxo da implementação — Auth nas rotas de filme, refresh silencioso e cota de anônimo</h1>
-    <p class="meta">Mudança <code>movie-auth-and-refresh</code> · atualizado em 2026-08-27</p>
+    <p class="meta">Mudança <code>movie-auth-and-refresh</code> · atualizado em 2026-08-31</p>
   </header>
 
   <div class="progress">
     <div class="bar"><span></span></div>
-    <p class="progress-label">4 de 4 chunks (C4 em revisão) · movie-auth-quota concluída · próxima: silent-refresh</p>
+    <p class="progress-label">10 de 10 chunks concluídos · aguardando archive</p>
   </div>
 
   <div class="legend">
@@ -159,7 +159,7 @@
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node current has-detail" data-detail="F1.C4" tabindex="0"><div class="name">F1.C4 HTTP wire</div><div class="sub">F1.C4 · routes + CORS</div><span class="hint">detalhes</span></div>
+          <div class="node done has-detail" data-detail="F1.C4" tabindex="0"><div class="name">F1.C4 HTTP wire</div><div class="sub">F1.C4 · routes + CORS</div><span class="hint">detalhes</span></div>
         </div>
       </div>
 
@@ -262,20 +262,154 @@ GET /movie/queries → sem cota</div>
       </div>
     </details>
 
-    <details class="feature pending" open>
-      <summary>2. silent-refresh <span class="tag">a fazer</span></summary>
+    <details class="feature done" open>
+      <summary>2. silent-refresh <span class="tag">concluído · 3/3</span></summary>
       <div class="flow">
         <div class="stage">
-          <div class="node pending"><div class="name">silent-refresh</div><div class="sub">spec ainda não gerada</div></div>
+          <div class="node done has-detail" data-detail="F2.C1" tabindex="0"><div class="name">movie-client</div><div class="sub">F2.C1 · AccessTokenStorage</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C2" tabindex="0"><div class="name">401 refresh</div><div class="sub">F2.C2 · MovieSilentRefresh</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C3" tabindex="0"><div class="name">AuthContext + service</div><div class="sub">F2.C3 · MovieRecommendationService</div><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F2.C1" hidden>
+          <h4>movie-client <span class="chunk-id">F2.C1 · AccessTokenStorage</span></h4>
+          <p class="what">Axios só de movies com cookie (credentials) e Bearer se existir access no sessionStorage.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>AccessTokenStorage</code> + <code>StringUtils.isEmptyString</code>. Sem token, não manda Authorization.</p>
+          <pre data-file="movie-client.ts"><code>const accessToken = AccessTokenStorage.get();
+if (StringUtils.isEmptyString(accessToken)) {
+  return config;
+}
+config.headers.Authorization = `Bearer ${accessToken}`;
+return config;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">sessionStorage vazio → request sem Authorization, withCredentials true
+authToken preenchido → Authorization: Bearer &lt;token&gt;</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>F2.C2 interceptor de 401 no mesmo client</li>
+            <li><code>auth-client</code> sem este interceptor</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C2" hidden>
+          <h4>401 refresh <span class="chunk-id">F2.C2 · MovieSilentRefresh</span></h4>
+          <p class="what">401 com token chama <code>POST /auth/refresh</code> uma vez (single-flight), grava o access e retenta. Sem token o 401 sobe.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Flag <code>_silentRefreshRetry</code> impede loop. <code>inFlightRefresh</code> + <code>finally</code> limpa o voo. Segunda 401 chama <code>onSessionExpired</code>.</p>
+          <pre data-file="movie-silent-refresh.ts"><code>if (alreadyRetried) {
+  this.notifySessionExpired();
+  return Promise.reject(error);
+}
+if (StringUtils.isEmptyString(storedAccessToken)) {
+  return Promise.reject(error);
+}
+const newAccessToken = await this.refreshOnce();
+return client.request(requestConfig);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">401 anônimo → reject, sem /auth/refresh
+401 logado → refresh cookie → sessionStorage novo → retry 1x
+retry 401 ou refresh erro → clear token + onSessionExpired</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li><code>AuthService.refresh</code> no <code>authClient</code></li>
+            <li>C3 registra o handler no AuthContext</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C3" hidden>
+          <h4>AuthContext + service <span class="chunk-id">F2.C3 · AuthContext</span></h4>
+          <p class="what">Pluga logout + <code>/login</code> no 401 definitivo. O chat passa a usar o <code>movieClient</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>useEffect</code> registra o callback em <code>MovieSilentRefresh</code>; unmount passa <code>null</code>. Logout falho ainda navega.</p>
+          <pre data-file="AuthContext.tsx"><code>MovieSilentRefresh.setOnSessionExpired(handleSessionExpired);
+return () =&gt; { MovieSilentRefresh.setOnSessionExpired(null); };</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">refresh falhou → clear token → POST /auth/logout (best-effort) → /login
+getRecommendations → movieClient POST /movie/recommendation + chatId</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li><code>MovieSilentRefresh.setOnSessionExpired</code></li>
+            <li><code>Home</code> via <code>MovieRecommendationService</code></li>
+          </ul>
         </div>
       </div>
     </details>
 
-    <details class="feature pending" open>
-      <summary>3. guest-chat-lock <span class="tag">a fazer</span></summary>
+    <details class="feature done" open>
+      <summary>3. guest-chat-lock <span class="tag">concluída · 3/3</span></summary>
       <div class="flow">
         <div class="stage">
-          <div class="node pending"><div class="name">guest-chat-lock</div><div class="sub">spec ainda não gerada</div></div>
+          <div class="node done has-detail" data-detail="F3.C1" tabindex="0"><div class="name">guest remaining</div><div class="sub">F3.C1 · GuestRemainingUtils</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F3.C2" tabindex="0"><div class="name">Home lock</div><div class="sub">F3.C2 · Home</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node current has-detail" data-detail="F3.C3" tabindex="0"><div class="name">banner + forms</div><div class="sub">F3.C3 · GuestLockBanner</div><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F3.C1" hidden>
+          <h4>guest remaining <span class="chunk-id">F3.C1 · GuestRemainingUtils</span></h4>
+          <p class="what">Lê o header de cota do POST 200.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Inteiro exato. Ausente → <code>null</code>.</p>
+          <pre data-file="movie-recommendation.service.ts"><code>const guestRemaining = GuestRemainingUtils.parseFromHeaders(headers);
+return { ...data, guestRemaining };</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">X-Guest-Remaining: 0 → guestRemaining 0
+header ausente → null</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Home usa remaining === 0 para lock</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F3.C2" hidden>
+          <h4>Home lock <span class="chunk-id">F3.C2 · Home</span></h4>
+          <p class="what">Flag em memória; com token o lock some. Reset não zera o flag. 401 anônimo sem toast.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>isGuestLocked = guestLockFlag &amp;&amp; !hasAccessToken</code>. Banner e disabled ficam no chunk da UI.</p>
+          <pre data-file="Home.tsx"><code>const isGuestLocked = guestLockFlag &amp;&amp; !hasAccessToken;
+if (isGuestLocked) return;
+// 200: remaining === 0 → setGuestLockFlag(true)
+// 401 Axios sem token → lock, sem toast</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">2º 200 remaining 0 → flag true
+login → isGuestLocked false
+reset → Welcome ainda travada
+F5 → flag some</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li><code>useAuth</code>, <code>guestRemaining</code> do service</li>
+            <li>Welcome/Chat recebem a prop</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F3.C3" hidden>
+          <h4>banner + forms <span class="chunk-id">F3.C3 · GuestLockBanner</span></h4>
+          <p class="what">UI do lock: banner PT-BR com rotas de conta; input, submit e chips desabilitados.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>isDisabled = isLoading || isGuestLocked</code>. Banner só se lock. Chips fazem early return no clique.</p>
+          <pre data-file="guest-lock-banner.tsx"><code>&lt;Button size="sm" asChild&gt;
+  &lt;Link to="/register"&gt;Criar conta&lt;/Link&gt;
+&lt;/Button&gt;
+&lt;Link to="/login"&gt;Já tem conta? Entrar&lt;/Link&gt;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">isGuestLocked true → banner + disabled
+chip clicado com lock → não preenche o input
+Link /register e /login</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>ChatForm e Form da Welcome</li>
+            <li>InputSuggestions recebe o mesmo lock</li>
+          </ul>
         </div>
       </div>
     </details>

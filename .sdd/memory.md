@@ -36,6 +36,18 @@
   - **Exemplo**: `X-Guest-Remaining` no POST /movie/recommendation
   - **Registrado em**: 2026-08-27
 
+- String vazia / ausente (`null`, `undefined`, `""`) vai para `StringUtils.isEmptyString`, não copiada em cada interceptor/hook.
+  - **Quando**: checar token, cookie ou qualquer valor que precisa ser string não vazia
+  - **Por quê**: o mesmo predicado aparecia no client de movies e no silent refresh
+  - **Exemplo**: se `StringUtils.isEmptyString(accessToken)`, não envia Bearer
+  - **Registrado em**: 2026-08-30
+
+- Classe de regra de negócio (predicados, parse) não fica no arquivo da página; vai para `utils/` da feature.
+  - **Quando**: extrair helper usado por um componente de página
+  - **Por quê**: página fica só orquestração de estado; a regra fica testável e visível no domínio
+  - **Exemplo**: `GuestChatLockUtils` em `features/movies/utils/guest-chat-lock.utils.ts`, não no final de `Home.tsx`
+  - **Registrado em**: 2026-08-31
+
 ## Stack / Domínio
 
 <!-- Decisões sobre tecnologia/arquitetura. Carrega, mas só para CONFIRMAR rápido — nunca substitui grill. -->

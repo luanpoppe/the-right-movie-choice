@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: silent-refresh — movie-auth-and-refresh</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-auth-and-refresh</a> / specs / <strong>silent-refresh</strong> / spec</p>
+    <h1>Spec: silent-refresh</h1>
+    <p class="lp-meta">Atualizado em 2026-08-30</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>O client HTTP das rotas de filme anexa o Bearer do <code>sessionStorage</code>, envia cookies e, se o access expirou (401 com token salvo), chama <code>POST /auth/refresh</code> uma vez, grava o novo access e retenta o POST original. Anônimo não dispara refresh.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Bearer no POST de recommendation</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe <code>authToken</code> em <code>sessionStorage</code></li>
+        <li><strong>Quando</strong> o SPA chama <code>POST /movie/recommendation</code></li>
+        <li><strong>Então</strong> o client de movies envia <code>Authorization: Bearer</code> e <code>withCredentials: true</code></li>
+      </ul>
+      <h3>REQ-2: Access expirado renova e retenta</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está logado e o access expirou</li>
+        <li><strong>Quando</strong> o POST de filme devolve 401</li>
+        <li><strong>Então</strong> chama <code>AuthService.refresh()</code>, salva o access no <code>sessionStorage</code> e retenta o POST uma vez</li>
+      </ul>
+      <h3>REQ-3: Anônimo não refresha</h3>
+      <ul>
+        <li><strong>Dado que</strong> não há <code>authToken</code></li>
+        <li><strong>Quando</strong> o POST devolve 401</li>
+        <li><strong>Então</strong> não chama <code>/auth/refresh</code></li>
+      </ul>
+      <h3>REQ-4: Refresh falhou</h3>
+      <ul>
+        <li><strong>Dado que</strong> o refresh retorna erro</li>
+        <li><strong>Quando</strong> o interceptor trata a falha</li>
+        <li><strong>Então</strong> limpa o access, tenta logout e navega para <code>/login</code> via react-router</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Vários 401 → um único refresh (single-flight).</li>
+        <li>Segunda 401 na retentativa → sem loop; fluxo de refresh falhou.</li>
+        <li>Interceptor só no client de movies; <code>authClient</code> sem o mesmo interceptor.</li>
+        <li><code>GET /movie/queries</code> pode ficar sem Bearer.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p><code>MovieRecommendationService</code> usa axios de movies com credentials e Bearer opcional. Refresh via <code>AuthService.refresh</code>. Token só no <code>sessionStorage</code>. Navegação via ponte no <code>AuthContext</code>.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

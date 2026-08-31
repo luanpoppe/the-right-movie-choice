@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: guest-chat-lock — movie-auth-and-refresh</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-auth-and-refresh</a> / specs / <strong>guest-chat-lock</strong> / spec</p>
+    <h1>Spec: guest-chat-lock</h1>
+    <p class="lp-meta">Atualizado em 2026-08-30</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Visitante vê o chat. Após 2 POSTs 200 anônimos (<code>X-Guest-Remaining</code> = 0) ou 401 sem login, o input trava na Welcome e no Chat; banner com <code>/register</code> e <code>/login</code>. Logado nunca trava. Sem toast genérico nesse 401. F5 destrava até a API falar de novo; reset não destrava.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Trava pelo header após o 2º 200</h3>
+      <ul>
+        <li><strong>Dado que</strong> não há <code>authToken</code> e o POST retorna 200 com <code>X-Guest-Remaining: 0</code></li>
+        <li><strong>Quando</strong> a UI processa a resposta</li>
+        <li><strong>Então</strong> input <code>disabled</code> + banner (CTA <code>/register</code> e link <code>/login</code>)</li>
+      </ul>
+      <h3>REQ-2: Trava no 401 anônimo</h3>
+      <ul>
+        <li><strong>Dado que</strong> não há token e o POST devolve 401 de cota</li>
+        <li><strong>Quando</strong> o erro sobe para a <code>Home</code></li>
+        <li><strong>Então</strong> trava igual ao REQ-1, sem toast genérico</li>
+      </ul>
+      <h3>REQ-3: Logado não trava</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe access no <code>AuthContext</code></li>
+        <li><strong>Quando</strong> envia mensagens</li>
+        <li><strong>Então</strong> o input permanece habilitado</li>
+      </ul>
+      <h3>REQ-4: Reset vs F5</h3>
+      <ul>
+        <li><strong>Dado que</strong> já está travado</li>
+        <li><strong>Quando</strong> reset (novo <code>chatId</code>)</li>
+        <li><strong>Então</strong> Welcome também permanece travada</li>
+        <li><strong>Quando</strong> F5</li>
+        <li><strong>Então</strong> o lock some até o próximo remaining 0 ou 401 anônimo</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Header ausente no 200 → não trava só por isso.</li>
+        <li>Reset não zera o flag de lock da sessão React.</li>
+        <li>Login remove o lock mesmo com flag local true.</li>
+        <li>401 com token segue o silent-refresh, não este banner.</li>
+        <li><code>GET /movie/queries</code> não trava.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p>Header <code>X-Guest-Remaining</code> (Axios em minúsculas). Service/Home precisam do remaining. <code>ChatForm</code> e <code>welcome/Form</code> recebem lock. Rotas <code>/register</code> e <code>/login</code>. Sem persistir lock em storage.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

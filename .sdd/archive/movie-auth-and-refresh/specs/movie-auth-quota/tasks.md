@@ -17,9 +17,9 @@ Metadados (bullets, não checkboxes):
 - **Depende de**: nenhum
 - **Ordem de revisão**: 1) `guest-quota.constants.ts` → 2) `guest-quota.repository.ts` → 3) `redis-guest-quota.repository.ts`
 
-Passos (checkboxes — marcados `[~]` ao implementar):
-- [~] **Faz**: constante limite 2 + porta `IGuestQuotaRepository` + Redis (`guest:quota:<id>`, TTL 1 dia)
-- [~] **Validação**: `npx vitest run --project unit` em `packages/backend`
+Passos (checkboxes — marcados `[x]` ao implementar):
+- [x] **Faz**: constante limite 2 + porta `IGuestQuotaRepository` + Redis (`guest:quota:<id>`, TTL 1 dia)
+- [x] **Validação**: `npx vitest run --project unit` em `packages/backend`
 
 ### F1.C2 — Serviço de cota (remaining e incremento)
 
@@ -28,9 +28,9 @@ Metadados (bullets, não checkboxes):
 - **Depende de**: F1.C1
 - **Ordem de revisão**: 1) exception → 2) service → 3) spec
 
-Passos (checkboxes — marcados `[~]` ao implementar):
-- [~] **Faz**: serviço que calcula remaining (limit - used), sabe se pode aceitar POST anônimo, incrementa só quando chamado após 200; exception 401 se cota esgotada
-- [~] **Validação**: `npx vitest run --project unit` em `packages/backend`
+Passos (checkboxes — marcados `[x]` ao implementar):
+- [x] **Faz**: serviço que calcula remaining (limit - used), sabe se pode aceitar POST anônimo, incrementa só quando chamado após 200; exception 401 se cota esgotada
+- [x] **Validação**: `npx vitest run --project unit` em `packages/backend`
 
 ### F1.C3 — Hook Fastify Bearer vs visitante
 
@@ -39,9 +39,9 @@ Metadados (bullets, não checkboxes):
 - **Depende de**: F1.C2
 - **Ordem de revisão**: 1) exception Bearer → 2) hook → 3) spec
 
-Passos (checkboxes — marcados `[~]` ao implementar):
-- [~] **Faz**: preHandler — Bearer válido ignora cota; Bearer inválido/expirado 401 sem cota; sem Bearer lê/gera guest-id e recusa se cota esgotada (ainda sem Set-Cookie/header HTTP)
-- [~] **Validação**: `npx vitest run --project unit` em `packages/backend`
+Passos (checkboxes — marcados `[x]` ao implementar):
+- [x] **Faz**: preHandler — Bearer válido ignora cota; Bearer inválido/expirado 401 sem cota; sem Bearer lê/gera guest-id e recusa se cota esgotada (ainda sem Set-Cookie/header HTTP)
+- [x] **Validação**: `npx vitest run --project unit` em `packages/backend`
 
 ### F1.C4 — Wire na rota, cookie, header e CORS
 
@@ -50,6 +50,6 @@ Metadados (bullets, não checkboxes):
 - **Depende de**: F1.C3
 - **Ordem de revisão**: 1) hook na rota POST → 2) increment+cookie+header no 200 → 3) CORS exposeHeaders; GET /movie/queries intacto
 
-Passos (checkboxes — marcados `[~]` ao implementar):
-- [~] **Faz**: registra o hook só no POST recommendation; no 200 anônimo incrementa Redis, Set-Cookie `guest-id` httpOnly TTL 1 dia, header `X-Guest-Remaining`; CORS `exposeHeaders`; queries sem cota
-- [~] **Validação**: `npx vitest run --project unit` em `packages/backend`
+Passos (checkboxes — marcados `[x]` ao implementar):
+- [x] **Faz**: registra o hook só no POST recommendation; no 200 anônimo incrementa Redis, Set-Cookie `guest-id` httpOnly TTL 1 dia, header `X-Guest-Remaining`; CORS `exposeHeaders`; queries sem cota
+- [x] **Validação**: `npx vitest run --project unit` em `packages/backend`

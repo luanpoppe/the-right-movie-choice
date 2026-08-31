@@ -4,5 +4,5 @@
 ## Áreas / funcionalidades
 - [Recomendações de filmes](recomendacoes-filmes/index.md) — chat com Gemini, histórico Redis, cota anônima no POST `/movie/recommendation` e `GET /movie/queries` público.
 - [Autenticação e usuários](auth/index.md) — JWT, refresh httpOnly, Google OAuth e cadastro unificado por e-mail.
-- [Frontend](frontend/index.md) — chat de recomendações, login/register e shell (header + tema).
+- [Frontend](frontend/index.md) — chat de recomendações, lock anônimo, login/register, refresh silencioso no SPA e shell (header + tema).
 - [Infraestrutura](infra/index.md) — Docker (Redis/Postgres), Prisma, env, portas e deploy Vercel/Oracle.
