@@ -10,6 +10,7 @@ interface ChatProps {
   displayMessages: ChatEntity;
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isGuestLocked?: boolean;
 }
 
 export function Chat({
@@ -17,6 +18,7 @@ export function Chat({
   isLoading,
   displayMessages,
   handleReset,
+  isGuestLocked = false,
 }: ChatProps) {
   return (
     <div className="flex-1 flex flex-col container mx-auto max-w-5xl px-6 py-8">
@@ -40,7 +42,11 @@ export function Chat({
         {isLoading && <LoadingScreen />}
       </div>
 
-      <ChatForm handleSubmit={handleSubmit} isLoading={isLoading} />
+      <ChatForm
+        handleSubmit={handleSubmit}
+        isLoading={isLoading}
+        isGuestLocked={isGuestLocked}
+      />
     </div>
   );
 }

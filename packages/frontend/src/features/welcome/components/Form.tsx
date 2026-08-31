@@ -6,6 +6,7 @@ import { InputSuggestions } from "./InputSuggestions";
 interface FormProps {
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isGuestLocked?: boolean;
 }
 
 export function Form({ handleSubmit, isLoading }: FormProps) {

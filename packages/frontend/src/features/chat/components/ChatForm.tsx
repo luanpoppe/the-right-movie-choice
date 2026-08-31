@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 interface ChatFormProps {
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
+  isGuestLocked?: boolean;
 }
 
 export function ChatForm({ isLoading, handleSubmit }: ChatFormProps) {
