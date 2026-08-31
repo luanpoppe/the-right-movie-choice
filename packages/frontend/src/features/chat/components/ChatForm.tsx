@@ -1,6 +1,7 @@
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
 
 interface ChatFormProps {
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
@@ -8,23 +9,30 @@ interface ChatFormProps {
   isGuestLocked?: boolean;
 }
 
-export function ChatForm({ isLoading, handleSubmit }: ChatFormProps) {
+export function ChatForm({
+  isLoading,
+  handleSubmit,
+  isGuestLocked = false,
+}: ChatFormProps) {
+  const isDisabled = isLoading || isGuestLocked;
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky bottom-0 bg-background/80 backdrop-blur-xl pt-6 pb-4"
+      className="sticky bottom-0 bg-background/80 backdrop-blur-xl pt-6 pb-4 space-y-3"
     >
+      {isGuestLocked && <GuestLockBanner />}
       <div className="flex gap-3 p-2 rounded-3xl bg-card/80 border border-border/50 shadow-lg">
         <Input
           name="message"
           placeholder="Describe the type of movie you want to watch..."
-          disabled={isLoading}
+          disabled={isDisabled}
           className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
           autoComplete="off"
         />
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isDisabled}
           size="icon"
           className="rounded-2xl h-11 w-11 bg-gradient-to-br from-primary to-accent hover:shadow-lg hover:shadow-primary/30 transition-all"
         >

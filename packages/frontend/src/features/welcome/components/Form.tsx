@@ -1,6 +1,7 @@
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
 import { InputSuggestions } from "./InputSuggestions";
 
 interface FormProps {
@@ -9,21 +10,28 @@ interface FormProps {
   isGuestLocked?: boolean;
 }
 
-export function Form({ handleSubmit, isLoading }: FormProps) {
+export function Form({
+  handleSubmit,
+  isLoading,
+  isGuestLocked = false,
+}: FormProps) {
+  const isDisabled = isLoading || isGuestLocked;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {isGuestLocked && <GuestLockBanner />}
       <div className="relative">
         <Input
           name="message"
           placeholder="What kind of movie are you looking for? (e.g., 'a thrilling sci-fi movie' or 'something funny to watch with friends')"
-          disabled={isLoading}
+          disabled={isDisabled}
           className="h-16 text-lg rounded-2xl bg-card/80 border-border/50 pr-16 shadow-lg focus-visible:ring-2 focus-visible:ring-primary/20 dark:text-black"
           autoComplete="off"
           autoFocus
         />
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isDisabled}
           size="icon"
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl h-12 w-12 bg-gradient-to-br from-primary to-accent hover:shadow-lg hover:shadow-primary/30 transition-all"
         >
@@ -31,7 +39,7 @@ export function Form({ handleSubmit, isLoading }: FormProps) {
         </Button>
       </div>
 
-      <InputSuggestions isLoading={isLoading} />
+      <InputSuggestions isLoading={isLoading} isGuestLocked={isGuestLocked} />
     </form>
   );
 }
