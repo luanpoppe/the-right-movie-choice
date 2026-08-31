@@ -1,0 +1,22 @@
+id: movie-auth-and-refresh
+title: Auth nas rotas de filme, refresh silencioso e cota de anônimo
+created: 2026-08-21
+updated: 2026-08-31
+state: archived
+archived: 2026-08-31
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: movie-auth-quota
+    title: Cota anônima e Bearer nas rotas de filme
+    summary: Hook nas rotas de filme — Bearer ilimitado; anônimo com cookie e 2 POSTs de recommendation; queries público.
+    status: done
+  - slug: silent-refresh
+    title: Refresh silencioso no SPA
+    summary: Interceptor 401 no access chama refresh com cookie e retenta a request.
+    status: done
+  - slug: guest-chat-lock
+    title: Lock do chat após duas mensagens anônimas
+    summary: Chat visível sem conta; após 2 envios trava o input e pede criar conta.
+    status: done

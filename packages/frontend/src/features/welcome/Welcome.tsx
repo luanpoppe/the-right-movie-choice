@@ -5,9 +5,14 @@ import { Form } from "./components/Form";
 interface WelcomeProps {
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isGuestLocked?: boolean;
 }
 
-export function Welcome({ isLoading, handleSubmit }: WelcomeProps) {
+export function Welcome({
+  isLoading,
+  handleSubmit,
+  isGuestLocked = false,
+}: WelcomeProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
       <div className="max-w-3xl w-full space-y-12">
@@ -15,7 +20,11 @@ export function Welcome({ isLoading, handleSubmit }: WelcomeProps) {
 
         <Features />
 
-        <Form isLoading={isLoading} handleSubmit={handleSubmit} />
+        <Form
+          isLoading={isLoading}
+          handleSubmit={handleSubmit}
+          isGuestLocked={isGuestLocked}
+        />
       </div>
     </div>
   );
