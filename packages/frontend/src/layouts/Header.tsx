@@ -2,16 +2,19 @@ import { ModeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { AuthService } from "@/features/auth/services/auth.service";
-import { Film } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import toast from "react-hot-toast";
 import type { ReactNode } from "react";
 
 function LogoIcon() {
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-primary to-accent p-2.5 shadow-lg shadow-primary/20">
-      <Film className="w-6 h-6 text-primary-foreground" />
-    </div>
+    <img
+      src="/favicon.png"
+      alt=""
+      width={48}
+      height={48}
+      className="h-12 w-12 drop-shadow-lg"
+    />
   );
 }
 
