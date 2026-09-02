@@ -34,7 +34,7 @@
     .meta { color: var(--muted); font-size: .85rem; margin: 0; }
     .progress { max-width: 900px; margin: 1rem auto; }
     .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); overflow: hidden; border: 1px solid var(--line); }
-    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 75%; transition: width .3s; }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 50%; transition: width .3s; }
     .progress-label { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
 
     .legend { max-width: 900px; margin: 0 auto 1.5rem; display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; }
@@ -131,7 +131,7 @@
 
   <div class="progress">
     <div class="bar"><span></span></div>
-    <p class="progress-label">3 de 4 chunks concluídos · feature atual: tmdb-http-client (3/4)</p>
+    <p class="progress-label">Feature tmdb-http-client concluída (4/4) · próxima: spec de tmdb-movie-queries</p>
   </div>
 
   <div class="legend">
@@ -143,8 +143,8 @@
   <p class="meta" style="max-width:900px;margin:-.5rem auto 1.5rem;">Clique num nó já implementado para ver o que ele faz, exemplo dos dados e um trecho ilustrativo.</p>
 
   <main>
-    <details class="feature current" open>
-      <summary>1. tmdb-http-client <span class="tag">em andamento · 3/4</span></summary>
+    <details class="feature done" open>
+      <summary>1. tmdb-http-client <span class="tag">concluída · 4/4</span></summary>
       <div class="flow">
         <div class="stage">
           <div class="node done has-detail" data-detail="F1.C1" tabindex="0"><div class="name">Env</div><div class="sub">F1.C1 · env.ts</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
@@ -159,7 +159,7 @@
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node current"><div class="name">Client HTTP</div><div class="sub">F1.C4 · TmdbHttpClient</div><span class="badge">►</span></div>
+          <div class="node done has-detail" data-detail="F1.C4" tabindex="0"><div class="name">Client HTTP</div><div class="sub">F1.C4 · TmdbHttpClient</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
       </div>
       <div class="detail-panel" hidden>
@@ -236,6 +236,37 @@ getMovieDetails(11) → GET /movie/11
           <ul>
             <li>Implementada pelo adapter TMDB no próximo chunk.</li>
             <li>Mesma pasta de <code>IMovieRecommendationProvider</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C4" hidden>
+          <h4>Client HTTP <span class="chunk-id">F1.C4 · TmdbHttpClient</span></h4>
+          <p class="what">Adapter TMDB v3 que implementa a porta de catálogo: Bearer, timeout, retry só em 429/5xx, erros <code>TmdbHttpException</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>searchMovies</code> e <code>getMovieDetails</code> montam query via <code>TmdbHttpUtils</code> e chamam <code>getJson</code> (3 tentativas). Token vazio falha antes do <code>fetch</code>. Factory injeta <code>fetch</code>/<code>delay</code> via <code>Params</code>.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-http.client.ts"><code>async searchMovies(query: string, page?: number): Promise&lt;unknown&gt; {
+  const pageNumber = page ?? 1;
+  searchParams.set("language", TmdbHttpConstants.DEFAULT_LANGUAGE);
+  return this.getJson("/search/movie", searchParams);
+}
+const maxAttempts = TmdbHttpConstants.MAX_RETRIES + 1;
+const isRetryableStatus = status === 429 || status &gt;= 500;</code></pre>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory.ts"><code>export class MakeTmdbHttpClientFactory {
+  static create(params?: Params) {
+    const client = new TmdbHttpClient(params);
+    return client;
+  }
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">getMovieDetails(11)
+→ GET /movie/11?language=pt-BR&amp;append_to_response=…&amp;watch_region=BR
+→ Authorization: Bearer &lt;token&gt;
+429 → espera 1000ms → 429 → 2000ms → 200 JSON
+401 → TmdbHttpException 502 (sem retry)</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Implementa <code>IMovieCatalogProvider</code>.</li>
+            <li>Lê <code>env.TMDB_ACCESS_TOKEN</code> e constantes/exception do módulo TMDB.</li>
+            <li>A feature de queries (DTO, cache, rotas debug) ainda não consome este client.</li>
           </ul>
         </div>
       </div>

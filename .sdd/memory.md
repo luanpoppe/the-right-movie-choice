@@ -48,6 +48,12 @@
   - **Exemplo**: `GuestChatLockUtils` em `features/movies/utils/guest-chat-lock.utils.ts`, não no final de `Home.tsx`
   - **Registrado em**: 2026-08-31
 
+- Espera assíncrona (`setTimeout` + Promise) vai para `DelayUtils.delay` em `shared/utils`, não copiada no módulo.
+  - **Quando**: backoff, retry, qualquer `sleep` no backend
+  - **Por quê**: o mesmo Promise/setTimeout não é regra de TMDB
+  - **Exemplo**: `TmdbHttpClient` usa `params.delay ?? DelayUtils.delay`
+  - **Registrado em**: 2026-09-02
+
 ## Stack / Domínio
 
 <!-- Decisões sobre tecnologia/arquitetura. Carrega, mas só para CONFIRMAR rápido — nunca substitui grill. -->

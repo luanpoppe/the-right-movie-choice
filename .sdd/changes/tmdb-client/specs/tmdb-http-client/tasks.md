@@ -46,10 +46,10 @@ Passos (checkboxes — marcados `[~]` ao implementar):
 ### F1.C4 — Adapter IMovieCatalogProvider
 
 Metadados (bullets, não checkboxes):
-- **Arquivos**: `packages/backend/src/modules/tmdb/infrastructure/http/tmdb-http.client.ts`, `packages/backend/src/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory.ts`
+- **Arquivos**: `packages/backend/src/modules/tmdb/infrastructure/http/tmdb-http.client.ts`, `packages/backend/src/modules/tmdb/infrastructure/http/tmdb-http.utils.ts`, `packages/backend/src/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory.ts`
 - **Depende de**: F1.C1, F1.C2, F1.C3
 - **Ordem de revisão**: 1) `tmdb-http.client.ts` → 2) factory
 
 Passos (checkboxes — marcados `[~]` ao implementar):
-- [ ] **Faz**: Adapter que implementa `IMovieCatalogProvider` (`searchMovies` → `/search/movie`, `getMovieDetails` → `/movie/{id}`), `fetch` injetado (`Params`), Bearer, timeout, retry, logs sem token, `TmdbHttpException`.
-- [ ] **Validação**: `pnpm --filter @the-right-movie-choice/backend exec tsc --noEmit -p packages/backend`
+- [~] **Faz**: Adapter que implementa `IMovieCatalogProvider` (`searchMovies` → `/search/movie`, `getMovieDetails` → `/movie/{id}`), `fetch` injetado (`Params`), Bearer, timeout, retry, logs sem token, `TmdbHttpException`.
+- [~] **Validação**: `pnpm --filter @the-right-movie-choice/backend exec tsc --noEmit -p packages/backend`
