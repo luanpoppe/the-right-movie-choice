@@ -1,0 +1,25 @@
+id: tmdb-client
+title: Client HTTP TMDB (v3)
+created: 2026-08-31
+updated: 2026-09-01
+state: implementing
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: tmdb-http-client
+    title: Client HTTP TMDB
+    summary: Env, transporte HTTP v3 (timeout, retry 429/5xx), porta do client e erros BaseException, com unitários.
+    status: implementing
+  - slug: tmdb-movie-queries
+    title: Buscas e details TMDB
+    summary: Search e details (credits, providers, ids), DTO Zod, cache Redis de details, GETs debug e testes (unit + live local).
+    status: pending
+current_feature: tmdb-http-client
+current_chunk: F1.C3
+in_review:
+  chunks: ["F1.C3"]
+  files:
+    - packages/backend/src/domains/movies/application/providers/movie-catalog.provider.ts
+  commit_message: "feat(tmdb-http-client): porta IMovieCatalogProvider (search + details)"
+  updated: 2026-09-01

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano — tmdb-client</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes">Decisões macro</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>tmdb-client</strong> / plan</p>
+    <h1>Client HTTP TMDB (v3)</h1>
+    <p class="lp-meta">Atualizado em 2026-08-31</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>A recomendação de filmes hoje sai só do Gemini, sem catálogo real. Esta mudança habilita um client TMDB v3 no backend (<code>modules/tmdb</code>), autenticado com Bearer, com porta de catálogo em <code>domains/movies</code> — ainda <strong>sem</strong> ligar o agente de chat. Detalhe de engenharia: <a href="./tech-grill.md">tech-grill.md</a>.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: API v3 + Bearer (<code>TMDB_ACCESS_TOKEN</code>). <strong>Por quê</strong>: catálogo é v3. <strong>Alternativa descartada</strong>: v4 como API principal; <code>api_key</code> na query.</li>
+        <li><strong>Decisão</strong>: porta em <code>domains/movies</code>; transporte em <code>src/modules/tmdb</code>. <strong>Por quê</strong>: porta do domínio, vendor isolado. <strong>Alternativa descartada</strong>: porta em <code>modules/tmdb</code>; misturar adapter TMDB com LangChain.</li>
+        <li><strong>Decisão</strong>: token obrigatório em <code>dev</code>/<code>prod</code>; ausente ok em <code>test</code>.</li>
+        <li><strong>Decisão</strong>: defaults <code>pt-BR</code> e região <code>BR</code>.</li>
+        <li><strong>Decisão</strong>: live TMDB só local, nunca na CI; SDD <code>tests: on</code>.</li>
+        <li><strong>Decisão</strong>: rotas debug só <code>dev</code>/<code>test</code> + guard de loopback.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>tmdb-http-client</strong> — Env, transporte HTTP v3 (timeout, retry 429/5xx), porta do client e erros <code>BaseException</code>, com unitários.</li>
+        <li><strong>tmdb-movie-queries</strong> — Search e details (credits, providers, ids), DTO Zod, cache Redis de details, GETs debug e testes (unit + live local).</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro:</strong> porta em <code>domains/movies</code>; client HTTP, cache e rotas debug em <code>modules/tmdb</code>; search/details; cache Redis de details 24h; endpoints debug; unitários; live local; logs sem token.</p>
+      <p><strong>Fora:</strong> tools LangChain/chat; frontend; TMDB v4/listas; sessão do usuário TMDB; nota IMDb; helper de imagem na UI; cache de search.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new</code>. Espelho HTML do <code>plan.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

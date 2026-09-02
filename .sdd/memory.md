@@ -36,11 +36,11 @@
   - **Exemplo**: `X-Guest-Remaining` no POST /movie/recommendation
   - **Registrado em**: 2026-08-27
 
-- String vazia / ausente (`null`, `undefined`, `""`) vai para `StringUtils.isEmptyString`, não copiada em cada interceptor/hook.
-  - **Quando**: checar token, cookie ou qualquer valor que precisa ser string não vazia
+- String vazia / ausente (`null`, `undefined`, `""`) vai para `StringUtils.isEmptyString`, não copiada em cada interceptor/hook/env.
+  - **Quando**: checar token, cookie, env var ou qualquer valor que precisa ser string não vazia
   - **Por quê**: o mesmo predicado aparecia no client de movies e no silent refresh
-  - **Exemplo**: se `StringUtils.isEmptyString(accessToken)`, não envia Bearer
-  - **Registrado em**: 2026-08-30
+  - **Exemplo**: `env.ts` usa `StringUtils.isEmptyString` no `superRefine` do token TMDB; no SPA, se vazio não envia Bearer
+  - **Registrado em**: 2026-09-01
 
 - Classe de regra de negócio (predicados, parse) não fica no arquivo da página; vai para `utils/` da feature.
   - **Quando**: extrair helper usado por um componente de página
@@ -52,4 +52,12 @@
 
 <!-- Decisões sobre tecnologia/arquitetura. Carrega, mas só para CONFIRMAR rápido — nunca substitui grill. -->
 
-(vazio)
+- Integração HTTP de terceiro: porta no módulo **pelo domínio** (métodos de operação), não `getJson(path)` genérico; adapter valida/transporta; secret só em env.
+  - **Quando**: novo vendor (catálogo, pagamento, etc.)
+  - **Exemplo**: `IMovieCatalogProvider.searchMovies` / `getMovieDetails`, não `ITmdbHttpClient.getJson`
+  - **Registrado em**: 2026-09-01
+
+- Teste que chama API real não entra no job unitário da CI; opt-in só local.
+  - **Quando**: client de serviço externo
+  - **Exemplo**: live TMDB fora do `pnpm test` da CI
+  - **Registrado em**: 2026-08-31
