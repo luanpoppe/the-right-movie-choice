@@ -1,5 +1,8 @@
-export interface IMovieCatalogProvider {
-  searchMovies(query: string, page?: number): Promise<unknown>;
+import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie-catalog-details.entity";
+import type { MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 
-  getMovieDetails(movieId: number): Promise<unknown>;
+export interface IMovieCatalogProvider {
+  searchMovies(query: string, page?: number): Promise<MovieSearchPage>;
+
+  getMovieDetails(movieId: number): Promise<MovieCatalogDetails>;
 }

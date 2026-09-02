@@ -2,8 +2,13 @@ import { env } from "@/env";
 import { Logger } from "@/lib/logger/logger";
 import { DelayUtils } from "@/shared/utils/delay.utils";
 import { IMovieCatalogProvider } from "@/domains/movies/application/providers/movie-catalog.provider";
+import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie-catalog-details.entity";
+import type { MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 import { TmdbHttpConstants } from "@/modules/tmdb/domain/tmdb-http.constants";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
+import { TmdbCatalogMapper } from "@/modules/tmdb/infrastructure/http/tmdb-catalog.mapper";
+import { TmdbMovieDetailsResponseSchema } from "@/modules/tmdb/infrastructure/http/tmdb-movie-details-response.schema";
+import { TmdbSearchResponseSchema } from "@/modules/tmdb/infrastructure/http/tmdb-search-response.schema";
 import {
   TmdbFetchFn,
   TmdbHttpUtils,
@@ -28,15 +33,17 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     this.delay = params.delay ?? DelayUtils.delay;
   }
 
-  async searchMovies(query: string, page?: number): Promise<unknown> {
+  async searchMovies(query: string, page?: number): Promise<MovieSearchPage> {
     const searchParams = TmdbHttpUtils.buildSearchMoviesParams(query, page);
-    return this.getJson("/search/movie", searchParams);
+    const json = await this.getJson("/search/movie", searchParams);
+    return this.mapSearchPage(json);
   }
 
-  async getMovieDetails(movieId: number): Promise<unknown> {
+  async getMovieDetails(movieId: number): Promise<MovieCatalogDetails> {
     const searchParams = TmdbHttpUtils.buildMovieDetailsParams();
     const path = `/movie/${movieId}`;
-    return this.getJson(path, searchParams);
+    const json = await this.getJson(path, searchParams);
+    return this.mapCatalogDetails(json);
   }
 
   private async getJson(
@@ -106,5 +113,25 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     }
 
     throw new TmdbHttpException("TMDB request failed", 502);
+  }
+
+  private mapSearchPage(json: unknown): MovieSearchPage {
+    const parsed = TmdbSearchResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      Logger.warn("TMDB returned an unexpected payload", { path: "search" });
+      throw new TmdbHttpException("TMDB returned an unexpected payload", 502);
+    }
+
+    return TmdbCatalogMapper.toSearchPage(parsed.data);
+  }
+
+  private mapCatalogDetails(json: unknown): MovieCatalogDetails {
+    const parsed = TmdbMovieDetailsResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      Logger.warn("TMDB returned an unexpected payload", { path: "details" });
+      throw new TmdbHttpException("TMDB returned an unexpected payload", 502);
+    }
+
+    return TmdbCatalogMapper.toCatalogDetails(parsed.data);
   }
 }

@@ -2,6 +2,59 @@ import { describe, it, expect, vi } from "vitest";
 import { TmdbHttpClient } from "@/modules/tmdb/infrastructure/http/tmdb-http.client";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
 
+const SEARCH_FIXTURE = {
+  page: 1,
+  results: [
+    {
+      id: 1,
+      title: "X",
+      overview: "",
+      poster_path: null,
+      release_date: "2020-01-01",
+    },
+  ],
+};
+
+const SEARCH_PAGE_DTO = {
+  page: 1,
+  results: [
+    {
+      id: 1,
+      title: "X",
+      year: 2020,
+      posterPath: null,
+      overview: "",
+    },
+  ],
+};
+
+const EMPTY_SEARCH_PAYLOAD = { page: 1, results: [] };
+const EMPTY_SEARCH_DTO = { page: 1, results: [] };
+
+const DETAILS_FIXTURE = {
+  id: 11,
+  title: "Star Wars",
+  overview: "",
+  poster_path: null,
+  release_date: "1977-05-25",
+};
+
+const DETAILS_DTO = {
+  id: 11,
+  title: "Star Wars",
+  year: 1977,
+  posterPath: null,
+  overview: "",
+  runtimeMinutes: null,
+  genres: [],
+  tmdbVoteAverage: null,
+  originCountries: [],
+  directors: [],
+  cast: [],
+  watchProviders: { flatrate: [], rent: [], buy: [] },
+  imdbId: null,
+};
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status });
 }
@@ -26,13 +79,12 @@ function createClient(fetchFn: ReturnType<typeof vi.fn>) {
 describe("TmdbHttpClient", () => {
   describe("getMovieDetails", () => {
     it("REQ-1: GET /movie/:id with language, append_to_response, watch_region and Bearer token", async () => {
-      const payload = { id: 11, title: "Star Wars" };
-      const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, payload));
+      const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, DETAILS_FIXTURE));
       const { client } = createClient(fetchFn);
 
       const result = await client.getMovieDetails(11);
 
-      expect(result).toEqual(payload);
+      expect(result).toEqual(DETAILS_DTO);
       expect(fetchFn).toHaveBeenCalledTimes(1);
 
       const [url, init] = fetchFn.mock.calls[0] as [
@@ -56,17 +108,16 @@ describe("TmdbHttpClient", () => {
     });
 
     it("REQ-2: retries 429 twice with backoff 1000 then 2000 and returns 200 JSON", async () => {
-      const payload = { id: 11 };
       const fetchFn = vi
         .fn()
         .mockResolvedValueOnce(jsonResponse(429, { status_code: 25 }))
         .mockResolvedValueOnce(jsonResponse(429, { status_code: 25 }))
-        .mockResolvedValueOnce(jsonResponse(200, payload));
+        .mockResolvedValueOnce(jsonResponse(200, DETAILS_FIXTURE));
       const { client, delay } = createClient(fetchFn);
 
       const result = await client.getMovieDetails(11);
 
-      expect(result).toEqual(payload);
+      expect(result).toEqual(DETAILS_DTO);
       expect(fetchFn).toHaveBeenCalledTimes(3);
       expect(delay).toHaveBeenCalledTimes(2);
       expect(delay).toHaveBeenNthCalledWith(1, 1000);
@@ -168,17 +219,31 @@ describe("TmdbHttpClient", () => {
       });
       expect(fetchFn).toHaveBeenCalledTimes(1);
     });
+
+    it("maps 200 with unexpected JSON shape to TmdbHttpException 502", async () => {
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(200, { not: "search" }));
+      const { client } = createClient(fetchFn);
+
+      await expect(client.searchMovies("matrix")).rejects.toMatchObject({
+        constructor: TmdbHttpException,
+        statusCode: 502,
+      });
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("searchMovies", () => {
     it("sends query, default page 1 and language pt-BR", async () => {
-      const payload = { results: [] };
-      const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, payload));
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(200, SEARCH_FIXTURE));
       const { client } = createClient(fetchFn);
 
       const result = await client.searchMovies("matrix");
 
-      expect(result).toEqual(payload);
+      expect(result).toEqual(SEARCH_PAGE_DTO);
       const [url] = fetchFn.mock.calls[0] as [string];
       const parsedUrl = new URL(url);
 
@@ -193,11 +258,12 @@ describe("TmdbHttpClient", () => {
     it("sends the given page when provided", async () => {
       const fetchFn = vi
         .fn()
-        .mockResolvedValue(jsonResponse(200, { results: [] }));
+        .mockResolvedValue(jsonResponse(200, EMPTY_SEARCH_PAYLOAD));
       const { client } = createClient(fetchFn);
 
-      await client.searchMovies("matrix", 3);
+      const result = await client.searchMovies("matrix", 3);
 
+      expect(result).toEqual(EMPTY_SEARCH_DTO);
       const [url] = fetchFn.mock.calls[0] as [string];
       const parsedUrl = new URL(url);
       expect(parsedUrl.searchParams.get("page")).toBe("3");
