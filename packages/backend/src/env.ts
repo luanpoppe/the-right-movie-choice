@@ -1,21 +1,40 @@
 import "dotenv/config";
 import z from "zod";
+import { StringUtils } from "@/shared/utils/string.utils";
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(["dev", "prod", "test"]),
-  PORT: z.coerce.number().default(3333),
-  REDIS_URL: z.string(),
-  DATABASE_URL: z.string().min(1),
-  GEMINI_API_KEY: z.string(),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(["dev", "prod", "test"]),
+    PORT: z.coerce.number().default(3333),
+    REDIS_URL: z.string(),
+    DATABASE_URL: z.string().min(1),
+    GEMINI_API_KEY: z.string(),
 
-  JWT_SECRET: z.string().min(1),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().default(604800), // 7 days
-  REFRESH_COOKIE_NAME: z.string().default("refreshToken"),
-  COOKIE_SECRET: z.string().min(1),
+    JWT_SECRET: z.string().min(1),
+    JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
+    REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().default(604800), // 7 days
+    REFRESH_COOKIE_NAME: z.string().default("refreshToken"),
+    COOKIE_SECRET: z.string().min(1),
 
-  GOOGLE_CLIENT_ID: z.string().min(1),
-});
+    GOOGLE_CLIENT_ID: z.string().min(1),
+
+    TMDB_ACCESS_TOKEN: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const isTestEnv = data.NODE_ENV === "test";
+    if (isTestEnv) return;
+
+    const isTmdbAccessTokenMissing = StringUtils.isEmptyString(
+      data.TMDB_ACCESS_TOKEN,
+    );
+    if (!isTmdbAccessTokenMissing) return;
+
+    ctx.addIssue({
+      code: "custom",
+      path: ["TMDB_ACCESS_TOKEN"],
+      message: "Required",
+    });
+  });
 
 const result = envSchema.safeParse(process.env);
 
