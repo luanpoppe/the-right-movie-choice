@@ -12,6 +12,15 @@ export default defineConfig({
         test: {
           name: "unit",
           dir: "src/",
+          exclude: ["**/*.live.spec.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "tmdb-live",
+          dir: "src/",
+          include: ["**/*.live.spec.ts"],
         },
       },
     ],

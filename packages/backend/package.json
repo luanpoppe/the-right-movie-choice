@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx watch src/server.ts",
     "test": "vitest run --project unit",
+    "test:tmdb-live": "vitest run --project tmdb-live",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"
