@@ -6,7 +6,7 @@ Como o monorepo sobe localmente e como frontend (Vercel) e API (Oracle) se ligam
 
 ## Como funciona
 - Workspace pnpm: `dev` paralelo backend+frontend; `test` só backend; `build` só frontend.
-- Backend `env.ts` (Zod): `PORT` default 3333, `REDIS_URL`, `DATABASE_URL`, `GEMINI_API_KEY`, JWT/cookie/Google.
+- Backend `env.ts` (Zod): `PORT` default 3333, `REDIS_URL`, `DATABASE_URL`, `OPENROUTER_API_KEY` (obrigatória fora de test), `GEMINI_API_KEY` opcional, JWT/cookie/Google.
 - Frontend: `VITE_NODE_ENV`, `VITE_BACKEND_URL`, `VITE_GOOGLE_CLIENT_ID`.
 - Fastify escuta `0.0.0.0` (`server.ts`). CORS: localhost qualquer porta + `*.vercel.app`, `credentials: true`.
 - Vercel: build do frontend, `outputDirectory` `packages/frontend/dist`, rewrite `/api/:path*` para a API na Oracle (IP/porta no `vercel.json`).

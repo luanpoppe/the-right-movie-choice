@@ -34,7 +34,7 @@
     .meta { color: var(--muted); font-size: .85rem; margin: 0; }
     .progress { max-width: 900px; margin: 1rem auto; }
     .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); overflow: hidden; border: 1px solid var(--line); }
-    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 0%; transition: width .3s; }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 20%; transition: width .3s; }
     .progress-label { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
 
     .legend { max-width: 900px; margin: 0 auto 1.5rem; display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; }
@@ -131,7 +131,7 @@
 
   <div class="progress">
     <div class="bar"><span></span></div>
-    <p class="progress-label">0 / 5 features concluídas · cliente 1/2 chunks em revisão</p>
+    <p class="progress-label">1 / 5 features concluídas · cliente em revisão (último chunk)</p>
   </div>
 
   <div class="legend">
@@ -143,15 +143,15 @@
   <p class="meta" style="max-width:900px;margin:-.5rem auto 1.5rem;">Clique num nó já implementado para ver o que ele faz, exemplo dos dados e um trecho ilustrativo.</p>
 
   <main>
-    <details class="feature current" open>
-      <summary>1. ai-client <span class="tag">em andamento · 1/2</span></summary>
+    <details class="feature done" open>
+      <summary>1. ai-client <span class="tag">concluída · 2/2</span></summary>
       <div class="flow">
         <div class="stage">
           <div class="node done has-detail" data-detail="F1.C1" tabindex="0"><div class="name">Env</div><div class="sub">F1.C1 · env.ts</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node pending"><div class="name">Cliente</div><div class="sub">F1.C2 · ai.client.ts</div></div>
+          <div class="node done has-detail" data-detail="F1.C2" tabindex="0"><div class="name">Modelos</div><div class="sub">F1.C2 · ai-models.ts</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
       </div>
       <div class="detail-panel" hidden>
@@ -161,29 +161,33 @@
           <p class="block-label">Como funciona</p>
           <p>Fora de <code>test</code>, o <code>superRefine</code> marca TMDB e OpenRouter em issues independentes. Gemini usa default <code>""</code>.</p>
           <pre data-file="packages/backend/src/env.ts"><code>GEMINI_API_KEY: z.string().optional().default(""),
-OPENROUTER_API_KEY: z.string().optional(),
-// ...
-const isOpenRouterApiKeyMissing = StringUtils.isEmptyString(
-  data.OPENROUTER_API_KEY,
-);
-if (isOpenRouterApiKeyMissing) {
-  ctx.addIssue({
-    code: "custom",
-    path: ["OPENROUTER_API_KEY"],
-    message: "Required",
-  });
-}</code></pre>
+OPENROUTER_API_KEY: z.string().optional(),</code></pre>
           <p class="block-label">Dados fluindo</p>
           <div class="data">NODE_ENV=dev sem OPENROUTER_API_KEY
-→ parse falha (Required)
-NODE_ENV=test sem OpenRouter
-→ parse ok
+→ parse falha
 GEMINI ausente
 → env.GEMINI_API_KEY === ""</div>
           <p class="block-label">Conecta</p>
           <ul>
-            <li>Próximo chunk lê <code>env.OPENROUTER_API_KEY</code> / <code>GEMINI_API_KEY</code> no singleton <code>AI</code>.</li>
-            <li><code>ModelLangchain</code> ainda usa Gemini como string até remover o wrapper.</li>
+            <li>O adapter futuro lê essas chaves ao montar <code>new AI()</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C2" hidden>
+          <h4>Constantes <span class="chunk-id">F1.C2 · AiModels</span></h4>
+          <p class="what">Pacote <code>@luanpoppe/ai</code> e slugs. Sem wrapper: o próximo adapter faz <code>new AI()</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p>PRIMARY é DeepSeek via OpenRouter; GEMINI_FALLBACK só entra no construtor se a chave Gemini não for vazia (isso fica no provider).</p>
+          <pre data-file="packages/backend/src/lib/ai/ai-models.ts"><code>export class AiModels {
+  static readonly PRIMARY = "openrouter/deepseek/deepseek-v4-flash" as const;
+  static readonly GEMINI_FALLBACK = "gemini-2.5-flash" as const;
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">factory do provider
+→ new AI({ openRouterApiKey, googleGeminiToken? })
+→ ai.call / ai.callStructuredOutput({ aiModel: AiModels.PRIMARY })</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Ainda ninguém no domínio movies instancia <code>AI</code> (próxima feature).</li>
           </ul>
         </div>
       </div>

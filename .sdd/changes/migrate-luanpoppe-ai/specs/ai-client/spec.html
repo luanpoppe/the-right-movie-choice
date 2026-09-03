@@ -18,65 +18,49 @@
 
   <header class="lp-header">
     <p class="lp-breadcrumb"><a href="../../plan.html">migrate-luanpoppe-ai</a> / specs / <strong>ai-client</strong> / spec</p>
-    <h1>Spec: Cliente @luanpoppe/ai</h1>
+    <h1>Spec: Pacote @luanpoppe/ai</h1>
     <p class="lp-meta">Atualizado em 2026-09-03</p>
   </header>
 
   <main class="lp-main">
     <details class="lp-sec" id="resumo" open>
       <summary><h2>Resumo</h2></summary>
-      <p>Instala <code>@luanpoppe/ai</code> (^1.1.6) e um cliente fino singleton em <code>lib/ai</code>: OpenRouter obrigatório fora de test, Gemini opcional como fallback. Expõe <code>call</code> e <code>callStructuredOutput</code> com log de modelo/latência/erro. Não liga providers nem memória.</p>
+      <p>Instala <code>@luanpoppe/ai</code>, env OpenRouter/Gemini e constantes <code>AiModels</code>. Sem wrapper: cada adapter faz <code>new AI()</code> no call site.</p>
     </details>
 
     <details class="lp-sec" id="requirements" open>
       <summary><h2>Requirements (cenários BDD)</h2></summary>
-      <h3>REQ-1: Bootstrap com OpenRouter</h3>
+      <h3>REQ-1: Pacote e constantes</h3>
       <ul>
-        <li><strong>Dado que</strong> <code>NODE_ENV</code> não é <code>test</code> e <code>OPENROUTER_API_KEY</code> está preenchida</li>
-        <li><strong>Quando</strong> o processo carrega <code>env.ts</code> e o singleton</li>
-        <li><strong>Então</strong> <code>new AI({ openRouterApiKey })</code> usa <code>openrouter/deepseek/deepseek-v4-flash</code></li>
+        <li><strong>Então</strong> <code>AiModels.PRIMARY</code> / <code>GEMINI_FALLBACK</code> como na spec.md</li>
       </ul>
-      <h3>REQ-2: Fallback Gemini só com chave</h3>
+      <h3>REQ-2: Instância no call site</h3>
       <ul>
-        <li><strong>Dado que</strong> <code>GEMINI_API_KEY</code> não está vazia</li>
-        <li><strong>Quando</strong> o singleton é criado</li>
-        <li><strong>Então</strong> passa <code>googleGeminiToken</code> e <code>aiModelsFallback: ["gemini-2.5-flash"]</code></li>
-        <li><strong>Dado que</strong> Gemini está ausente/vazia → não passa token nem fallback</li>
+        <li><strong>Então</strong> cada chamada usa <code>new AI()</code> próprio, Gemini só se a chave não for vazia</li>
       </ul>
-      <h3>REQ-3: Falha de boot sem OpenRouter</h3>
+      <h3>REQ-3: Boot sem OpenRouter</h3>
       <ul>
-        <li><strong>Dado que</strong> <code>dev</code>/<code>prod</code> e OpenRouter vazio → parse do env falha (padrão TMDB)</li>
-        <li><strong>Dado que</strong> <code>test</code> → ausência de OpenRouter não quebra o parse</li>
-      </ul>
-      <h3>REQ-4: Wrapper de call e structured output</h3>
-      <ul>
-        <li><strong>Quando</strong> chama <code>call</code> / <code>callStructuredOutput</code></li>
-        <li><strong>Então</strong> delega à lib, default do modelo primário, loga modelo/duração/erro, fallback nativo fica na lib</li>
+        <li><strong>Então</strong> env falha em dev/prod; test não exige a chave</li>
       </ul>
     </details>
 
     <details class="lp-sec" id="edge-cases" open>
       <summary><h2>Edge cases</h2></summary>
       <ul>
-        <li>Gemini <code>""</code> → sem fallback.</li>
-        <li><code>GEMINI_API_KEY</code> deixa de ser obrigatória; <code>.env.example</code> documenta as duas chaves.</li>
-        <li>Sem <code>memory</code>/<code>threadId</code> nesta feature; sem alterar providers LangChain.</li>
-        <li>Range <code>^</code> no <code>package.json</code> do backend. Unitário mocka <code>AI</code>.</li>
+        <li>Gemini <code>""</code> → sem fallback no construtor. Logs ficam nos adapters.</li>
       </ul>
     </details>
 
     <details class="lp-sec" id="contratos" open>
       <summary><h2>Contratos</h2></summary>
       <ul>
-        <li>Env: <code>OPENROUTER_API_KEY</code> (obrigatória fora de test); <code>GEMINI_API_KEY</code> opcional → <code>googleGeminiToken</code>.</li>
-        <li>Modelos: primário <code>openrouter/deepseek/deepseek-v4-flash</code>; fallback <code>gemini-2.5-flash</code>.</li>
-        <li>API: <code>call</code> e <code>callStructuredOutput</code> (lib 1.1.x). Singleton por processo. Logger em <code>lib/logger</code>.</li>
+        <li>Pacote + <code>AiModels</code> + <code>env</code>. Chamada = API da lib.</li>
       </ul>
     </details>
   </main>
 
   <footer class="lp-footer">
-    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code>.</p>
   </footer>
 </body>
 </html>

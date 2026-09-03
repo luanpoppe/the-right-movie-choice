@@ -22,13 +22,13 @@ Passos (checkboxes — marcados `[~]` ao implementar):
 - [~] **Validação**: `pnpm --filter @the-right-movie-choice/backend test`
 
 
-### F1.C2 — Pacote e cliente fino singleton
+### F1.C2 — Pacote e constantes de modelo
 
 Metadados (bullets, não checkboxes):
-- **Arquivos**: `packages/backend/package.json`, `packages/backend/src/lib/ai/ai-models.ts`, `packages/backend/src/lib/ai/ai.client.ts`
+- **Arquivos**: `packages/backend/package.json`, `packages/backend/src/lib/ai/ai-models.ts`
 - **Depende de**: F1.C1
-- **Ordem de revisão**: 1) `ai-models.ts` (constantes) → 2) `ai.client.ts` (bootstrap + wrap + logs) → 3) `package.json` (dep `^`)
+- **Ordem de revisão**: 1) `ai-models.ts` → 2) `package.json`
 
 Passos (checkboxes — marcados `[~]` ao implementar):
-- [ ] **Faz**: `pnpm add @luanpoppe/ai` no backend (`^`). Constantes primário `openrouter/deepseek/deepseek-v4-flash` e fallback `gemini-2.5-flash`. Classe com métodos estáticos `call` / `callStructuredOutput` em cima de um `AI` singleton do módulo: OpenRouter do env; Gemini + `aiModelsFallback` só se `StringUtils.isEmptyString` for falso. Default de `aiModel` = primário. Logger: modelo, `durationMs`, erro (sem prompt/resposta). Sem `memory`/`threadId`. Não alterar providers LangChain.
-- [ ] **Validação**: `pnpm --filter @the-right-movie-choice/backend test`
+- [~] **Faz**: `pnpm add @luanpoppe/ai` (`^`). Constantes `AiModels.PRIMARY` / `GEMINI_FALLBACK`. Sem wrapper/`AiClient`: próximas features fazem `new AI()` no call site. Sem alterar providers LangChain.
+- [~] **Validação**: `pnpm --filter @the-right-movie-choice/backend test`

@@ -54,6 +54,12 @@
   - **Exemplo**: `TmdbHttpClient` usa `params.delay ?? DelayUtils.delay`
   - **Registrado em**: 2026-09-02
 
+- Biblioteca que já é facade não ganha wrapper/singleton no app; o call site instancia direto (`new AI()`).
+  - **Quando**: integrar pacote próprio de LLM/HTTP que já unifica vendors
+  - **Por quê**: o wrapper só duplica tipos e esconde a API real
+  - **Exemplo**: `@luanpoppe/ai` no backend de recomendações — sem `AiClient`
+  - **Registrado em**: 2026-09-03
+
 ## Stack / Domínio
 
 <!-- Decisões sobre tecnologia/arquitetura. Carrega, mas só para CONFIRMAR rápido — nunca substitui grill. -->

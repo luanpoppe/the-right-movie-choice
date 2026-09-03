@@ -5,11 +5,11 @@
 Eixos cobertos: boundaries & ownership, state/memória, failure modes/fallback, testing, migration (chaves Redis), observability, secrets/env. | Eixos descartados: data model de filme e contrato HTTP (reúso das portas/Zod); AuthZ extra (mesma rota); performance/escala (volume baixo); concorrência (um chatId por sessão).
 
 ## Decisões
-### Boundaries — cliente fino em lib/
-- **Escolha:** Bootstrap da `@luanpoppe/ai` num cliente em `lib/`; adapters de movies só falam esse cliente.
-- **Alternativas descartadas:** providers importam o pacote direto (acopla dois pontos à API da lib); serviço de domínio novo (o domínio não deve conhecer vendor).
-- **Porquê:** mesmo recorte do catálogo TMDB; use cases continuam nas portas.
-- **Custo aceito:** um módulo a mais.
+### Boundaries — `new AI()` no call site
+- **Escolha:** Adapters importam `@luanpoppe/ai` e instanciam `new AI()` em cada uso. `lib/ai` só tem slugs (`AiModels`).
+- **Alternativas descartadas:** singleton/`AiClient` wrapper (rejeitado na revisão); serviço de domínio novo.
+- **Porquê:** a lib já é a facade; wrapper só duplicava tipos e gerava atrito com Zod/`exactOptionalPropertyTypes`.
+- **Custo aceito:** config OpenRouter/Gemini repetida nos dois adapters (regra dos 3 strikes: extrair só se aparecer 3ª vez).
 
 ### Estado — IChatHistoryRepository adapta a memória da lib
 - **Escolha:** Manter a porta; implementação usa checkpointer da lib no Redis existente; `chatId` + TTL 20 min.
@@ -23,9 +23,9 @@ Eixos cobertos: boundaries & ownership, state/memória, failure modes/fallback, 
 - **Porquê:** você inverteu a cadeia e não quer Gemini mandatório em todo ambiente.
 - **Custo aceito:** ambiente só com OpenRouter não tem backup se o vendor cair.
 
-### Testes — mock do cliente; live opt-in
-- **Escolha:** Unitário mocka o cliente; live fora da CI (padrão TMDB).
-- **Alternativas descartadas:** live na CI; só fake da porta sem teste de provider.
+### Testes — mock de `AI` no adapter; live opt-in
+- **Escolha:** Unitário mocka a classe `AI` da lib no adapter; live fora da CI.
+- **Alternativas descartadas:** live na CI; wrapper testável no meio.
 - **Porquê:** CI sem cota/flaky de LLM.
 - **Custo aceito:** regressão de contrato da lib só aparece no live local ou em prod.
 

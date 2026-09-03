@@ -8,22 +8,22 @@ O backend recomenda filmes e gera exemplos de query via wrapper local `src/lib/l
 
 ## Decisões macro
 
-- **Decisão**: Cliente fino em `lib/` (não no domínio); providers de movies continuam implementando as portas atuais. **Por quê**: mesmo padrão do catálogo TMDB; use case não vê vendor. **Alternativa descartada**: chamar o pacote direto nos dois providers.
+- **Decisão**: Adapters de movies (portas atuais) fazem `new AI()` da `@luanpoppe/ai` no call site; `lib/ai` só guarda constantes de modelo. **Por quê**: a lib já é a facade. **Alternativa descartada**: singleton/`AiClient` wrapper.
 - **Decisão**: `IChatHistoryRepository` vira adapter da memória da lib; `chatId` e TTL de 20 min permanecem. **Por quê**: o use case já orquestra load/save. **Alternativa descartada**: lib dona do thread (quebra as portas) e dual-write.
 - **Decisão**: OpenRouter primário (fallback nativo → Gemini). `OPENROUTER_API_KEY` obrigatória; `GEMINI_API_KEY` opcional — sem ela, sem fallback. **Por quê**: você inverteu a cadeia e não quer Gemini mandatório. **Alternativa descartada**: as duas chaves sempre obrigatórias.
 - **Decisão**: Checkpointer no Redis existente; chaves antigas de chat expiram no TTL; logs de provedor usado, latência e falha de schema (sem prompt completo). **Por quê**: chat é efêmero; Redis de refresh token não se mistura por acidente de produto, só de infra. **Alternativa descartada**: Postgres, SQLite, migrar histórico antigo, logar prompt.
-- **Decisão**: Testes unitários mockam o cliente; live opt-in local, fora da CI. **Por quê**: memória de testes TMDB. **Alternativa descartada**: live na CI.
+- **Decisão**: Testes unitários mockam `AI` no adapter; live opt-in local, fora da CI. **Por quê**: memória de testes TMDB. **Alternativa descartada**: live na CI.
 
 ## Features (executadas sequencialmente)
 
-1. **ai-client** — Instalar `@luanpoppe/ai` e o cliente fino de bootstrap (OpenRouter + fallback Gemini opcional).
-2. **recommendation-provider** — Recommendation (JSON estruturado + texto) passa a usar o cliente, mantendo `IMovieRecommendationProvider`.
-3. **query-examples-provider** — `GET /movie/queries` passa a usar o mesmo cliente.
+1. **ai-client** — Instalar `@luanpoppe/ai`, env OpenRouter/Gemini e constantes de modelo (`AiModels`); sem wrapper.
+2. **recommendation-provider** — Recommendation (JSON estruturado + texto) via `new AI()`, mantendo `IMovieRecommendationProvider`.
+3. **query-examples-provider** — `GET /movie/queries` via `new AI()`.
 4. **chat-memory** — Adapter de `IChatHistoryRepository` na memória da lib (Redis + TTL 20 min + `chatId`).
 5. **remove-langchain-wrapper** — Remover `src/lib/langchain` e dependências LangChain diretas do `package.json`.
 
 ## Escopo
 
-**Dentro**: pacote `@luanpoppe/ai` no backend; cliente + dois providers; memória de chat via lib; env OpenRouter; fallback Gemini se houver chave; logs de provedor/latência/schema; limpeza do wrapper LangChain.
+**Dentro**: pacote `@luanpoppe/ai` no backend; constantes de modelo; dois providers com `new AI()` cada; memória de chat via lib; env OpenRouter; fallback Gemini se houver chave; logs nos adapters; limpeza do wrapper LangChain.
 
 **Fora**: SPA, cota anônima/Bearer, Redis de refresh token, áudio/embeddings, agentes novos, mudança de contrato HTTP, live na CI.

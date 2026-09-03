@@ -1,59 +1,46 @@
-# Spec: Cliente @luanpoppe/ai
+# Spec: Pacote @luanpoppe/ai
 
 > Parte de [`migrate-luanpoppe-ai`](../../plan.md)
 
 ## Resumo
 
-Instala `@luanpoppe/ai` (^1.1.6) no backend e um cliente fino singleton em `lib/ai` que configura OpenRouter (obrigatório fora de test) e Gemini opcional como `aiModelsFallback`. Expõe `call` e `callStructuredOutput` com log de modelo, latência e erro. Não liga providers de filme nem memória.
+Instala `@luanpoppe/ai` (^1.1.6) no backend, valida env (OpenRouter obrigatório fora de test, Gemini opcional) e expõe constantes de modelo em `lib/ai`. **Não** há wrapper nem singleton: cada adapter/factory faz `new AI()` na hora da chamada. Esta feature não liga providers de filme nem memória.
 
 ## Requirements (cenários BDD)
 
-### REQ-1: Bootstrap com OpenRouter
+### REQ-1: Pacote e constantes de modelo
 
-- **Dado que** `NODE_ENV` não é `test` e `OPENROUTER_API_KEY` está preenchida
-- **Quando** o processo carrega `env.ts` e o singleton do cliente
-- **Então** `new AI({ openRouterApiKey })` usa modelo primário `openrouter/deepseek/deepseek-v4-flash` (constante, não env)
+- **Dado que** o backend declara `@luanpoppe/ai` com range `^`
+- **Quando** o código precisa do slug primário ou de fallback
+- **Então** usa `AiModels.PRIMARY` = `openrouter/deepseek/deepseek-v4-flash` e `AiModels.GEMINI_FALLBACK` = `gemini-2.5-flash` (não env)
 
-### REQ-2: Fallback Gemini só com chave
+### REQ-2: Instância no call site (contrato para as próximas features)
 
-- **Dado que** `GEMINI_API_KEY` não está vazia (`StringUtils.isEmptyString`)
-- **Quando** o singleton é criado
-- **Então** passa `googleGeminiToken` e `aiModelsFallback: ["gemini-2.5-flash"]`
-- **Dado que** a chave Gemini está ausente ou vazia
-- **Quando** o singleton é criado
-- **Então** não passa token Gemini nem lista de fallback
+- **Dado que** um adapter vai falar com LLM
+- **Quando** ele dispara uma chamada
+- **Então** instancia `new AI({...})` **ali** (não reutiliza singleton de módulo)
+- **E** passa `openRouterApiKey` a partir de `env.OPENROUTER_API_KEY`
+- **E** só passa `googleGeminiToken` + `aiModelsFallback: [AiModels.GEMINI_FALLBACK]` se `StringUtils.isEmptyString(env.GEMINI_API_KEY)` for falso
+- **E** chama `AI.call` / `AI.callStructuredOutput` da lib, com `aiModel` default = `AiModels.PRIMARY`
 
 ### REQ-3: Falha de boot sem OpenRouter
 
 - **Dado que** `NODE_ENV` é `dev` ou `prod` e `OPENROUTER_API_KEY` está vazia
 - **Quando** `env.ts` faz parse
-- **Então** o processo não sobe (mesmo padrão do `TMDB_ACCESS_TOKEN`: `superRefine` + `StringUtils.isEmptyString`)
+- **Então** o processo não sobe (mesmo padrão do TMDB)
 - **Dado que** `NODE_ENV` é `test`
 - **Quando** a chave OpenRouter falta
 - **Então** o parse do env não falha por isso
 
-### REQ-4: Wrapper de call e structured output
-
-- **Dado que** o singleton existe
-- **Quando** alguém chama `call` ou `callStructuredOutput` no cliente
-- **Então** delega para `AI.call` / `AI.callStructuredOutput` da lib, com o modelo primário default se o caller não passar `aiModel`
-- **E** o logger registra modelo pedido, duração e erro (sem prompt/resposta completos)
-- **E** o fallback nativo da lib (retry + próxima entrada de `aiModelsFallback`) permanece interno à lib
-
 ## Edge cases
 
-- String Gemini `""` / só espaço → trata como ausente; sem fallback.
-- `GEMINI_API_KEY` deixa de ser `z.string()` obrigatório; `.env.example` documenta as duas chaves.
-- Esta feature **não** passa `memory`/`checkpointer`/`threadId` (feature `chat-memory`).
-- Esta feature **não** altera `LangchainMovieRecommendationProvider` nem factories de movies.
-- Pacote: `pnpm add @luanpoppe/ai` no workspace `packages/backend` com range `^`.
-- Teste unitário do cliente mocka `AI` (não chama rede). Live opt-in fica para depois, se houver — fora desta spec.
+- Gemini `""` → sem token/fallback no `new AI()` (espaços: `isEmptyString` atual não faz trim).
+- Sem `memory`/`threadId` nesta feature (`chat-memory`).
+- Não altera providers LangChain.
+- Logs de modelo/latência ficam no adapter (próximas features), não num wrapper.
 
 ## Contratos
 
-- Env: `OPENROUTER_API_KEY` (obrigatória fora de test); `GEMINI_API_KEY` opcional — continua esse nome, mapeada para `googleGeminiToken`.
-- Constantes de modelo no cliente (não env): primário `openrouter/deepseek/deepseek-v4-flash`; fallback `gemini-2.5-flash`.
-- Superfície: métodos `call` e `callStructuredOutput` alinhados à lib 1.1.x (`messages`, `systemPrompt`, `outputSchema`, override opcional de `aiModel` / `aiModelsFallback`).
-- Instância: um `AI` por processo (módulo), como Redis/Prisma.
-- Logs: logger existente em `lib/logger` — campos úteis: modelo, `durationMs`, `ok`/`error` (mensagem, não body do LLM).
-- Dependências: nenhuma feature anterior. As features de recommendation, queries e memória consomem este cliente.
+- Env: `OPENROUTER_API_KEY` (obrigatória fora de test); `GEMINI_API_KEY` opcional → `googleGeminiToken`.
+- Superfície pública desta feature: pacote + `AiModels` + `env`. Superfície de chamada = a da lib 1.1.x.
+- Dependências: nenhuma. Recommendation e queries consomem `new AI()` + `AiModels`.

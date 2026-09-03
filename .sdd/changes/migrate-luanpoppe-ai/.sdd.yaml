@@ -2,22 +2,22 @@ id: migrate-luanpoppe-ai
 title: Migrar runtime de IA para @luanpoppe/ai
 created: 2026-09-03
 updated: 2026-09-03
-state: implementing
+state: awaiting-feature-spec
 format: both
 lang: pt-BR
 chunk_size: small
 features:
   - slug: ai-client
     title: Cliente @luanpoppe/ai
-    summary: Instalar @luanpoppe/ai e o cliente fino de bootstrap (OpenRouter + fallback Gemini opcional).
-    status: implementing
+    summary: Instalar @luanpoppe/ai, env OpenRouter/Gemini e constantes AiModels; sem wrapper.
+    status: done
   - slug: recommendation-provider
     title: Provider de recomendação
-    summary: Recommendation (JSON estruturado + texto) passa a usar o cliente, mantendo IMovieRecommendationProvider.
+    summary: Recommendation (JSON estruturado + texto) via new AI(), mantendo IMovieRecommendationProvider.
     status: pending
   - slug: query-examples-provider
     title: Provider de exemplos de query
-    summary: GET /movie/queries passa a usar o mesmo cliente.
+    summary: GET /movie/queries via new AI().
     status: pending
   - slug: chat-memory
     title: Memória de chat
@@ -27,12 +27,13 @@ features:
     title: Remover wrapper LangChain
     summary: Remover src/lib/langchain e dependências LangChain diretas do package.json.
     status: pending
-current_feature: ai-client
-current_chunk: "F1.C1"
+current_feature: null
+current_chunk: null
 in_review:
-  chunks: ["F1.C1"]
+  chunks: ["F1.C2"]
   files:
-    - packages/backend/src/env.ts
-    - packages/backend/.env.example
-  commit_message: "feat(ai-client): exigir OpenRouter no env e tornar Gemini opcional"
+    - packages/backend/src/lib/ai/ai-models.ts
+    - packages/backend/package.json
+    - packages/backend/src/lib/ai/specs/ai-models.spec.ts
+  commit_message: "feat(ai-client): adicionar @luanpoppe/ai e constantes de modelo"
   updated: 2026-09-03
