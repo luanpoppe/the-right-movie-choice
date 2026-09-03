@@ -3,6 +3,7 @@ import fastifyCookie from "@fastify/cookie";
 import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
 import { usersControllers } from "./modules/users/infrastructure/http/controllers/routes";
 import { authControllers } from "./modules/auth/infrastructure/http/controllers/routes";
+import { tmdbDebugControllers } from "./modules/tmdb/infrastructure/http/controllers/tmdb-debug.routes";
 import z, { ZodError } from "zod";
 import { BaseException } from "./core/exceptions/base.exception";
 import { env } from "./env";
@@ -77,5 +78,9 @@ app.setErrorHandler((error, app, reply) => {
 app.register(moviesControllers);
 app.register(usersControllers);
 app.register(authControllers);
+
+if (env.NODE_ENV !== "prod") {
+  app.register(tmdbDebugControllers);
+}
 
 export { app };

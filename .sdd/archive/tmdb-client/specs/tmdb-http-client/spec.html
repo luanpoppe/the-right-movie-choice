@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: tmdb-http-client — tmdb-client</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">tmdb-client</a> / specs / <strong>tmdb-http-client</strong> / spec</p>
+    <h1>Spec: tmdb-http-client</h1>
+    <p class="lp-meta">Atualizado em 2026-09-01</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Transporte HTTP v3 da TMDB. Porta de catálogo: <code>searchMovies</code> e <code>getMovieDetails</code>. Cache, DTOs e rotas debug na feature seguinte.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: GET 200 com Bearer e language</h3>
+      <ul>
+        <li><strong>Dado que</strong> o client tem token e um <code>fetch</code> injetado que responde 200 JSON</li>
+        <li><strong>Quando</strong> <code>getMovieDetails(11)</code></li>
+        <li><strong>Então</strong> a URL inclui <code>language=pt-BR</code>, Bearer, e o JSON parseado é retornado</li>
+      </ul>
+      <h3>REQ-2: Retry em 429 e depois sucesso</h3>
+      <ul>
+        <li><strong>Dado que</strong> o <code>fetch</code> devolve 429, 429 e 200</li>
+        <li><strong>Quando</strong> <code>searchMovies</code> ou <code>getMovieDetails</code> é chamado</li>
+        <li><strong>Então</strong> 3 tentativas, backoff <code>1000ms × 2^n</code>, retorno do 200</li>
+      </ul>
+      <h3>REQ-3: 401 da TMDB vira TmdbHttpException</h3>
+      <ul>
+        <li><strong>Dado que</strong> o <code>fetch</code> devolve 401</li>
+        <li><strong>Quando</strong> <code>searchMovies</code> ou <code>getMovieDetails</code> é chamado</li>
+        <li><strong>Então</strong> <code>TmdbHttpException</code> com <code>statusCode</code> 502; sem retry</li>
+      </ul>
+      <h3>REQ-4: Timeout da tentativa</h3>
+      <ul>
+        <li><strong>Dado que</strong> o <code>fetch</code> não resolve em 5s</li>
+        <li><strong>Quando</strong> <code>searchMovies</code> ou <code>getMovieDetails</code> é chamado</li>
+        <li><strong>Então</strong> aborta; se esgotar tentativas, <code>TmdbHttpException</code> 504</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Token ausente em <code>test</code> → erro de config antes do <code>fetch</code>.</li>
+        <li>404 → 404, sem retry; 5xx persistente → 503; 400/JSON inválido → 502.</li>
+        <li>Query do caller pode sobrescrever <code>language</code>.</li>
+        <li>Log sem Bearer.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <pre><code>IMovieCatalogProvider.searchMovies / getMovieDetails
+timeout 5000ms · 2 retries · backoff base 1000ms
+TMDB_ACCESS_TOKEN obrigatório fora de test
+TmdbHttpException extends BaseException</code></pre>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

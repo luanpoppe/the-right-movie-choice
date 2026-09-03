@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: tmdb-movie-queries — tmdb-client</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">tmdb-client</a> / specs / <strong>tmdb-movie-queries</strong> / spec</p>
+    <h1>Spec: tmdb-movie-queries</h1>
+    <p class="lp-meta">Atualizado em 2026-09-02</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Catálogo tipado (Zod + mapper), cache Redis só de details 24h, GETs debug em <code>dev</code>/<code>test</code> só a partir desta máquina (loopback). Sem chat e sem cache de search.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Search devolve hits, não ficha</h3>
+      <ul>
+        <li><strong>Dado que</strong> a TMDB responde 200 em <code>/search/movie</code></li>
+        <li><strong>Quando</strong> <code>searchMovies</code> ou <code>GET /debug/tmdb/search</code></li>
+        <li><strong>Então</strong> <code>{ page, results: MovieSearchHit[] }</code>; page default 1; sem <code>include_adult</code></li>
+      </ul>
+      <h3>REQ-2: Details mapeado + cache miss</h3>
+      <ul>
+        <li><strong>Dado que</strong> Redis não tem <code>catalog:movie:{id}:{lang}</code></li>
+        <li><strong>Quando</strong> details</li>
+        <li><strong>Então</strong> TMDB → Zod → <code>MovieCatalogDetails</code> → Redis TTL 24h (sem renovar no hit)</li>
+      </ul>
+      <h3>REQ-3: Details cache hit</h3>
+      <ul>
+        <li><strong>Dado que</strong> a chave existe</li>
+        <li><strong>Quando</strong> details de novo</li>
+        <li><strong>Então</strong> sem TMDB; DTO cacheado; TTL não resetado</li>
+      </ul>
+      <h3>REQ-4: Debug só nesta máquina (loopback)</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>dev</code>/<code>test</code> e o cliente é loopback (<code>127.0.0.1</code> / <code>::1</code> / <code>localhost</code> — não LAN nem IP público)</li>
+        <li><strong>Quando</strong> os GETs <code>/debug/tmdb/…</code></li>
+        <li><strong>Então</strong> DTO; rotas inexistentes em prod; outro IP recusado (não é JWT). Postman em localhost passa; internet não usa o backend como proxy da TMDB.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Zod TMDB falha → <code>TmdbHttpException</code> <strong>502 Bad Gateway</strong> (nós somos o gateway; a TMDB mandou corpo inútil). Não é 400 nem 500. Igual JSON inválido / 401 no client HTTP.</li>
+        <li>Redis fora → log, TMDB, sem gravar cache.</li>
+        <li>404 details; search vazia <code>[]</code>; <code>query</code> vazia no debug → 400.</li>
+        <li>Live só script com token; <code>pnpm test</code> sem live.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <pre><code>searchMovies → { page, results: MovieSearchHit[] }
+getMovieDetails → MovieCatalogDetails
+GET /debug/tmdb/search?query=&amp;page=
+GET /debug/tmdb/movies/:id
+Redis catalog:movie:{id}:{lang} · DTO · 24h · sem refresh</code></pre>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

@@ -11,4 +11,5 @@ tasks_format: md
 tasks_autocontinue: on
 parallel: off
 chunk_order: inside-out
+tests: on              # off (padrão): não gera testes automaticamente | on: ao concluir cada feature (ou a correção de um bug-fix), um subagente tester dedicado escreve os testes da funcionalidade — foco em borda e falha, não só caminho feliz — roda e reporta sem corrigir.
 created: 2026-08-21
