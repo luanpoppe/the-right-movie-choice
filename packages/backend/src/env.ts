@@ -8,7 +8,8 @@ const envSchema = z
     PORT: z.coerce.number().default(3333),
     REDIS_URL: z.string(),
     DATABASE_URL: z.string().min(1),
-    GEMINI_API_KEY: z.string(),
+    GEMINI_API_KEY: z.string().optional().default(""),
+    OPENROUTER_API_KEY: z.string().optional(),
 
     JWT_SECRET: z.string().min(1),
     JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
@@ -27,13 +28,24 @@ const envSchema = z
     const isTmdbAccessTokenMissing = StringUtils.isEmptyString(
       data.TMDB_ACCESS_TOKEN,
     );
-    if (!isTmdbAccessTokenMissing) return;
+    if (isTmdbAccessTokenMissing) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TMDB_ACCESS_TOKEN"],
+        message: "Required",
+      });
+    }
 
-    ctx.addIssue({
-      code: "custom",
-      path: ["TMDB_ACCESS_TOKEN"],
-      message: "Required",
-    });
+    const isOpenRouterApiKeyMissing = StringUtils.isEmptyString(
+      data.OPENROUTER_API_KEY,
+    );
+    if (isOpenRouterApiKeyMissing) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["OPENROUTER_API_KEY"],
+        message: "Required",
+      });
+    }
   });
 
 const result = envSchema.safeParse(process.env);
