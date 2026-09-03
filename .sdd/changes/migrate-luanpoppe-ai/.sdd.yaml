@@ -1,0 +1,38 @@
+id: migrate-luanpoppe-ai
+title: Migrar runtime de IA para @luanpoppe/ai
+created: 2026-09-03
+updated: 2026-09-03
+state: implementing
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: ai-client
+    title: Cliente @luanpoppe/ai
+    summary: Instalar @luanpoppe/ai e o cliente fino de bootstrap (OpenRouter + fallback Gemini opcional).
+    status: implementing
+  - slug: recommendation-provider
+    title: Provider de recomendação
+    summary: Recommendation (JSON estruturado + texto) passa a usar o cliente, mantendo IMovieRecommendationProvider.
+    status: pending
+  - slug: query-examples-provider
+    title: Provider de exemplos de query
+    summary: GET /movie/queries passa a usar o mesmo cliente.
+    status: pending
+  - slug: chat-memory
+    title: Memória de chat
+    summary: Adapter de IChatHistoryRepository na memória da lib (Redis + TTL 20 min + chatId).
+    status: pending
+  - slug: remove-langchain-wrapper
+    title: Remover wrapper LangChain
+    summary: Remover src/lib/langchain e dependências LangChain diretas do package.json.
+    status: pending
+current_feature: ai-client
+current_chunk: "F1.C1"
+in_review:
+  chunks: ["F1.C1"]
+  files:
+    - packages/backend/src/env.ts
+    - packages/backend/.env.example
+  commit_message: "feat(ai-client): exigir OpenRouter no env e tornar Gemini opcional"
+  updated: 2026-09-03
