@@ -34,7 +34,7 @@
     .meta { color: var(--muted); font-size: .85rem; margin: 0; }
     .progress { max-width: 900px; margin: 1rem auto; }
     .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); overflow: hidden; border: 1px solid var(--line); }
-    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 50%; transition: width .3s; }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 100%; transition: width .3s; }
     .progress-label { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
 
     .legend { max-width: 900px; margin: 0 auto 1.5rem; display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; }
@@ -126,12 +126,12 @@
 <body>
   <header>
     <h1>Fluxo da implementação — Client HTTP TMDB (v3)</h1>
-    <p class="meta">Mudança <code>tmdb-client</code> · atualizado em 2026-09-01</p>
+    <p class="meta">Mudança <code>tmdb-client</code> · atualizado em 2026-09-02</p>
   </header>
 
   <div class="progress">
     <div class="bar"><span></span></div>
-    <p class="progress-label">Feature tmdb-http-client concluída (4/4) · próxima: spec de tmdb-movie-queries</p>
+    <p class="progress-label">tmdb-movie-queries: 9/9 concluída · tmdb-http-client concluída · aguardando archive</p>
   </div>
 
   <div class="legend">
@@ -272,11 +272,242 @@ const isRetryableStatus = status === 429 || status &gt;= 500;</code></pre>
       </div>
     </details>
 
-    <details class="feature pending" open>
-      <summary>2. tmdb-movie-queries <span class="tag">a fazer</span></summary>
+    <details class="feature done" open>
+      <summary>2. tmdb-movie-queries <span class="tag">concluída · 9/9</span></summary>
       <div class="flow">
         <div class="stage">
-          <div class="node pending"><div class="name">tmdb-movie-queries</div><div class="sub">spec ainda não gerada</div></div>
+          <div class="node done has-detail" data-detail="F2.C1" tabindex="0"><div class="name">Tipos</div><div class="sub">F2.C1 · MovieSearchHit</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C2" tabindex="0"><div class="name">Zod search</div><div class="sub">F2.C2 · TmdbSearchResponseSchema</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C3" tabindex="0"><div class="name">Zod details</div><div class="sub">F2.C3 · TmdbMovieDetailsResponseSchema</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C4" tabindex="0"><div class="name">Mapper</div><div class="sub">F2.C4 · TmdbCatalogMapper</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C5" tabindex="0"><div class="name">Porta+adapter</div><div class="sub">F2.C5 · DTOs na porta</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C6" tabindex="0"><div class="name">Cache Redis</div><div class="sub">F2.C6 · catalog:movie</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C7" tabindex="0"><div class="name">Loopback</div><div class="sub">F2.C7 · TmdbLoopbackGuard</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C8" tabindex="0"><div class="name">Rotas debug</div><div class="sub">F2.C8 · /debug/tmdb</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C9" tabindex="0"><div class="name">Live test</div><div class="sub">F2.C9 · test:tmdb-live</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F2.C1" hidden>
+          <h4>Tipos <span class="chunk-id">F2.C1 · MovieSearchHit / MovieCatalogDetails</span></h4>
+          <p class="what">Contrato da aplicação para busca (página de hits) e ficha de filme, sem snake_case da TMDB.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Dois arquivos de tipo. Elenco limitado a 5 e fatia BR de providers entram no mapper, não nestes tipos.</p>
+          <pre data-file="packages/backend/src/domains/movies/domain/entities/movie-search.entity.ts"><code>export type MovieSearchHit = {
+  id: number;
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  overview: string;
+};
+export type MovieSearchPage = {
+  page: number;
+  results: MovieSearchHit[];
+};</code></pre>
+          <pre data-file="packages/backend/src/domains/movies/domain/entities/movie-catalog-details.entity.ts"><code>export type MovieCatalogDetails = {
+  id: number;
+  title: string;
+  year: number | null;
+  …
+  directors: string[];
+  cast: string[];
+  watchProviders: { flatrate; rent; buy };
+  imdbId: string | null;
+};</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">search TMDB → (depois) MovieSearchPage
+details TMDB → (depois) MovieCatalogDetails
+porta ainda Promise&lt;unknown&gt;</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Consumido pelo mapper (próximo após Zod).</li>
+            <li>Ainda não altera <code>IMovieCatalogProvider</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C2" hidden>
+          <h4>Zod search <span class="chunk-id">F2.C2 · TmdbSearchResponseSchema</span></h4>
+          <p class="what">Valida o JSON cru de <code>/search/movie</code> (snake_case TMDB), ainda sem mapper nem HTTP.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Declara só o que o mapper precisa. Chaves extras da TMDB são descartadas no Zod 4, sem falhar o parse.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-search-response.schema.ts"><code>export const TmdbSearchResponseSchema = z.object({
+  page: z.number(),
+  results: z.array(TmdbSearchMovieResultSchema),
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">JSON TMDB → safeParse (ainda não no client)
+sucesso → TmdbSearchResponse
+falha → 502 no chunk do adapter</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Entrada do mapper de search.</li>
+            <li>Não ligado ao <code>TmdbHttpClient</code> neste chunk.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C3" hidden>
+          <h4>Zod details <span class="chunk-id">F2.C3 · TmdbMovieDetailsResponseSchema</span></h4>
+          <p class="what">Valida o JSON de <code>GET /movie/{id}</code> com append de credits, watch/providers e external_ids — ainda sem mapper nem HTTP.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Campos que a TMDB omite são <code>optional</code>. A chave <code>watch/providers</code> fica entre aspas. Objetos Zod 4 ignoram chaves extras.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-movie-details-response.schema.ts"><code>export const TmdbMovieDetailsResponseSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  overview: z.string(),
+  poster_path: z.string().nullable().optional(),
+  release_date: z.string(),
+  runtime: z.number().nullable().optional(),
+  vote_average: z.number().optional(),
+  genres: z.array(TmdbGenreSchema).optional(),
+  origin_country: z.array(z.string()).optional(),
+  credits: TmdbCreditsSchema.optional(),
+  "watch/providers": TmdbWatchProvidersSchema.optional(),
+  external_ids: TmdbExternalIdsSchema.optional(),
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">JSON TMDB details+append → safeParse (ainda não no client)
+sucesso → TmdbMovieDetailsResponse
+falha → 502 no chunk do adapter</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Entrada do mapper de details (próximo chunk).</li>
+            <li>Não ligado ao <code>TmdbHttpClient</code> neste chunk.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C4" hidden>
+          <h4>Mapper <span class="chunk-id">F2.C4 · TmdbCatalogMapper</span></h4>
+          <p class="what">Converte JSON já validado (Zod) em DTOs camelCase da aplicação. Sem parse e sem HTTP.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Ano = 4 dígitos no início de <code>release_date</code>. Direção = crew com job <code>Director</code>. Elenco = 5 primeiros. Providers só da fatia <code>BR</code>.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-catalog.mapper.ts"><code>static toCatalogDetails(details: TmdbMovieDetailsResponse): MovieCatalogDetails {
+  const searchHit = TmdbCatalogMapper.toSearchHit({ … poster_path: details.poster_path ?? null … });
+  const directors = TmdbCatalogMapper.mapDirectorNames(details.credits?.crew);
+  const cast = TmdbCatalogMapper.mapCastNames(details.credits?.cast);
+  const watchProviders = TmdbCatalogMapper.mapBrazilWatchProviders(details["watch/providers"]);
+  const imdbId = TmdbCatalogMapper.mapImdbId(details.external_ids?.imdb_id);
+  return { …searchHit, runtimeMinutes: details.runtime ?? null, … };
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">TmdbSearchResponse → MovieSearchPage
+TmdbMovieDetailsResponse → MovieCatalogDetails
+Zod fail ainda não acontece aqui</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Consome os schemas de search e details.</li>
+            <li>O próximo chunk liga o client: safeParse + este mapper + 502.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C5" hidden>
+          <h4>Porta+adapter <span class="chunk-id">F2.C5 · IMovieCatalogProvider / TmdbHttpClient</span></h4>
+          <p class="what">Search e details passam a devolver DTOs da aplicação. JSON inesperado vira 502, como JSON inválido.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>getJson</code> continua <code>unknown</code>. Depois do 200, <code>safeParse</code> + mapper. Log de warn sem body nem token.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-http.client.ts"><code>async searchMovies(query: string, page?: number): Promise&lt;MovieSearchPage&gt; {
+  const json = await this.getJson("/search/movie", searchParams);
+  return this.mapSearchPage(json);
+}
+private mapSearchPage(json: unknown): MovieSearchPage {
+  const parsed = TmdbSearchResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    Logger.warn("TMDB returned an unexpected payload", { path: "search" });
+    throw new TmdbHttpException("TMDB returned an unexpected payload", 502);
+  }
+  return TmdbCatalogMapper.toSearchPage(parsed.data);
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">200 JSON → Zod → MovieSearchPage / MovieCatalogDetails
+Zod fail → TmdbHttpException 502
+404/timeout/retry inalterados</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Implementa a porta tipada.</li>
+            <li>Cache Redis (próximo) ainda não envolve o client.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C6" hidden>
+          <h4>Cache Redis <span class="chunk-id">F2.C6 · TmdbMovieDetailsCache</span></h4>
+          <p class="what">Guarda o DTO de details já mapeado. GET não renova TTL. Redis fora do ar não quebra o fluxo.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Leitura com <code>getString</code> (miss = <code>null</code>). Escrita com <code>setWithExpiration</code> 86400s. JSON inválido ou shape sem id/title vira miss.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache.ts"><code>const rawValue = await this.redis.getString(key);
+return this.parseCachedDetails(movieId, rawValue);
+await this.redis.setWithExpiration(key, details, ttlSeconds);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">chave catalog:movie:{id}:pt-BR
+hit → MovieCatalogDetails
+miss / Redis down / JSON ruim → null
+set falha → warn, sem throw</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Ainda não é chamado pelo client nem pelas rotas debug.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C7" hidden>
+          <h4>Loopback <span class="chunk-id">F2.C7 · TmdbLoopbackGuard</span></h4>
+          <p class="what">preHandler Fastify: só a própria máquina acessa as rotas debug. Sem JWT. Sem mudar <code>listen()</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p>IP de <code>request.ip</code> (fallback socket). Normaliza IPv4-mapped. Fora de 127.0.0.1 / ::1 / localhost → 403. Não lê <code>X-Forwarded-For</code>.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/tmdb-loopback.guard.ts"><code>if (TmdbLoopbackGuard.isLoopbackAddress(ip)) return;
+throw new TmdbLoopbackForbiddenException();</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">127.0.0.1 / ::1 / localhost / ::ffff:127.0.0.1 → passa
+192.168.* / IP público / IP vazio → 403</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>As rotas debug (próximo chunk) registram este preHandler.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C8" hidden>
+          <h4>Rotas debug <span class="chunk-id">F2.C8 · /debug/tmdb</span></h4>
+          <p class="what">GETs locais de search e details. Loopback no plugin. Cache só no details. Fora de prod.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Search exige query. Details: cache hit devolve DTO; miss chama o client e grava TTL 24h sem refresh no hit.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/controllers/tmdb-debug.routes.ts"><code>app.addHook("preHandler", TmdbLoopbackGuard.createPreHandler());
+app.get("/debug/tmdb/search", …);
+app.get("/debug/tmdb/movies/:id", …);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">dev/test → plugin registrado
+prod → rotas inexistentes
+query vazia / id inválido → 400
+IP não loopback → 403</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Client, cache e guard dos chunks anteriores.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C9" hidden>
+          <h4>Live test <span class="chunk-id">F2.C9 · test:tmdb-live</span></h4>
+          <p class="what">Opt-in contra a TMDB real. Não entra no job unitário da CI. Sem token, a suíte é skip.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Projeto Vitest <code>tmdb-live</code> inclui só <code>*.live.spec.ts</code>. <code>pnpm test</code> usa <code>--project unit</code> e exclui live.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/specs/tmdb-http.client.live.spec.ts"><code>describe.skipIf(shouldSkipLiveTests)("TmdbHttpClient live", () =&gt; {
+  it("searchMovies then getMovieDetails against TMDB", async () =&gt; { … }, 30_000);
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">sem TMDB_ACCESS_TOKEN → skip (exit 0)
+com token → search The Matrix + details do 1º hit (fallback id 603)</div>
         </div>
       </div>
     </details>

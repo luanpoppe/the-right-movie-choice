@@ -1,21 +1,24 @@
 # Catálogo TMDB (client HTTP)
 
-> Atualizado em 2026-09-01 · fontes: `packages/backend/src/modules/tmdb`, `IMovieCatalogProvider`
+> Atualizado em 2026-09-03 · fontes: `packages/backend/src/modules/tmdb`, `IMovieCatalogProvider`, rotas `/debug/tmdb`
 
 ## O que é
 
-Transporte HTTP da TMDB API v3 no backend, ainda **sem** tools do chat e **sem** rotas debug (isso vem na feature de queries). A aplicação fala com `IMovieCatalogProvider` no domínio de filmes; a TMDB é um adapter substituível.
+Transporte HTTP da TMDB API v3 no backend, **sem** tools LangChain. A aplicação fala com `IMovieCatalogProvider`; search e details devolvem DTOs camelCase. Em `dev`/`test` há GETs debug só em loopback. Cache Redis só de details.
 
 ## Como funciona
 
-- Boot: `TMDB_ACCESS_TOKEN` obrigatório em `dev`/`prod` (`env.ts`); em `test` pode faltar.
-- Porta: `searchMovies` e `getMovieDetails` em `domains/movies/application/providers/movie-catalog.provider.ts`.
-- Adapter: `TmdbHttpClient` + `TmdbHttpUtils` + `MakeTmdbHttpClientFactory` — Bearer no header, timeout 5s, até 3 tentativas com backoff só em 429/5xx.
-- Details já pedem `append_to_response` (credits, watch/providers, external_ids) e `watch_region=BR`. O JSON ainda é `unknown` até os DTOs Zod.
-- Erros viram `TmdbHttpException` (`BaseException` + `statusCode`).
+- Boot: `TMDB_ACCESS_TOKEN` obrigatório em `dev`/`prod`; em `test` pode faltar. Token raw na env; o código prefixa `Bearer`.
+- Porta: `searchMovies` → `MovieSearchPage`; `getMovieDetails` → `MovieCatalogDetails`.
+- Adapter: `TmdbHttpClient` — `fetch` + timeout 5s, retry 429/5xx. Depois do 200: Zod (`TmdbSearchResponseSchema` / `TmdbMovieDetailsResponseSchema`) + `TmdbCatalogMapper`. Payload inesperado → `TmdbHttpException` 502.
+- Details TMDB: `append_to_response=credits,watch/providers,external_ids`, `watch_region=BR`, `language=pt-BR`. Search sem `include_adult`.
+- Cache: `TmdbMovieDetailsCache`, chave `catalog:movie:{id}:{lang}`, TTL 24h, `getString` (não `Redis.get()`). GET não renova TTL. Redis down → log + miss/no-op.
+- Debug: plugin `tmdbDebugControllers` só se `NODE_ENV !== "prod"`. `TmdbLoopbackGuard` no `preHandler`. Search: query vazia → 400. Details: cache hit sem TMDB.
+- Live: `pnpm --filter @the-right-movie-choice/backend test:tmdb-live` (projeto Vitest `tmdb-live`). `pnpm test` é só `--project unit` e exclui `*.live.spec.ts`.
 
 ## Decisões e porquês
 
 - Porta no domínio `movies`, HTTP em `modules/tmdb` — trocar vendor não muda o contrato de catálogo.
-- Token raw na env; o código prefixa `Bearer`. Sem token no log.
-- `fetch` e `delay` injetáveis (`Params`) para teste sem rede e sem esperar backoff.
+- 502 em Zod fail: somos gateway; TMDB é upstream. Não é 400 nem 500.
+- Debug sem JWT: trava é loopback + rotas inexistentes em prod.
+- Sem cache de search: lista muda rápido; details é ficha estável o suficiente para 24h.

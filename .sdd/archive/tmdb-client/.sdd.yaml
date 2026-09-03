@@ -1,8 +1,9 @@
 id: tmdb-client
 title: Client HTTP TMDB (v3)
 created: 2026-08-31
-updated: 2026-09-02
-state: awaiting-feature-spec
+updated: 2026-09-03
+state: archived
+archived: 2026-09-03
 format: both
 lang: pt-BR
 chunk_size: small
@@ -14,6 +15,7 @@ features:
   - slug: tmdb-movie-queries
     title: Buscas e details TMDB
     summary: Search e details (credits, providers, ids), DTO Zod, cache Redis de details, GETs debug e testes (unit + live local).
-    status: speccing
-current_feature: tmdb-movie-queries
+    status: done
+current_feature: null
+current_chunk: null
 in_review: null
