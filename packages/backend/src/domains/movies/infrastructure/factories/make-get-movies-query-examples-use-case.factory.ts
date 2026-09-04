@@ -1,25 +1,39 @@
-import { Langchain } from "@/lib/langchain/langchain";
-import { LangchainMoviesQueryExamplesProvider } from "../providers/langchain-movies-query-examples.provider";
+import { AI } from "@luanpoppe/ai";
+import { env } from "@/env";
+import { AiModels } from "@/lib/ai/ai-models";
+import { StringUtils } from "@/shared/utils/string.utils";
+
 import { GetMoviesQueryExamplesUseCase } from "../../application/use-cases/get-movies-query-examples.use-case";
-import { GEMINI_MODELS } from "@/lib/langchain/model/models.enum";
+import { AiMoviesQueryExamplesProvider } from "../providers/ai-movies-query-examples.provider";
+
+type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
 export class MakeGetMoviesQueryExamplesUseCaseFactory {
   static create() {
-    const langchain = new Langchain();
-    const model = langchain.model.gemini({
-      model: GEMINI_MODELS.FLASH_LITE_2_5,
-      cache: false,
-      temperature: 1.5,
-    });
-
-    const movieQueryExamplesProvider = new LangchainMoviesQueryExamplesProvider(
-      langchain,
-      model
-    );
+    const config = MakeGetMoviesQueryExamplesUseCaseFactory.buildAiConfig();
+    const ai = new AI(config);
+    const movieQueryExamplesProvider = new AiMoviesQueryExamplesProvider(ai);
 
     const useCase = new GetMoviesQueryExamplesUseCase(
-      movieQueryExamplesProvider
+      movieQueryExamplesProvider,
     );
     return useCase;
+  }
+
+  private static buildAiConfig(): AiConstructorConfig {
+    const openRouterApiKey = env.OPENROUTER_API_KEY;
+    const geminiApiKey = env.GEMINI_API_KEY;
+    const hasOpenRouterApiKey = !StringUtils.isEmptyString(openRouterApiKey);
+    const hasGeminiApiKey = !StringUtils.isEmptyString(geminiApiKey);
+
+    return {
+      ...(hasOpenRouterApiKey ? { openRouterApiKey } : {}),
+      ...(hasGeminiApiKey
+        ? {
+            googleGeminiToken: geminiApiKey,
+            aiModelsFallback: [AiModels.GEMINI_FALLBACK],
+          }
+        : {}),
+    };
   }
 }
