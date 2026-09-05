@@ -16,12 +16,19 @@ export class TmdbHttpUtils {
   static buildSearchMoviesParams(
     query: string,
     page?: number,
+    year?: number,
   ): URLSearchParams {
     const pageNumber = page ?? 1;
     const searchParams = new URLSearchParams();
     searchParams.set("query", query);
     searchParams.set("page", String(pageNumber));
     searchParams.set("language", TmdbHttpConstants.DEFAULT_LANGUAGE);
+
+    const hasYear = year !== undefined;
+    if (hasYear) {
+      searchParams.set("primary_release_year", String(year));
+    }
+
     return searchParams;
   }
 

@@ -253,6 +253,22 @@ describe("TmdbHttpClient", () => {
       expect(parsedUrl.searchParams.get("query")).toBe("matrix");
       expect(parsedUrl.searchParams.get("page")).toBe("1");
       expect(parsedUrl.searchParams.get("language")).toBe("pt-BR");
+      expect(parsedUrl.searchParams.get("primary_release_year")).toBeNull();
+    });
+
+    it("sends primary_release_year without appending year to the query text", async () => {
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(200, SEARCH_FIXTURE));
+      const { client } = createClient(fetchFn);
+
+      await client.searchMovies("The Name of the Rose", 1, 1986);
+
+      const [url] = fetchFn.mock.calls[0] as [string];
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get("query")).toBe("The Name of the Rose");
+      expect(parsedUrl.searchParams.get("page")).toBe("1");
+      expect(parsedUrl.searchParams.get("primary_release_year")).toBe("1986");
     });
 
     it("sends the given page when provided", async () => {

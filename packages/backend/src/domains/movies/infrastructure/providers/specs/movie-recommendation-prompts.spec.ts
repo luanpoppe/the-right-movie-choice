@@ -24,6 +24,25 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("zero filmes");
     expect(prompt).not.toContain("já foi feito por outra IA");
     expect(prompt).not.toContain("Filmes sugeridos:");
+    expect(prompt).toContain("lookupMovies");
+    expect(prompt).toContain("{ queries: [{ query, year? }] }");
+    expect(prompt).toContain("tmdbId");
+    expect(prompt).toContain("imdbId");
+    expect(prompt).toContain("found: true");
+    expect(prompt).toContain("found: false");
+    expect(prompt).toMatch(/uma única vez|uma\s+única\s+vez/i);
+    expect(prompt).toMatch(/4 a 8 candidatos/i);
+    expect(prompt).toContain("não invente esses ids");
+    expect(prompt).toContain("sem incluir tmdbId nem imdbId");
+  });
+
+  it("REQ-4: instrui mais candidatos, uma chamada lookupMovies e cópia de ids", () => {
+    const prompt = MovieRecommendationPrompts.unified();
+
+    expect(prompt).toMatch(/mais títulos candidatos/i);
+    expect(prompt).toContain("lookupMovies uma única vez");
+    expect(prompt).toContain("copie tmdbId e imdbId");
+    expect(prompt).toContain("não responda em markdown");
   });
 
   it("expõe só unified na API — sem structured nem chat", () => {

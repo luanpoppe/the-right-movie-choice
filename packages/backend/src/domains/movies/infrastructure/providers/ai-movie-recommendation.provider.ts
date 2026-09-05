@@ -1,4 +1,5 @@
 import { AI, AIMessages } from "@luanpoppe/ai";
+import type { AICallParams } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { IMovieRecommendationProvider } from "../../application/providers/movie-recommendation.provider";
@@ -9,10 +10,19 @@ import {
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
 import { MovieRecommendationPrompts } from "./movie-recommendation-prompts";
 
+type AgentTool = NonNullable<
+  NonNullable<AICallParams["agent"]>["tools"]
+>[number];
+
+type AiMovieRecommendationProviderParams = {
+  ai: AI;
+  lookupMoviesTool: AgentTool;
+};
+
 export class AiMovieRecommendationProvider
   implements IMovieRecommendationProvider
 {
-  constructor(private ai: AI) {}
+  constructor(private readonly params: AiMovieRecommendationProviderParams) {}
 
   async getMovieRecommendation(
     userMessage: string,
@@ -24,12 +34,14 @@ export class AiMovieRecommendationProvider
     const startedAtMs = Date.now();
 
     try {
-      const result = await this.ai.callStructuredOutput({
+      const lookupMoviesTool = this.params.lookupMoviesTool;
+      const result = await this.params.ai.callStructuredOutput({
         aiModel: AiModels.PRIMARY,
         systemPrompt,
         messages,
         threadId: chatId,
         outputSchema: MovieRecommendationSchema as never,
+        agent: { tools: [lookupMoviesTool] },
       });
       const parseResult = MovieRecommendationSchema.safeParse(result.response);
       if (!parseResult.success) {

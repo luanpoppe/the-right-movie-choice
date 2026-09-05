@@ -1,0 +1,95 @@
+import { IMovieCatalogProvider } from "@/domains/movies/application/providers/movie-catalog.provider";
+import type {
+  MovieCatalogLookupInput,
+  MovieCatalogLookupResult,
+} from "@/domains/movies/domain/entities/movie-catalog-lookup-result.entity";
+import { Logger } from "@/lib/logger/logger";
+import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
+import { StringUtils } from "@/shared/utils/string.utils";
+
+export class MovieCatalogLookupService {
+  constructor(private readonly catalog: IMovieCatalogProvider) {}
+
+  async findDetailsByTitle(
+    input: MovieCatalogLookupInput,
+  ): Promise<MovieCatalogLookupResult> {
+    const isQueryEmpty = StringUtils.isEmptyString(input.query);
+    if (isQueryEmpty) {
+      return this.miss(
+        "Informe o nome de um filme para buscar no catálogo.",
+      );
+    }
+
+    const startedAtMs = Date.now();
+
+    try {
+      const searchQuery = input.query;
+      const searchPage = await this.searchCatalog(searchQuery, input.year);
+      const firstHit = searchPage.results[0];
+      const hasSearchResults = firstHit !== undefined;
+
+      if (!hasSearchResults) {
+        return this.miss(`Nenhum filme encontrado para "${searchQuery}".`);
+      }
+
+      const movieId = firstHit.id;
+      const details = await this.catalog.getMovieDetails(movieId);
+      const durationMs = Date.now() - startedAtMs;
+      this.logSuccess("Busca da ficha por título no catálogo concluída", durationMs);
+
+      return {
+        found: true,
+        details,
+      };
+    } catch (error) {
+      const durationMs = Date.now() - startedAtMs;
+      const isTmdbHttpError = error instanceof TmdbHttpException;
+
+      if (isTmdbHttpError) {
+        this.logFailure(
+          "Busca da ficha por título no catálogo falhou (TMDB indisponível)",
+          durationMs,
+          error,
+        );
+        return this.miss(
+          "O catálogo de filmes está temporariamente indisponível. Tente novamente mais tarde.",
+        );
+      }
+
+      this.logFailure("Busca da ficha por título no catálogo falhou", durationMs, error);
+      return this.miss(
+        "Não foi possível consultar o catálogo de filmes no momento.",
+      );
+    }
+  }
+
+  private async searchCatalog(query: string, year?: number) {
+    const hasYear = year !== undefined;
+    if (!hasYear) {
+      return this.catalog.searchMovies(query);
+    }
+
+    return this.catalog.searchMovies(query, 1, year);
+  }
+
+  private miss(message: string): MovieCatalogLookupResult {
+    return { found: false, message };
+  }
+
+  private logSuccess(message: string, durationMs: number) {
+    Logger.info(message, {
+      durationMs,
+      success: true,
+    });
+  }
+
+  private logFailure(message: string, durationMs: number, error: unknown) {
+    const isErrorInstance = error instanceof Error;
+    const errorMessage = isErrorInstance ? error.message : String(error);
+    Logger.error(message, {
+      durationMs,
+      success: false,
+      error: errorMessage,
+    });
+  }
+}

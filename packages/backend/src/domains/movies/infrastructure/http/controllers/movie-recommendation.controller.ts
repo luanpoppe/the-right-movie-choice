@@ -13,6 +13,10 @@ import {
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
+import {
+  SingleMovieReccomendationInternalEntity,
+  SingleMovieReccomendationSchema,
+} from "@/domains/movies/domain/entities/movie-recommendation.entity";
 import { env } from "@/env";
 
 export class MovieRecommendationController {
@@ -33,10 +37,10 @@ export class MovieRecommendationController {
       const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
 
       const { movies, response } = await useCase.execute(userMessage, chatid);
-      const responseBody: MovieRecommendationResponseDTO = {
-        response,
+      const responseBody = MovieRecommendationController.toPublicResponseBody(
         movies,
-      };
+        response,
+      );
 
       const movieAuth = request.movieAuth;
       const isAnonymous =
@@ -63,6 +67,22 @@ export class MovieRecommendationController {
 
       return reply.status(200).send(responseBody);
     };
+  }
+
+  private static toPublicResponseBody(
+    movies: SingleMovieReccomendationInternalEntity[],
+    response: string,
+  ): MovieRecommendationResponseDTO {
+    const publicMovies = movies.map((movie) => {
+      const publicMovie = SingleMovieReccomendationSchema.parse(movie);
+      return publicMovie;
+    });
+
+    const responseBody: MovieRecommendationResponseDTO = {
+      response,
+      movies: publicMovies,
+    };
+    return responseBody;
   }
 
   private static guestIdCookieOptions(): CookieSerializeOptions {

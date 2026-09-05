@@ -33,8 +33,16 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     this.delay = params.delay ?? DelayUtils.delay;
   }
 
-  async searchMovies(query: string, page?: number): Promise<MovieSearchPage> {
-    const searchParams = TmdbHttpUtils.buildSearchMoviesParams(query, page);
+  async searchMovies(
+    query: string,
+    page?: number,
+    year?: number,
+  ): Promise<MovieSearchPage> {
+    const searchParams = TmdbHttpUtils.buildSearchMoviesParams(
+      query,
+      page,
+      year,
+    );
     const json = await this.getJson("/search/movie", searchParams);
     return this.mapSearchPage(json);
   }

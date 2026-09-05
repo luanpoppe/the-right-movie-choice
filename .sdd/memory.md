@@ -87,6 +87,24 @@
   - **Exemplo**: `IMovieCatalogProvider.searchMovies` / `getMovieDetails`, não `ITmdbHttpClient.getJson`
   - **Registrado em**: 2026-09-01
 
+- Tool de agente que consulta vendor não relança falha HTTP: devolve miss estruturado para o modelo seguir com o que já sabe.
+  - **Quando**: LLM com tool sobre API de terceiro
+  - **Por quê**: derrubar o turno inteiro impede a resposta conversacional
+  - **Exemplo**: lookup TMDB captura `TmdbHttpException` e devolve `{ found: false }`
+  - **Registrado em**: 2026-09-05
+
+- Várias buscas de catálogo no mesmo turno da IA: Zod de **array** + `Promise.all` no adapter da tool; o domínio continua `lookup` unitário.
+  - **Quando**: o modelo precisa enriquecer vários candidatos de uma vez
+  - **Por quê**: uma function call, paralelismo no Node, contrato de F1 intacto
+  - **Exemplo**: `{ queries: [{ query, year? }] }` → array de `MovieCatalogLookupResult` na mesma ordem
+  - **Registrado em**: 2026-09-05
+
+- “Tool” no código só é o que o agente de IA chama (`AITools.createTool` / function calling). Orquestração de catálogo/HTTP fica serviço/provider, não `*Tool`.
+  - **Quando**: ligar LLM a vendor
+  - **Por quê**: o nome Tool no domínio sugere function call; o modelo só vê o adapter Zod
+  - **Exemplo**: `lookupMovies` via `MovieCatalogLookupAiTool`; `MovieCatalogLookupService.findDetailsByTitle` é o serviço de catálogo
+  - **Registrado em**: 2026-09-05
+
 - Teste que chama API real não entra no job unitário da CI; opt-in só local.
   - **Quando**: client de serviço externo
   - **Exemplo**: live TMDB fora do `pnpm test` da CI

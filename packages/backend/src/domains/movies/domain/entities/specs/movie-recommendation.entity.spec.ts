@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MovieRecommendationSchema } from "../movie-recommendation.entity";
+import {
+  MovieRecommendationSchema,
+  SingleMovieReccomendationInternalSchema,
+} from "../movie-recommendation.entity";
 
 class MovieRecommendationEntityFixtures {
   static singleMovie() {
@@ -75,6 +78,52 @@ describe("MovieRecommendationSchema", () => {
     };
 
     const parseResult = MovieRecommendationSchema.safeParse(payload);
+
+    expect(parseResult.success).toBe(true);
+  });
+
+  it("REQ-2: aceita filme com tmdbId e imdbId opcionais", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: 27205,
+      imdbId: "tt1375666",
+    };
+    const payload = {
+      movies: [movie],
+      response: "Filme com ids do catálogo.",
+    };
+
+    const parseResult = MovieRecommendationSchema.safeParse(payload);
+
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.movies[0]?.tmdbId).toBe(27205);
+      expect(parseResult.data.movies[0]?.imdbId).toBe("tt1375666");
+    }
+  });
+
+  it("REQ-2: aceita filme sem tmdbId nem imdbId após miss no catálogo", () => {
+    const movie = MovieRecommendationEntityFixtures.singleMovie();
+    const payload = {
+      movies: [movie],
+      response: "Sugestão sem ids porque o catálogo não encontrou.",
+    };
+
+    const parseResult = MovieRecommendationSchema.safeParse(payload);
+
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.movies[0]).not.toHaveProperty("tmdbId");
+      expect(parseResult.data.movies[0]).not.toHaveProperty("imdbId");
+    }
+  });
+
+  it("REQ-2: aceita filme só com tmdbId sem imdbId", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: 603,
+    };
+    const parseResult = SingleMovieReccomendationInternalSchema.safeParse(movie);
 
     expect(parseResult.success).toBe(true);
   });
