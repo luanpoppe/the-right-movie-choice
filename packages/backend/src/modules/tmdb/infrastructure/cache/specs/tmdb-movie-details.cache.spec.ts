@@ -5,7 +5,7 @@ import { TmdbCacheConstants } from "@/modules/tmdb/domain/tmdb-cache.constants";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
 
 const DETAILS: MovieCatalogDetails = {
-  id: 11,
+  tmdbId: 11,
   title: "Star Wars",
   year: 1977,
   posterPath: "/poster.jpg",

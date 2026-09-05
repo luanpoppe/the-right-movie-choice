@@ -4,7 +4,7 @@ export type MovieWatchProvider = {
 };
 
 export type MovieCatalogDetails = {
-  id: number;
+  tmdbId: number;
   title: string;
   year: number | null;
   posterPath: string | null;

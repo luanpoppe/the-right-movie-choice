@@ -6,7 +6,7 @@ import { MovieCatalogLookupAiTool } from "../movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../movie-catalog-lookup.service";
 
 type LookupMoviesToolInput = {
-  queries: Array<{ query: string; year?: number }>;
+  queries: Array<{ query: string; year?: number; language?: string }>;
 };
 
 type CapturedToolConfig = {
@@ -21,7 +21,7 @@ class MovieCatalogLookupAiToolFixtures {
     return {
       found: true,
       details: {
-        id: 1,
+        tmdbId: 1,
         title,
         year: 2010,
         posterPath: "/poster.jpg",
@@ -43,12 +43,14 @@ class MovieCatalogLookupAiToolFixtures {
   }
 }
 
-let capturedToolConfig: CapturedToolConfig | undefined;
+const toolCapture: { config: CapturedToolConfig | undefined } = {
+  config: undefined,
+};
 
 vi.mock("@luanpoppe/ai", () => ({
   AITools: class AITools {
     createTool(config: CapturedToolConfig) {
-      capturedToolConfig = config;
+      toolCapture.config = config;
       return {
         name: config.name,
         description: config.description,
@@ -74,21 +76,24 @@ describe("MovieCatalogLookupAiTool", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    capturedToolConfig = undefined;
     findDetailsByTitle = vi.fn();
     catalogLookup = {
       findDetailsByTitle,
     } as unknown as MovieCatalogLookupService;
 
     const aiTool = new MovieCatalogLookupAiTool(catalogLookup);
-    const tool = aiTool.createLookupMoviesTool();
-    toolExecute = tool.execute as typeof toolExecute;
+    aiTool.createLookupMoviesTool();
+    const captured = toolCapture.config;
+    if (captured === undefined) {
+      throw new Error("lookupMovies tool was not captured");
+    }
+    toolExecute = captured.toolFunction;
   });
 
   it("expõe lookupMovies com descrição de batch paralelo", () => {
-    expect(capturedToolConfig?.name).toBe("lookupMovies");
-    expect(capturedToolConfig?.description).toContain("paralelo");
-    expect(capturedToolConfig?.description).toContain("mesma ordem");
+    expect(toolCapture.config?.name).toBe("lookupMovies");
+    expect(toolCapture.config?.description).toContain("paralelo");
+    expect(toolCapture.config?.description).toContain("mesma ordem");
   });
 
   it("REQ-1: devolve resultados na mesma ordem das queries (hit, miss, hit)", async () => {
@@ -119,6 +124,20 @@ describe("MovieCatalogLookupAiTool", () => {
     expect(findDetailsByTitle).toHaveBeenNthCalledWith(3, { query: "Gamma" });
   });
 
+  it("repassa language da query para o lookup", async () => {
+    const hit = MovieCatalogLookupAiToolFixtures.hit("Interstellar");
+    findDetailsByTitle.mockResolvedValue(hit);
+
+    await toolExecute({
+      queries: [{ query: "Interstellar", language: "en-US" }],
+    });
+
+    expect(findDetailsByTitle).toHaveBeenCalledWith({
+      query: "Interstellar",
+      language: "en-US",
+    });
+  });
+
   it("REQ-1: dispara lookups em paralelo via Promise.all", async () => {
     const resolvers: Array<(value: MovieCatalogLookupResult) => void> = [];
     findDetailsByTitle.mockImplementation(
@@ -145,7 +164,7 @@ describe("MovieCatalogLookupAiTool", () => {
   });
 
   it("rejeita queries vazias no schema Zod (min 1)", () => {
-    const parseResult = capturedToolConfig!.schema.safeParse({ queries: [] });
+    const parseResult = toolCapture.config!.schema.safeParse({ queries: [] });
 
     expect(parseResult.success).toBe(false);
   });
@@ -154,7 +173,7 @@ describe("MovieCatalogLookupAiTool", () => {
     const nineQueries = Array.from({ length: 9 }, (_, index) => ({
       query: `Filme ${index + 1}`,
     }));
-    const parseResult = capturedToolConfig!.schema.safeParse({
+    const parseResult = toolCapture.config!.schema.safeParse({
       queries: nineQueries,
     });
 
@@ -162,10 +181,10 @@ describe("MovieCatalogLookupAiTool", () => {
   });
 
   it("aceita de 1 a 8 queries no schema Zod", () => {
-    const oneQuery = capturedToolConfig!.schema.safeParse({
+    const oneQuery = toolCapture.config!.schema.safeParse({
       queries: [{ query: "Inception" }],
     });
-    const eightQueries = capturedToolConfig!.schema.safeParse({
+    const eightQueries = toolCapture.config!.schema.safeParse({
       queries: Array.from({ length: 8 }, (_, index) => ({
         query: `Filme ${index + 1}`,
       })),

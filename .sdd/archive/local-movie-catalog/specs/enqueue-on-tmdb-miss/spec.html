@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: enqueue-on-tmdb-miss — local-movie-catalog</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">local-movie-catalog</a> / specs / <strong>enqueue-on-tmdb-miss</strong> / spec</p>
+    <h1>Spec: enqueue-on-tmdb-miss</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Quando o resolver obtém details novos do TMDB (miss ou refresh de ficha velha), enfileira <code>catalog-movie-persist</code> sem bloquear agente ou GET debug. Falha no enqueue só loga.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Miss TMDB enfileira persistência</h3>
+      <ul>
+        <li><strong>Dado que</strong> miss TMDB de Interestelar (<code>157336</code>, <code>pt-BR</code>)</li>
+        <li><strong>Quando</strong> <code>resolveByTmdbId</code> devolve a ficha</li>
+        <li><strong>Então</strong> responde imediatamente com details</li>
+        <li><strong>E</strong> grava Redis</li>
+        <li><strong>E</strong> adiciona job <code>157336:pt-BR</code> na fila</li>
+        <li><strong>E</strong> usa <code>defaultJobOptions()</code></li>
+      </ul>
+      <h3>REQ-2: Falha no enqueue não atrapalha a resposta</h3>
+      <ul>
+        <li><strong>Dado que</strong> TMDB devolveu Duna (<code>438631</code>)</li>
+        <li><strong>Quando</strong> <code>Queue.add</code> lança</li>
+        <li><strong>Então</strong> caller recebe os details</li>
+        <li><strong>E</strong> loga warn com <code>tmdbId</code>, <code>language</code> e motivo</li>
+        <li><strong>E</strong> não relança o erro</li>
+      </ul>
+      <h3>REQ-3: Refresh de ficha velha também enfileira</h3>
+      <ul>
+        <li><strong>Entrada</strong> linha velha (31 dias); TMDB ok</li>
+        <li><strong>Saída</strong> details TMDB + Redis + job enfileirado</li>
+        <li><strong>Erro</strong> TMDB falha → ficha velha; sem enqueue</li>
+      </ul>
+      <h3>REQ-4: Hit local fresco ou Redis não enfileira</h3>
+      <ul>
+        <li><strong>Entrada</strong> Redis hit ou Postgres fresco (&lt;30 dias)</li>
+        <li><strong>Saída</strong> details sem TMDB</li>
+        <li><strong>E</strong> não chama <code>Queue.add</code></li>
+      </ul>
+      <h3>REQ-5: Debug GET details no mesmo enqueue</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>GET /debug/tmdb/movies/157336</code> com miss TMDB</li>
+        <li><strong>Quando</strong> retorna HTTP 200</li>
+        <li><strong>Então</strong> enqueue ocorreu via <code>MovieCatalogDetailsResolver</code></li>
+      </ul>
+      <h3>REQ-6: jobId deduplica na fila</h3>
+      <ul>
+        <li><strong>Entrada</strong> job <code>157336:pt-BR</code> já waiting/active</li>
+        <li><strong>Saída</strong> segundo add não duplica processor</li>
+        <li><strong>Erro</strong> re-add não propaga ao caller</li>
+      </ul>
+      <h3>REQ-7: Porta de enqueue isolada</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>enqueue</code> com <code>tmdbId</code> válido</li>
+        <li><strong>Saída</strong> job na fila com <code>MovieCatalogPersistJobData</code></li>
+        <li><strong>Erro</strong> payload inválido → log; sem throw</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases">
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Enqueue não espera Worker/upsert — só o <code>add</code>; falha capturada e logada.</li>
+        <li>Lookup por título enfileira quando <code>resolveByTmdbId</code> busca no TMDB após search.</li>
+        <li>Search TMDB sozinho não enfileira — só com <code>MovieCatalogDetails</code> completo.</li>
+        <li>Worker offline no boot não impede enqueue — jobs ficam waiting.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos">
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Fila/<code>jobId</code>: <code>movie-catalog-persist.constants.ts</code></li>
+        <li>Payload: <code>movie-catalog-persist-job.entity.ts</code></li>
+        <li>Opções: <code>make-catalog-persist-worker.factory.ts</code> (<code>defaultJobOptions</code>)</li>
+        <li>Integração: <code>movie-catalog-details.resolver.ts</code></li>
+        <li>Enqueue: <code>packages/backend/src/domains/movies/infrastructure/workers/catalog-persist.enqueuer.ts</code> (<code>CatalogPersistEnqueuer.enqueue</code>)</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer>
+    Gerado pelo SDD lp:* · spec enqueue-on-tmdb-miss
+  </footer>
+</body>
+</html>

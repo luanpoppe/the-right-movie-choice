@@ -41,7 +41,7 @@ describe("MovieRecommendationPrompts", () => {
 
     expect(prompt).toMatch(/mais títulos candidatos/i);
     expect(prompt).toContain("chame a tool lookupMovies exatamente uma vez");
-    expect(prompt).toContain("copie details.id para tmdbId");
+    expect(prompt).toContain("copie details.tmdbId para tmdbId");
     expect(prompt).toContain("details.imdbId para imdbId");
     expect(prompt).toContain("Não use Markdown");
   });
@@ -53,7 +53,7 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("Não cole o ano no texto da query");
     expect(prompt).toContain("mesma ordem das queries");
     expect(prompt).toContain("mesma posição");
-    expect(prompt).toContain("não devolve um campo chamado tmdbId");
+    expect(prompt).toContain("details.tmdbId e details.imdbId");
   });
 
   it("expõe só unified na API — sem structured nem chat", () => {

@@ -17,3 +17,81 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum MovieWatchProviderKind {
+  flatrate
+  rent
+  buy
+}
+
+model Movie {
+  id              Int      @id @default(autoincrement())
+  tmdbId          Int
+  language        String
+  title           String
+  year            Int?
+  posterPath      String?
+  overview        String
+  runtimeMinutes  Int?
+  tmdbVoteAverage Float?
+  imdbId          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  genres          MovieGenre[]
+  directors       MovieDirector[]
+  cast            MovieCast[]
+  originCountries MovieOriginCountry[]
+  watchProviders  MovieWatchProvider[]
+
+  @@unique([tmdbId, language])
+  @@unique([imdbId, language])
+}
+
+model MovieGenre {
+  id      Int    @id @default(autoincrement())
+  name    String
+  movieId Int
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}
+
+model MovieDirector {
+  id      Int    @id @default(autoincrement())
+  name    String
+  movieId Int
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}
+
+model MovieCast {
+  id        Int    @id @default(autoincrement())
+  name      String
+  sortOrder Int
+  movieId   Int
+  movie     Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}
+
+model MovieOriginCountry {
+  id      Int    @id @default(autoincrement())
+  code    String
+  movieId Int
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}
+
+model MovieWatchProvider {
+  id           Int                    @id @default(autoincrement())
+  kind         MovieWatchProviderKind
+  providerName String
+  logoPath     String?
+  movieId      Int
+  movie        Movie                  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}

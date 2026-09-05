@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: movie-prisma-model — local-movie-catalog</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">local-movie-catalog</a> / specs / <strong>movie-prisma-model</strong> / spec</p>
+    <h1>Spec: movie-prisma-model</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Persiste a ficha de details (<code>MovieCatalogDetails</code>) no Postgres: modelo <code>Movie</code> com id interno, unique (<code>tmdbId</code>, <code>language</code>) e unique (<code>imdbId</code>, <code>language</code>) quando há IMDb; listas em tabelas filhas. O repositório faz upsert (substitui filhas) e busca por tmdbId ou título+ano.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Upsert por tmdbId + language</h3>
+      <ul>
+        <li><strong>Entrada</strong> ficha <code>Interestelar</code>, <code>tmdbId</code> <code>157336</code>, <code>language</code> omitido (vira <code>pt-BR</code>), <code>imdbId</code> <code>tt0816692</code>, com gêneros, diretor Nolan, elenco e Netflix em <code>flatrate</code>.</li>
+        <li><strong>Saída</strong> linha gravada; filhas regravadas; leitura por <code>(157336, pt-BR)</code> devolve <code>MovieCatalogDetails</code> com <code>id</code> = tmdbId.</li>
+        <li><strong>Erro</strong> <code>imdbId</code> null: grava; unique de IMDb não vale para NULL.</li>
+      </ul>
+      <h3>REQ-2: Upsert de novo substitui filhas</h3>
+      <ul>
+        <li><strong>Entrada</strong> mesmo par com elenco só Anne Hathaway e sem <code>flatrate</code>.</li>
+        <li><strong>Saída</strong> filhas antigas some; <code>updatedAt</code> mais recente.</li>
+      </ul>
+      <h3>REQ-3: Find por tmdbId + language</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>157336</code> + <code>pt-BR</code>.</li>
+        <li><strong>Saída</strong> ficha ou <code>null</code>.</li>
+      </ul>
+      <h3>REQ-4: Find por título + ano + language</h3>
+      <ul>
+        <li><strong>Entrada</strong> título <code>Senhor dos Aneis</code> (trecho, sem acento, CI), year <code>2014</code>, language <code>pt-BR</code>.</li>
+        <li><strong>Saída</strong> match por contém (ex. <code>O Senhor dos Anéis</code>); se várias, <code>updatedAt</code> mais recente. Year omitido: qualquer ano, mesmo desempate. Título vazio → <code>null</code>.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Unique (<code>tmdbId</code>, <code>language</code>): o mesmo filme em <code>en-US</code> é outra linha.</li>
+        <li>Unique (<code>imdbId</code>, <code>language</code>): mesmo IMDb em idiomas diferentes ok; duplicata no mesmo idioma viola unique.</li>
+        <li>Caller omitir language no write → default <code>pt-BR</code>.</li>
+        <li>Dois upserts concorrentes: último write vence nas filhas.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <p>Modelos em <code>packages/backend/prisma/schema.prisma</code>. Porta: <code>movie-catalog.repository.ts</code>. Ficha: <code>movie-catalog-details.entity.ts</code> (<code>tmdbId</code>). Adapter ainda provisório.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

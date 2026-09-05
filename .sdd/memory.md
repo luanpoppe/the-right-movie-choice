@@ -109,3 +109,21 @@
   - **Quando**: client de serviço externo
   - **Exemplo**: live TMDB fora do `pnpm test` da CI
   - **Registrado em**: 2026-08-31
+
+- Ficha no Postgres é “fresca” por 30 dias (`updatedAt`); depois o lookup pode ir ao TMDB. Redis (24h) ainda vence enquanto o TTL não acaba. Persistência no banco no miss é fila (não upsert síncrono no lookup).
+  - **Quando**: lookup local-first do catálogo
+  - **Por quê**: dado local sem refetch contínuo; o agente não espera o save no Postgres
+  - **Exemplo**: Interestelar gravado há 3 dias não chama TMDB; há 31 dias refetch; miss TMDB só `TmdbMovieDetailsCache.set` até o worker
+  - **Registrado em**: 2026-09-05
+
+- Adapter Prisma com várias classes `MovieCatalog*` vai para subpasta `repositories/movie-catalog/`, um arquivo por classe.
+  - **Quando**: o repositório passar de ~200 linhas ou tiver 3+ helpers estáticos
+  - **Por quê**: prefixo repetido no nome já é o nome da pasta; o arquivo único vira god object
+  - **Exemplo**: `PrismaMovieCatalogRepository` + builders/writer separados
+  - **Registrado em**: 2026-09-05
+
+- Mensagem de erro para log (`unknown` → string) vai para `ErrorUtils.message` em `shared/utils`, não copiada em cada classe.
+  - **Quando**: extrair `reason`/`errorMessage` de `catch (error: unknown)`
+  - **Por quê**: o mesmo `instanceof Error` + `String(error)` aparecia em processor, resolver e lookup
+  - **Exemplo**: `ErrorUtils.message(error)` no log de falha do `CatalogPersistProcessor`
+  - **Registrado em**: 2026-09-05

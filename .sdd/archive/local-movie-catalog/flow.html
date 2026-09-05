@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fluxo da implementação — Catálogo local de filmes</title>
+  <style>
+    /* Autocontido: não depende de styles.css nem de libs externas. Funciona offline. */
+    :root {
+      --bg: #f7f8fa; --fg: #1a1d21; --muted: #6b7280; --card: #ffffff; --line: #cbd5e1;
+      --pending-bd: #cbd5e1; --pending-bg: #f1f5f9; --pending-fg: #64748b;
+      --current-bd: #d97706; --current-bg: #fef3c7; --current-fg: #92400e;
+      --done-bd: #16a34a; --done-bg: #dcfce7; --done-fg: #166534;
+      --deviated-bd: #dc2626; --deviated-bg: #fee2e2; --deviated-fg: #991b1b;
+      --accent: #2563eb;
+      --tok-com: #6a737d; --tok-str: #0a7d33; --tok-num: #b3261e; --tok-kw: #8250df; --tok-typ: #0b7285; --tok-ann: #bf5b17;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1115; --fg: #e5e7eb; --muted: #9ca3af; --card: #1a1d23; --line: #374151;
+        --pending-bd: #374151; --pending-bg: #1f242c; --pending-fg: #9ca3af;
+        --current-bd: #f59e0b; --current-bg: #3a2e10; --current-fg: #fcd34d;
+        --done-bd: #22c55e; --done-bg: #14311f; --done-fg: #86efac;
+        --deviated-bd: #ef4444; --deviated-bg: #3a1414; --deviated-fg: #fca5a5;
+        --accent: #60a5fa;
+        --tok-com: #8b949e; --tok-str: #7ee787; --tok-num: #ffa657; --tok-kw: #d2a8ff; --tok-typ: #79c0ff; --tok-ann: #ffa657;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2rem 1rem 4rem; background: var(--bg); color: var(--fg);
+      font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    header { max-width: 900px; margin: 0 auto 1.5rem; }
+    h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
+    .meta { color: var(--muted); font-size: .85rem; margin: 0; }
+    .legend-hint { max-width: 900px; margin: -.5rem auto 1.5rem; }
+    .progress { max-width: 900px; margin: 1rem auto; }
+    .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); overflow: hidden; border: 1px solid var(--line); }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 0%; transition: width .3s; }
+    .progress-label { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
+
+    .legend { max-width: 900px; margin: 0 auto 1.5rem; display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; }
+    .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+    .dot { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; }
+    .dot.pending  { background: var(--pending-bg);  border-color: var(--pending-bd); }
+    .dot.current  { background: var(--current-bg);  border-color: var(--current-bd); }
+    .dot.done     { background: var(--done-bg);     border-color: var(--done-bd); }
+    .dot.deviated { background: var(--deviated-bg); border-color: var(--deviated-bd); }
+
+    main { max-width: 900px; margin: 0 auto; }
+
+    /* Grupo = feature (swimlane) — <details> colapsável */
+    .feature { border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+      margin-bottom: 1.5rem; padding: 0 1.25rem; }
+    .feature[open] { padding-bottom: 1.5rem; }
+    .feature > summary { font-size: 1rem; font-weight: 600; cursor: pointer; list-style: none;
+      display: flex; align-items: center; gap: .5rem; padding: 1rem 0; -webkit-user-select: none; user-select: none; }
+    .feature > summary::-webkit-details-marker { display: none; }
+    .feature > summary::before { content: "▸"; color: var(--accent); font-size: .8rem; transition: transform .15s; }
+    .feature[open] > summary::before { transform: rotate(90deg); }
+    .feature .tag { font-size: .7rem; padding: .1rem .5rem; border-radius: 20px; border: 1px solid; }
+    .feature.done > summary .tag     { background: var(--done-bg);     border-color: var(--done-bd);     color: var(--done-fg); }
+    .feature.current > summary .tag  { background: var(--current-bg);  border-color: var(--current-bd);  color: var(--current-fg); }
+    .feature.pending > summary .tag  { background: var(--pending-bg);  border-color: var(--pending-bd);  color: var(--pending-fg); }
+
+    /* Fluxo vertical de stages, com conectores */
+    .flow { display: flex; flex-direction: column; align-items: center; }
+    .stage { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .connector { width: 2px; height: 24px; background: var(--line); position: relative; }
+    .connector::after { content: "▼"; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+      color: var(--line); font-size: .7rem; }
+
+    /* Nó = componente / chunk */
+    .node { min-width: 150px; max-width: 220px; border: 1.5px solid; border-radius: 8px; padding: .6rem .8rem;
+      text-align: center; position: relative; }
+    .node .name { font-weight: 600; font-size: .9rem; }
+    .node .sub { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
+    .node .badge { position: absolute; top: -9px; right: -9px; font-size: .85rem; }
+    .node.pending  { background: var(--pending-bg);  border-color: var(--pending-bd);  color: var(--pending-fg); }
+    .node.done     { background: var(--done-bg);     border-color: var(--done-bd);     opacity: .78; }
+    .node.current  { background: var(--current-bg);  border-color: var(--current-bd);  box-shadow: 0 0 0 3px color-mix(in srgb, var(--current-bd) 25%, transparent); }
+    .node.deviated { background: var(--deviated-bg); border-color: var(--deviated-bd); }
+    .node.deviated .sub { color: var(--deviated-fg); }
+
+    /* Nó clicável (tem detalhe) — afeta só nós já com conteúdo (done/current/deviated) */
+    .node.has-detail { cursor: pointer; opacity: 1; transition: box-shadow .15s, transform .1s; }
+    .node.has-detail:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+    .node.has-detail:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .node.has-detail .hint { display: block; font-size: .62rem; color: var(--accent); margin-top: .3rem; letter-spacing: .02em; }
+    .node.has-detail.active { box-shadow: 0 0 0 3px var(--accent); }
+    .node.has-detail.active .hint::after { content: " ▲"; }
+    .node.has-detail:not(.active) .hint::after { content: " ▼"; }
+
+    /* Painel de detalhe (um por feature; mostra o nó selecionado) */
+    .detail-panel { margin-top: 1.25rem; border-top: 1px dashed var(--line); padding-top: 1.25rem; }
+    .detail h4 { margin: 0 0 .2rem; font-size: 1rem; display: flex; align-items: center; gap: .5rem; }
+    .detail h4 .chunk-id { font-size: .72rem; font-weight: 600; color: var(--muted);
+      border: 1px solid var(--line); border-radius: 20px; padding: .05rem .5rem; }
+    .detail .what { margin: .1rem 0 1rem; color: var(--fg); }
+    .detail .block-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--muted); margin: 1rem 0 .35rem; }
+    .detail pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+      padding: .8rem 1rem; overflow-x: auto; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .detail pre + .block-label { margin-top: 1.1rem; }
+    .detail .data { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto;
+      white-space: pre-wrap; }   /* pre-wrap: um passo por linha (fonte com quebras de linha) */
+    .detail .note { font-size: .8rem; color: var(--muted); margin-top: 1rem; font-style: italic; }
+    /* Walkthrough-rico: subtítulos de passo/arquivo, prosa e badge com o nome do arquivo no code block */
+    .detail h5 { margin: 1.2rem 0 .3rem; font-size: .9rem; font-weight: 650; color: var(--fg); }
+    .detail p { margin: .3rem 0 .6rem; }
+    .detail ul { margin: .3rem 0 .6rem; padding-left: 1.2rem; }
+    .detail ul li { margin: .15rem 0; }
+    .detail pre[data-file]::before { content: attr(data-file); display: block; font-size: .68rem;
+      color: var(--muted); font-weight: 600; margin-bottom: .5rem; }
+    /* Syntax highlight (colorização feita por um highlighter mínimo inline, offline) */
+    .detail pre .tk-com { color: var(--tok-com); font-style: italic; }
+    .detail pre .tk-str { color: var(--tok-str); }
+    .detail pre .tk-num { color: var(--tok-num); }
+    .detail pre .tk-kw  { color: var(--tok-kw); }
+    .detail pre .tk-typ { color: var(--tok-typ); }
+    .detail pre .tk-ann { color: var(--tok-ann); }
+
+    footer { max-width: 900px; margin: 2rem auto 0; font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fluxo da implementação — Catálogo local de filmes</h1>
+    <p class="meta">Mudança <code>local-movie-catalog</code> · atualizado em 2026-09-05</p>
+  </header>
+
+  <div class="progress">
+    <div class="bar"><span></span></div>
+    <p class="progress-label">17 de 17 chunks · mudança completa</p>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot pending"></i> A fazer</span>
+    <span><i class="dot current"></i> Em andamento</span>
+    <span><i class="dot done"></i> Concluído</span>
+    <span><i class="dot deviated"></i> Feito diferente do planejado</span>
+  </div>
+  <p class="meta legend-hint">Clique num nó já implementado para ver o que ele faz, exemplo dos dados e um trecho ilustrativo.</p>
+
+  <main>
+    <details class="feature done" open>
+      <summary>1. movie-prisma-model <span class="tag">concluído</span></summary>
+      <div class="flow">
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C1" tabindex="0"><div class="name">Schema</div><div class="sub">F1.C1 · schema.prisma</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C2" tabindex="0"><div class="name">Porta</div><div class="sub">F1.C2 · IMovieCatalogRepository</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+          <div class="node done has-detail" data-detail="F1.C3" tabindex="0"><div class="name">Mapper</div><div class="sub">F1.C3 · MovieCatalogPrismaMapper</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C4" tabindex="0"><div class="name">Upsert</div><div class="sub">F1.C4 · PrismaMovieCatalogRepository</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C5" tabindex="0"><div class="name">Finds</div><div class="sub">F1.C5 · PrismaMovieCatalogRepository</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F1.C1" hidden>
+          <h4>Schema <span class="chunk-id">F1.C1 · Movie</span></h4>
+          <p class="what">Tabela <code>Movie</code> e cinco filhas no Prisma, com unique por idioma. É a base física do catálogo local.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Uma linha de filme por par tmdbId+language. Listas viram tabelas com cascade. País de origem ficou no campo <code>code</code>.</p>
+          <pre data-file="packages/backend/prisma/schema.prisma"><code>model Movie {
+  id              Int      @id @default(autoincrement())
+  tmdbId          Int
+  language        String
+  title           String
+  imdbId          String?
+  genres          MovieGenre[]
+  @@unique([tmdbId, language])
+  @@unique([imdbId, language])
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">Interestelar tmdbId 157336 language pt-BR
+→ INSERT Movie + filhas
+mesmo tmdbId em en-US
+→ outra linha Movie</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Migration <code>20260905180000_add_movie_catalog</code> aplica no Postgres.</li>
+            <li>Próximo: porta e mapper leem estes modelos.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C2" hidden>
+          <h4>Porta <span class="chunk-id">F1.C2 · IMovieCatalogRepository</span></h4>
+          <p class="what">Contrato de persistência local: upsert e dois finds. Idioma omitido vira <code>pt-BR</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p>A interface não fala com Prisma. <code>details.tmdbId</code> é o id da TMDB. <code>upsert</code> devolve <code>void</code>.</p>
+          <pre data-file="packages/backend/src/domains/movies/domain/repositories/movie-catalog.repository.ts"><code>export const DEFAULT_MOVIE_CATALOG_LANGUAGE = "pt-BR";
+
+export interface IMovieCatalogRepository {
+  upsert(details: MovieCatalogDetails, language?: string): Promise&lt;void&gt;;
+  findByTmdbId(tmdbId: number, language?: string): Promise&lt;MovieCatalogDetails | null&gt;;
+  findByTitleAndYear(title: string, year?: number, language?: string): Promise&lt;MovieCatalogDetails | null&gt;;
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">upsert(Interestelar, language omitido)
+→ implementação usa pt-BR
+findByTmdbId(157336, "pt-BR")
+→ MovieCatalogDetails | null</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Tipo <code>MovieCatalogDetails</code> no domínio.</li>
+            <li>Adapter Prisma nos chunks de upsert e finds.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C3" hidden>
+          <h4>Mapper <span class="chunk-id">F1.C3 · MovieCatalogPrismaMapper</span></h4>
+          <p class="what">Traduz linha Prisma com filhas para <code>MovieCatalogDetails</code>. O <code>tmdbId</code> vem da coluna TMDB, nunca do <code>id</code> interno.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>toDetails</code> mapeia listas e agrupa provedores por kind. Elenco ordena por <code>sortOrder</code> e depois pelo nome.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/mappers/movie-catalog-prisma.mapper.ts"><code>static toDetails(movieWithChildren: MovieWithChildren): MovieCatalogDetails {
+  const tmdbId = movieWithChildren.tmdbId;
+  return {
+    tmdbId,
+    title: movieWithChildren.title,
+    watchProviders,
+    imdbId: movieWithChildren.imdbId,
+  };
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">Movie id=42 tmdbId=157336 + cast sortOrder 1,0
+→ MovieCatalogDetails.tmdbId 157336
+→ elenco na ordem 0 depois 1</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Tipos gerados do Prisma em <code>generated/prisma/client.js</code>.</li>
+            <li>O adapter de upsert/finds chama <code>toDetails</code> depois do include.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C4" hidden>
+          <h4>Upsert <span class="chunk-id">F1.C4 · PrismaMovieCatalogRepository</span></h4>
+          <p class="what">Grava a ficha no Postgres em transação: upsert da linha <code>Movie</code> e troca completa das filhas. Idioma omitido vira <code>pt-BR</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Unique de write é <code>tmdbId_language</code>. Depois <code>deleteMany</code> + <code>createMany</code> nas cinco filhas. Elenco usa índice do array como <code>sortOrder</code>.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/repositories/movie-catalog/prisma-movie-catalog.repository.ts"><code>const upsertedMovie = await tx.movie.upsert({
+  where: uniqueWhere,
+  create: movieScalars,
+  update: movieScalars,
+});
+await MovieCatalogChildWriter.replaceAll(tx, movieId, details);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">upsert Interestelar tmdbId 157336 language omitido
+→ Movie pt-BR + filhas
+mesmo par com elenco só Anne
+→ filhas antigas some</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Porta <code>IMovieCatalogRepository</code>.</li>
+            <li>P2002 vira <code>MovieCatalogImdbConflictException</code>.</li>
+            <li>Finds ainda lançam not implemented.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F1.C5" hidden>
+          <h4>Finds <span class="chunk-id">F1.C5 · PrismaMovieCatalogRepository</span></h4>
+          <p class="what">Leitura local da ficha: por tmdbId ou por título+ano. Idioma omitido vira <code>pt-BR</code>. Miss devolve <code>null</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>findFirst</code> com include das filhas. Título usa <code>mode: insensitive</code>. Empate ordena por <code>updatedAt</code> desc. Mapper preenche <code>tmdbId</code> da coluna TMDB.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/repositories/movie-catalog/prisma-movie-catalog.repository.ts"><code>const row = await prisma.movie.findFirst({
+  where: { tmdbId, language: catalogLanguage },
+  include: MOVIE_CATALOG_CHILDREN_INCLUDE,
+  orderBy: { updatedAt: "desc" },
+});
+if (!row) return null;
+return MovieCatalogPrismaMapper.toDetails(row);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">findByTmdbId(157336, pt-BR)
+→ MovieCatalogDetails.tmdbId 157336
+findByTitleAndYear("interestelar", 2014)
+→ mesma ficha ou null</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Porta <code>IMovieCatalogRepository</code>.</li>
+            <li>Mapper <code>MovieCatalogPrismaMapper.toDetails</code>.</li>
+            <li>Próxima feature: lookup Redis → banco → TMDB.</li>
+          </ul>
+        </div>
+        <!-- /detail-panel: movie-prisma-model -->
+      </div>
+    </details>
+    <details class="feature done" open>
+      <summary>2. local-first-lookup <span class="tag">concluída · 5/5</span></summary>
+      <div class="flow">
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C1" tabindex="0"><div class="name">Record</div><div class="sub">F2.C1 · finds + updatedAt</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C2" tabindex="0"><div class="name">Freshness</div><div class="sub">F2.C2 · 30 dias</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C3" tabindex="0"><div class="name">Resolver</div><div class="sub">F2.C3 · Redis banco TMDB</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F2.C4" tabindex="0"><div class="name">Lookup</div><div class="sub">F2.C4 · título local-first</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+          <div class="node done has-detail" data-detail="F2.C5" tabindex="0"><div class="name">Debug GET</div><div class="sub">F2.C5 · mesmo pipeline</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F2.C1" hidden>
+          <h4>Record <span class="chunk-id">F2.C1 · MovieCatalogStoredRecord</span></h4>
+          <p class="what">Os finds passam a devolver a ficha e o relógio <code>updatedAt</code> da linha Movie, para o lookup saber se os 30 dias já passaram.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Miss continua <code>null</code>. Hit mapeia <code>toDetails</code> e empacota <code>row.updatedAt</code>. <code>MovieCatalogDetails</code> não ganha o campo.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/repositories/movie-catalog/prisma-movie-catalog.repository.ts"><code>const details = MovieCatalogPrismaMapper.toDetails(row);
+const storedRecord: MovieCatalogStoredRecord = {
+  details,
+  updatedAt: row.updatedAt,
+};
+return storedRecord;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">findByTmdbId(157336, pt-BR)
+→ { details.tmdbId: 157336, updatedAt: 2026-01-02 }
+sem linha
+→ null</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Porta <code>IMovieCatalogRepository</code>.</li>
+            <li>Próximo: predicado de 30 dias e o resolver Redis→banco→TMDB.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C2" hidden>
+          <h4>Freshness <span class="chunk-id">F2.C2 · MovieCatalogFreshnessUtils</span></h4>
+          <p class="what">Decide se a linha do Postgres ainda vale: idade estritamente menor que 30 dias.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Compara <code>now.getTime() - updatedAt.getTime()</code> com <code>FRESH_FOR_MS</code>. Igual a 30 dias já é velho.</p>
+          <pre data-file="packages/backend/src/domains/movies/domain/movie-catalog-freshness.utils.ts"><code>const ageMs = nowMs - updatedAtMs;
+if (ageMs &gt;= freshForMs) {
+  return false;
+}
+return true;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">updatedAt 2026-01-01, now 2026-01-15
+→ true
+updatedAt 2026-01-01, now + 30d exatos
+→ false</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>O resolver Redis→banco→TMDB vai chamar <code>isFresh</code> no <code>updatedAt</code> do find.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C3" hidden>
+          <h4>Resolver <span class="chunk-id">F2.C3 · MovieCatalogDetailsResolver</span></h4>
+          <p class="what">Ficha por tmdbId na ordem Redis → Postgres fresco → TMDB. Sem upsert. Hit Redis ignora os 30 dias do banco.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Banco fresco aquece Redis. Banco velho tenta TMDB; se TMDB falhar, devolve a ficha velha. Prisma throw pula para TMDB. Miss local + TMDB ok grava só Redis.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/providers/movie-catalog-details.resolver.ts"><code>const cachedDetails = await this.cache.get(tmdbId, lang);
+if (hasCachedDetails) {
+  return cachedDetails;
+}
+const localRecord = await MovieCatalogDetailsResolver.findLocalRecordSafely(...);
+if (hasLocalRecord) {
+  return this.resolveFromLocalRecord(...);
+}
+return this.fetchFromTmdbAndCache(tmdbId, lang);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">Redis hit 157336
+→ details, sem Prisma
+stale local + TMDB down
+→ details velhos + log
+sem local + TMDB ok
+→ details + cache.set, sem upsert</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li><code>TmdbMovieDetailsCache</code>, <code>IMovieCatalogRepository.findByTmdbId</code>, <code>IMovieCatalogProvider.getMovieDetails</code>.</li>
+            <li>Próximo: lookup por título e debug GET.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C4" hidden>
+          <h4>Lookup <span class="chunk-id">F2.C4 · MovieCatalogLookupService</span></h4>
+          <p class="what">O agente busca por título no Postgres fresco antes do search TMDB. Miss ou ficha velha cai no search + resolver de details.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Hit fresco aquece Redis e não chama search. Falha do find por título é skip. Details no caminho TMDB passam por <code>resolveByTmdbId</code>, não <code>getMovieDetails</code> direto.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/providers/movie-catalog-lookup.service.ts"><code>const localHit = await this.tryFindFreshLocalRecord(...);
+if (hasLocalHit) return localHit;
+return await this.findViaTmdbSearch(...);
+// findViaTmdbSearch:
+const details = await this.resolver.resolveByTmdbId(movieId, language);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">query Interestelar, linha pt-BR 3 dias
+→ found true, cache.set, sem search
+query Duna, sem linha
+→ search TMDB → resolver</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Factory monta Redis, cache, PrismaMovieCatalogRepository, resolver e o lookup.</li>
+            <li>Tool do agente continua a chamar <code>findDetailsByTitle</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C5" hidden>
+          <h4>Debug GET <span class="chunk-id">F2.C5 · TmdbDebugController</span></h4>
+          <p class="what">O GET de details no debug deixa de ler só Redis+TMDB e passa pelo mesmo resolver do agente. Search continua só TMDB.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>getMovie</code> chama <code>resolveByTmdbId</code>. Query <code>language</code> vazia omite o argumento (default <code>pt-BR</code> no resolver). Search não toca Prisma.</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/controllers/tmdb-debug.controller.ts"><code>const details = hasLanguage
+  ? await this.resolver.resolveByTmdbId(movieId, language)
+  : await this.resolver.resolveByTmdbId(movieId);
+return reply.status(200).send(details);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">GET /debug/tmdb/movies/157336
+→ resolver Redis → banco fresco → TMDB
+GET /debug/tmdb/search?query=star
+→ só searchMovies, sem Postgres</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Rotas montam cache, <code>PrismaMovieCatalogRepository</code> e resolver como a factory de recommendation.</li>
+            <li><code>TmdbLoopbackGuard</code> segue no preHandler.</li>
+          </ul>
+        </div>
+        <!-- /detail-panel: local-first-lookup -->
+      </div>
+    </details>
+    <details class="feature done" open>
+      <summary>3. catalog-persist-worker <span class="tag">concluído</span></summary>
+      <div class="flow">
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F3.C1" tabindex="0"><div class="name">Contrato</div><div class="sub">F3.C1 · job + constantes</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F3.C2" tabindex="0"><div class="name">Processor</div><div class="sub">F3.C2 · upsert</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F3.C3" tabindex="0"><div class="name">Worker</div><div class="sub">F3.C3 · BullMQ</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F3.C4" tabindex="0"><div class="name">Boot</div><div class="sub">F3.C4 · Fastify</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F3.C1" hidden>
+          <h4>Contrato <span class="chunk-id">F3.C1 · MovieCatalogPersistConstants</span></h4>
+          <p class="what">Nome da fila, backoff, concorrência, retenção de failed e o formato do <code>jobId</code> ficam no domínio, sem BullMQ ainda.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Payload é <code>{ language, details }</code>. <code>jobId</code> concatena <code>tmdbId:language</code> sem validar string vazia.</p>
+          <pre data-file="packages/backend/src/domains/movies/domain/movie-catalog-persist.constants.ts"><code>static readonly BACKOFF_DELAYS_MS = [15_000, 60_000, 300_000];
+static readonly MAX_ATTEMPTS =
+  MovieCatalogPersistConstants.BACKOFF_DELAYS_MS.length + 1;
+static jobId(tmdbId: number, language: string): string {
+  return `${tmdbId}:${language}`;
+}</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">tmdbId 157336, language pt-BR
+→ jobId 157336:pt-BR
+fila catalog-movie-persist
+→ 4 corridas, esperas 15s / 1min / 5min</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Próximo: processor de upsert usa o tipo do job.</li>
+            <li>Enqueue (feature seguinte) reusa <code>jobId</code> e <code>QUEUE_NAME</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F3.C2" hidden>
+          <h4>Processor <span class="chunk-id">F3.C2 · CatalogPersistProcessor</span></h4>
+          <p class="what">Valida o payload, chama <code>upsert</code> no repositório local e não fala com o TMDB. Conflito de IMDb e payload inválido completam o job.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Payload inválido ou <code>MovieCatalogImdbConflictException</code> viram <code>return</code> após log. Erro transitório (ex.: Postgres fora) é logado e relançado para o Worker retryar.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/workers/catalog-persist.processor.ts"><code>await this.repository.upsert(details, language);
+…
+if (isImdbConflict) {
+  Logger.warn("Movie catalog IMDb conflict during persist", { imdbId, language });
+  return;
+}
+Logger.error("Catalog persist job failed", { durationMs, success: false, tmdbId, reason });
+throw error;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">job { language: pt-BR, details.tmdbId: 157336 }
+→ upsert(details, "pt-BR")
+→ completed
+conflito tt0816692
+→ warn + completed (não failed)
+ECONNREFUSED
+→ error log + throw</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Usa <code>IMovieCatalogRepository.upsert</code> e o tipo do contrato da fila.</li>
+            <li>O Worker BullMQ (próximo chunk) só precisa chamar <code>process</code>.</li>
+          </ul>
+          <p class="note">Feito diferente do tasks: conflito IMDb e payload inválido completam o job (spec REQ-2/REQ-6), em vez de UnrecoverableError, que ainda marca failed.</p>
+        </div>
+        <div class="detail" data-detail-for="F3.C3" hidden>
+          <h4>Worker <span class="chunk-id">F3.C3 · MakeCatalogPersistWorkerFactory</span></h4>
+          <p class="what">Monta o BullMQ Worker da fila <code>catalog-movie-persist</code> com retry, backoff e retenção de failed — sem ligar no Fastify ainda.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Connection ioredis com <code>maxRetriesPerRequest: null</code>. Processor delega para <code>CatalogPersistProcessor</code>. <code>defaultJobOptions()</code> expõe 4 tentativas para o enqueue (F4).</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/factories/make-catalog-persist-worker.factory.ts"><code>settings: {
+  backoffStrategy: MakeCatalogPersistWorkerFactory.backoffDelayMs,
+},
+removeOnFail: { count: REMOVE_ON_FAIL_COUNT },
+concurrency: MovieCatalogPersistConstants.CONCURRENCY,</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">job na fila catalog-movie-persist
+→ Worker concurrency 3
+falha transitória
+→ backoff 15s / 1min / 5min (4 corridas)
+4ª falha
+→ failed (mantém últimos 500)</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Usa constantes do domínio e o processor do chunk anterior.</li>
+            <li>Boot Fastify (próximo chunk) chama <code>create()</code>.</li>
+            <li>Enqueue (F4) reusa <code>defaultJobOptions()</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F3.C4" hidden>
+          <h4>Boot <span class="chunk-id">F3.C4 · CatalogPersistWorkerStarter</span></h4>
+          <p class="what">No <code>onReady</code> do Fastify, tenta subir o Worker BullMQ no mesmo processo. Se Redis/BullMQ falhar, loga e o HTTP continua.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>CatalogPersistWorkerStarter.start()</code> monta <code>PrismaMovieCatalogRepository</code> + factory do Worker. Erro no try/catch vira <code>Logger.warn</code> e retorna <code>null</code>.</p>
+          <pre data-file="packages/backend/src/app.ts"><code>app.addHook("onReady", () => {
+  CatalogPersistWorkerStarter.start();
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">Fastify sobe
+→ onReady
+→ Worker ouvindo catalog-movie-persist (concurrency 3)
+Redis down no boot
+→ warn + HTTP sobe normal</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Último pedaço da feature worker — enqueue no miss vem na F4.</li>
+            <li>Usa <code>MakeCatalogPersistWorkerFactory.create</code> do chunk anterior.</li>
+          </ul>
+        </div>
+        <!-- /detail-panel: catalog-persist-worker -->
+      </div>
+    </details>
+    <details class="feature done" open>
+      <summary>4. enqueue-on-tmdb-miss <span class="tag">concluída · 3/3</span></summary>
+      <div class="flow">
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F4.C1" tabindex="0"><div class="name">Enqueuer</div><div class="sub">F4.C1 · BullMQ add</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F4.C2" tabindex="0"><div class="name">Resolver</div><div class="sub">F4.C2 · após TMDB</div><span class="hint">detalhes</span></div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F4.C3" tabindex="0"><div class="name">Wiring</div><div class="sub">F4.C3 · factories</div><span class="hint">detalhes</span></div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F4.C1" hidden>
+          <h4>Enqueuer <span class="chunk-id">F4.C1 · CatalogPersistEnqueuer</span></h4>
+          <p class="what">Porta estática que enfileira `{ language, details }` na fila `catalog-movie-persist` com `jobId` deduplicado — sem throw ao caller.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Valida `tmdbId` e `language`. `Queue.add` com `defaultJobOptions()`. Falha no add → warn e retorna.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/workers/catalog-persist.enqueuer.ts"><code>await queue.add("persist", jobData, {
+  jobId,
+  ...MakeCatalogPersistWorkerFactory.defaultJobOptions(),
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">details Interestelar 157336 pt-BR
+→ jobId 157336:pt-BR
+→ fila catalog-movie-persist
+Redis down no add
+→ warn + caller segue</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Usa constantes do domínio e `defaultJobOptions()` do Worker.</li>
+            <li>Próximo chunk: resolver chama após fetch TMDB.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F4.C2" hidden>
+          <h4>Resolver <span class="chunk-id">F4.C2 · enqueue após TMDB</span></h4>
+          <p class="what">Após fetch TMDB com sucesso, o resolver grava Redis e chama `enqueuePersist` — miss total ou refresh de ficha velha.</p>
+          <p class="block-label">Como funciona</p>
+          <p>4º parâmetro opcional do ctor (`CatalogPersistEnqueueFn`, default `CatalogPersistEnqueuer.enqueue`). Chamado em `fetchFromTmdbAndCache` e `resolveStaleLocalRecord` depois do `cache.set`.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/providers/movie-catalog-details.resolver.ts"><code>await this.cache.set(tmdbId, tmdbDetails, lang);
+await this.enqueuePersist(tmdbDetails, lang);
+return tmdbDetails;</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">miss TMDB Interestelar 157336 pt-BR
+→ Redis set + enqueuePersist(details, lang)
+Redis hit ou Postgres fresco
+→ retorna sem enqueue
+stale + TMDB fail
+→ fallback local, sem enqueue</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Usa porta do chunk Enqueuer (`CatalogPersistEnqueuer.enqueue`).</li>
+            <li>Próximo chunk: wiring explícito nas factories e debug routes.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F4.C3" hidden>
+          <h4>Wiring <span class="chunk-id">F4.C3 · call sites</span></h4>
+          <p class="what">Injeta `CatalogPersistEnqueuer.enqueue` explicitamente ao montar `MovieCatalogDetailsResolver` na factory de recommendation e nas rotas debug TMDB.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Extrai `enqueuePersist = CatalogPersistEnqueuer.enqueue` e passa como 4º arg do resolver — mesmo padrão nos dois call sites (REQ-5).</p>
+          <pre data-file="packages/backend/src/modules/tmdb/infrastructure/http/controllers/tmdb-debug.routes.ts"><code>const enqueuePersist = CatalogPersistEnqueuer.enqueue;
+const resolver = new MovieCatalogDetailsResolver(
+  cache, repo, catalog, enqueuePersist,
+);</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">agente lookupMovies → resolver → enqueue
+GET /debug/tmdb/movies/:id → mesmo resolver → enqueue
+factory spec lê source dos dois arquivos</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Fecha o loop: miss TMDB no agente ou debug enfileira persistência.</li>
+            <li>Teste de regressão via readFileSync nos dois call sites.</li>
+          </ul>
+        </div>
+        <!-- /detail-panel: enqueue-on-tmdb-miss -->
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    Gerado pelo SDD lp:* · fluxo macro — foca no que falta implementar, não em cada linha.
+  </footer>
+
+  <script>
+    // Autocontido, offline. Clicar num nó .has-detail abre/fecha o bloco de detalhe
+    // correspondente no .detail-panel da MESMA feature. Um por vez por feature.
+    (function () {
+      function toggleNode(node) {
+        var feature = node.closest('.feature');
+        if (!feature) return;
+        var panel = feature.querySelector('.detail-panel');
+        if (!panel) return;
+        var id = node.getAttribute('data-detail');
+        var target = panel.querySelector('.detail[data-detail-for="' + id + '"]');
+        if (!target) return;
+
+        var wasActive = node.classList.contains('active');
+
+        // Reset da feature: nenhum nó ativo, todos os detalhes escondidos.
+        feature.querySelectorAll('.node.active').forEach(function (n) { n.classList.remove('active'); });
+        feature.querySelectorAll('.detail').forEach(function (d) { d.hidden = true; });
+
+        if (wasActive) { panel.hidden = true; return; } // clicar de novo fecha
+
+        node.classList.add('active');
+        target.hidden = false;
+        panel.hidden = false;
+      }
+
+      document.addEventListener('click', function (e) {
+        var node = e.target.closest('.node.has-detail');
+        if (node) toggleNode(node);
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var node = e.target.closest('.node.has-detail');
+        if (!node) return;
+        e.preventDefault();
+        toggleNode(node);
+      });
+    })();
+
+    // Syntax highlight mínimo, offline e agnóstico de linguagem. Coloriza os
+    // <pre><code> do walkthrough (comentários, strings, números, anotações,
+    // keywords comuns e Tipos capitalizados). Sem libs externas.
+    (function () {
+      function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      var KW = ['function','fun','fn','func','def','return','if','else','elif','for','while','do',
+        'switch','case','break','continue','const','let','var','val','public','private','protected',
+        'internal','static','final','abstract','class','interface','enum','struct','record','extends',
+        'implements','new','throw','throws','try','catch','finally','import','from','export','package',
+        'namespace','void','async','await','yield','this','self','super','null','nil','none','true',
+        'false','True','False','None','in','is','not','and','or','as','with','lambda','typeof','instanceof'];
+      var re = new RegExp(
+        '(\\/\\/[^\\n]*|#[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)' +           // 1 comentário
+        '|("(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'|`(?:\\\\.|[^`\\\\])*`)' + // 2 string
+        '|(@[A-Za-z_]\\w*)' +                                         // 3 anotação/decorator
+        '|\\b(' + KW.join('|') + ')\\b' +                             // 4 keyword
+        '|\\b([A-Z][A-Za-z0-9_]+)\\b' +                               // 5 Tipo (Capitalizado)
+        '|\\b(\\d[\\d_]*(?:\\.\\d+)?)\\b',                            // 6 número
+        'g');
+      function hl(code) {
+        var out = '', last = 0, m;
+        while ((m = re.exec(code))) {
+          out += esc(code.slice(last, m.index));
+          var cls = m[1] ? 'tk-com' : m[2] ? 'tk-str' : m[3] ? 'tk-ann' : m[4] ? 'tk-kw' : m[5] ? 'tk-typ' : 'tk-num';
+          out += '<span class="' + cls + '">' + esc(m[0]) + '</span>';
+          last = re.lastIndex;
+        }
+        out += esc(code.slice(last));
+        return out;
+      }
+      document.querySelectorAll('.detail pre code').forEach(function (c) {
+        c.innerHTML = hl(c.textContent);
+      });
+    })();
+  </script>
+</body>
+</html>

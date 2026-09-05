@@ -6,10 +6,15 @@ import type {
   MovieCatalogLookupResult,
 } from "@/domains/movies/domain/entities/movie-catalog-lookup-result.entity";
 import { Logger } from "@/lib/logger/logger";
+import { StringUtils } from "@/shared/utils/string.utils";
 import { MovieCatalogLookupService } from "./movie-catalog-lookup.service";
 
 type LookupMoviesToolInput = {
-  queries: Array<{ query: string; year?: number | undefined }>;
+  queries: Array<{
+    query: string;
+    year?: number | undefined;
+    language?: string | undefined;
+  }>;
 };
 
 type AgentTool = NonNullable<
@@ -21,7 +26,7 @@ export class MovieCatalogLookupAiTool {
   private static readonly MAX_QUERIES = 8;
   private static readonly TOOL_NAME = "lookupMovies";
   private static readonly TOOL_DESCRIPTION =
-    "Uma chamada com várias queries de busca no catálogo de filmes; os lookups rodam em paralelo e os resultados mantêm a mesma ordem das queries (hits e misses).";
+    "Uma chamada com várias queries de busca no catálogo de filmes; os lookups rodam em paralelo e os resultados mantêm a mesma ordem das queries (hits e misses). language opcional por query (ex.: pt-BR, en-US); omitido usa pt-BR.";
 
   private readonly aiTools = new AITools();
 
@@ -67,17 +72,22 @@ export class MovieCatalogLookupAiTool {
   private static toLookupInput(queryItem: {
     query: string;
     year?: number | undefined;
+    language?: string | undefined;
   }): MovieCatalogLookupInput {
     const year = queryItem.year;
+    const language = queryItem.language;
     const hasYear = year !== undefined;
-    if (!hasYear) {
-      return { query: queryItem.query };
-    }
+    const hasLanguage = !StringUtils.isEmptyString(language);
 
     const lookupInput: MovieCatalogLookupInput = {
       query: queryItem.query,
-      year,
     };
+    if (hasYear) {
+      lookupInput.year = year;
+    }
+    if (hasLanguage) {
+      lookupInput.language = language;
+    }
     return lookupInput;
   }
 
@@ -85,6 +95,7 @@ export class MovieCatalogLookupAiTool {
     const queryItemSchema = z.object({
       query: z.string(),
       year: z.number().optional(),
+      language: z.string().optional(),
     });
     const queriesSchema = z
       .array(queryItemSchema)

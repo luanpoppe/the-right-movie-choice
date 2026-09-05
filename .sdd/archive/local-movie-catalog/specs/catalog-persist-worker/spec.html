@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: catalog-persist-worker — local-movie-catalog</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">local-movie-catalog</a> / specs / <strong>catalog-persist-worker</strong> / spec</p>
+    <h1>Spec: catalog-persist-worker</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Worker BullMQ no mesmo processo Fastify consome <code>catalog-movie-persist</code> e chama <code>upsert</code>. Não enfileira (próxima feature). Job = idioma + <code>MovieCatalogDetails</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Job válido persiste a ficha</h3>
+      <ul>
+        <li><strong>Dado que</strong> job <code>157336:pt-BR</code> com details de Interestelar</li>
+        <li><strong>Quando</strong> o Worker processa</li>
+        <li><strong>Então</strong> chama <code>upsert</code> com esses details e <code>pt-BR</code></li>
+        <li><strong>E</strong> o job termina completed</li>
+        <li><strong>E</strong> não chama TMDB</li>
+      </ul>
+      <h3>REQ-2: Conflito de IMDb não entra em retry</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>upsert</code> lança <code>MovieCatalogImdbConflictException</code></li>
+        <li><strong>Quando</strong> o processor trata o erro</li>
+        <li><strong>Então</strong> loga o conflito</li>
+        <li><strong>E</strong> não reagenda</li>
+        <li><strong>E</strong> o job não fica failed por esse conflito</li>
+      </ul>
+      <h3>REQ-3: Falha transitória de Postgres tenta de novo</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>upsert</code> lança timeout/conexão</li>
+        <li><strong>Quando</strong> falha a 1ª tentativa</li>
+        <li><strong>Então</strong> até 4 corridas (1 imediata + 3 esperas 15 s, 1 min, 5 min)</li>
+        <li><strong>E</strong> após a 4ª vai para o set <code>failed</code> (não some do Redis)</li>
+        <li><strong>E</strong> cada falha é logada</li>
+      </ul>
+      <h3>REQ-4: Mesmo filme não duplica job ativo</h3>
+      <ul>
+        <li><strong>Dado que</strong> já existe job <code>157336:pt-BR</code> ativo ou waiting</li>
+        <li><strong>Quando</strong> um segundo add usa o mesmo <code>jobId</code></li>
+        <li><strong>Então</strong> não há dois processors em paralelo para o mesmo par</li>
+      </ul>
+      <h3>REQ-5: Boot liga o Worker sem derrubar o HTTP</h3>
+      <ul>
+        <li><strong>Entrada</strong> Fastify sobe com Redis ok</li>
+        <li><strong>Saída</strong> Worker ouvindo; concorrência <code>3</code></li>
+        <li><strong>Erro</strong> Redis fora no boot → log; HTTP sobe; jobs não processam</li>
+      </ul>
+      <h3>REQ-6: Payload inválido não retry infinito</h3>
+      <ul>
+        <li><strong>Entrada</strong> job sem <code>tmdbId</code> ou sem <code>language</code></li>
+        <li><strong>Saída</strong> log; sem backoff 15 s / 1 min / 5 min</li>
+      </ul>
+      <h3>REQ-7: Failed fica no Redis para retry manual</h3>
+      <ul>
+        <li><strong>Entrada</strong> 4ª falha transitória (timeout Postgres)</li>
+        <li><strong>Saída</strong> job no set <code>failed</code>; <code>removeOnFail</code> guarda os últimos <code>500</code></li>
+        <li><strong>E</strong> <code>Job.retry()</code> reprocessa</li>
+        <li><strong>Erro</strong> conflito IMDb não entra em <code>failed</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Mesmo event loop: upsert I/O não segura o HTTP.</li>
+        <li>Erro não capturado no processor pode derrubar o processo.</li>
+        <li>Sem enqueue nesta feature: teste via add direto ou processor.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <p>Fila: <code>movie-catalog-persist.constants.ts</code> (<code>QUEUE_NAME</code>, <code>jobId</code>).</p>
+      <p>Payload: <code>movie-catalog-persist-job.entity.ts</code> (<code>MovieCatalogPersistJobData</code>).</p>
+      <p>Porta: <code>IMovieCatalogRepository.upsert</code>. Conflito: <code>MovieCatalogImdbConflictException</code>.</p>
+      <p>Failed: <code>REMOVE_ON_FAIL_COUNT</code>; set <code>failed</code>; retry via <code>Job.retry()</code>.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

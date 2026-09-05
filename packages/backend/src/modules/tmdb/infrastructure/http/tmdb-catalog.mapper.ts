@@ -51,9 +51,14 @@ export class TmdbCatalogMapper {
       details["watch/providers"],
     );
     const imdbId = TmdbCatalogMapper.mapImdbId(details.external_ids?.imdb_id);
+    const tmdbId = searchHit.id;
 
     return {
-      ...searchHit,
+      tmdbId,
+      title: searchHit.title,
+      year: searchHit.year,
+      posterPath: searchHit.posterPath,
+      overview: searchHit.overview,
       runtimeMinutes: details.runtime ?? null,
       genres,
       tmdbVoteAverage: details.vote_average ?? null,

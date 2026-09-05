@@ -105,6 +105,7 @@ describe("TmdbCatalogMapper", () => {
     it("maps directors by job, first five cast names and BR watch providers", () => {
       const details = TmdbCatalogMapper.toCatalogDetails(detailsFixture());
 
+      expect(details.tmdbId).toBe(11);
       expect(details.directors).toEqual(["George Lucas", "Irvin Kershner"]);
       expect(details.cast).toEqual([
         "Mark Hamill",

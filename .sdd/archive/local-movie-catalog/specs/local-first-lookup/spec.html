@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: local-first-lookup — local-movie-catalog</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">local-movie-catalog</a> / specs / <strong>local-first-lookup</strong> / spec</p>
+    <h1>Spec: local-first-lookup</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Lookup do agente e GET de details em <code>/debug/tmdb</code> leem Redis → Postgres → TMDB. Título tenta o banco antes do search TMDB. Ficha com <code>updatedAt</code> há menos de 30 dias vence. Sem upsert no Postgres nesta feature; miss TMDB ainda grava Redis (24h). Search debug continua só TMDB.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Agente acha filme já catalogado pelo título</h3>
+      <ul>
+        <li><strong>Dado que</strong> query <code>Interestelar</code> e linha <code>pt-BR</code> com <code>updatedAt</code> há 3 dias</li>
+        <li><strong>Quando</strong> <code>findDetailsByTitle</code> roda</li>
+        <li><strong>Então</strong> não chama search TMDB; <code>found: true</code>; aquece Redis (<code>157336</code>, <code>pt-BR</code>)</li>
+      </ul>
+      <h3>REQ-2: Agente não acha no banco e cai no TMDB</h3>
+      <ul>
+        <li><strong>Dado que</strong> nenhum título contém <code>Duna</code> em <code>pt-BR</code></li>
+        <li><strong>Quando</strong> o agente busca <code>Duna</code></li>
+        <li><strong>Então</strong> search TMDB + 1º hit + details Redis → banco fresco → TMDB; se veio do TMDB, grava só Redis</li>
+      </ul>
+      <h3>REQ-3: Debug GET details no mesmo pipeline</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>GET /debug/tmdb/movies/157336</code></li>
+        <li><strong>Quando</strong> o controller resolve</li>
+        <li><strong>Então</strong> mesmo pipeline; HTTP 200; miss TMDB grava Redis, não Postgres. Id inválido: 400</li>
+      </ul>
+      <h3>REQ-4: Banco velho (&gt; 30 dias) busca TMDB</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>157336</code> <code>pt-BR</code>, <code>updatedAt</code> há 31 dias, Redis vazio</li>
+        <li><strong>Saída</strong> details TMDB na resposta (ou ficha velha se TMDB falhar + log); Redis se TMDB ok. Sem upsert e sem fila nesta feature — atualizar o Postgres velho é <code>catalog-persist-worker</code> + <code>enqueue-on-tmdb-miss</code>.</li>
+        <li><strong>Erro</strong> TMDB fora e sem linha: miss amigável no agente</li>
+      </ul>
+      <h3>REQ-5: Camada fora do ar é pulada</h3>
+      <ul>
+        <li><strong>Entrada</strong> Redis ou find Prisma lança</li>
+        <li><strong>Saída</strong> loga e segue (Redis → banco → TMDB / search)</li>
+        <li><strong>Erro</strong> TMDB HTTP sem fallback: miss de catálogo indisponível</li>
+      </ul>
+      <h3>REQ-6: Search debug não usa o catálogo local</h3>
+      <ul>
+        <li><strong>Dado que</strong> search debug <code>query=star</code></li>
+        <li><strong>Quando</strong> a busca roda</li>
+        <li><strong>Então</strong> só TMDB <code>searchMovies</code>; 200; sem Postgres</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Hit Redis (24h) ignora frescor de 30 dias do banco até o TTL acabar.</li>
+        <li>Empate de título: <code>findByTitleAndYear</code> (unaccent, <code>updatedAt</code> DESC).</li>
+        <li>Idioma omitido: <code>pt-BR</code>. Idioma informado (ex. <code>en-US</code>) vale no find local, na chave Redis e na TMDB; <code>watch_region</code> continua <code>BR</code>.</li>
+        <li>Query vazia no agente: miss atual, sem TMDB.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <p>Lookup: <code>movie-catalog-lookup.service.ts</code> (<code>findDetailsByTitle</code>). Cache: <code>TmdbMovieDetailsCache</code>. Debug: <code>tmdb-debug.controller.ts</code>. Porta: <code>IMovieCatalogProvider</code>. Reads: <code>IMovieCatalogRepository</code>.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

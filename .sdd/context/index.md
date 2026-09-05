@@ -7,3 +7,4 @@
 - [Frontend](frontend/index.md) — chat de recomendações, lock anônimo, login/register, refresh silencioso no SPA e shell (header + tema).
 - [Infraestrutura](infra/index.md) — Docker (Redis/Postgres), Prisma, env, portas e deploy Vercel/Oracle.
 - [Catálogo TMDB](catalogo-tmdb.md) — client HTTP v3, DTOs Zod+mapper, cache Redis de details, GETs `/debug/tmdb` em loopback (fora de prod) e teste live opt-in.
+- [Catálogo local no Postgres](catalogo-local-postgres.md) — modelo `Movie` + filhas, upsert, finds, e lookup Redis → banco → TMDB no agente e no GET debug de details.
