@@ -71,7 +71,7 @@ describe("AiMoviesQueryExamplesProvider", () => {
   });
 
   describe("getQueryExamples", () => {
-    it("chama callStructuredOutput com PRIMARY, temperature 1.5, mensagem humana e schema", async () => {
+    it("chama callStructuredOutput com PRIMARY, temperature 1.2, mensagem humana e schema", async () => {
       const validEntity = MovieQueryExamplesFixtures.validEntity();
       callStructuredOutput.mockResolvedValue({ response: validEntity });
       const expectedHumanMessage = AIMessages.human(
@@ -89,8 +89,11 @@ describe("AiMoviesQueryExamplesProvider", () => {
       }>(structuredCalls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
       expect(structuredCallArgs.modelConfig).toEqual({
-        temperature: MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE,
+        temperature: 1.2,
       });
+      expect(structuredCallArgs.modelConfig.temperature).toBe(
+        MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE,
+      );
       expect(structuredCallArgs.outputSchema).toBe(MovieQueryExamplesSchema);
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs).not.toHaveProperty("systemPrompt");
