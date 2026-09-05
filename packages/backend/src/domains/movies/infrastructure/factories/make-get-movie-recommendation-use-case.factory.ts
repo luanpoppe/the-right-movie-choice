@@ -1,24 +1,67 @@
-import { Redis } from "@/lib/redis/redis";
-import { ChatHistoryRedisRepository } from "@/infrastructure/repositories/chat-history-redis.repository";
+import { AI } from "@luanpoppe/ai";
+import { env } from "@/env";
+import { AiModels } from "@/lib/ai/ai-models";
+import { Logger } from "@/lib/logger/logger";
+import { StringUtils } from "@/shared/utils/string.utils";
 
-import { Langchain } from "@/lib/langchain/langchain";
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
-import { LangchainMovieRecommendationProvider } from "../providers/langchain-movie-recommendation.provider";
+import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendation.provider";
+
+type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
+
+const CHAT_MEMORY_TTL_SECONDS = 1200;
 
 export class MakeGetMovieRecommendationUseCaseFactory {
   static create() {
-    const langchain = new Langchain();
-    const model = langchain.model.gemini();
+    const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
+    const ai = new AI(config);
 
-    const redis = new Redis();
-    const chatHistoryRepository = new ChatHistoryRedisRepository(redis);
-    const movieRecommendationProvider =
-      new LangchainMovieRecommendationProvider(langchain, model);
+    const movieRecommendationProvider = new AiMovieRecommendationProvider(ai);
 
     const useCase = new GetMovieRecommendationUseCase(
-      chatHistoryRepository,
-      movieRecommendationProvider
+      movieRecommendationProvider,
     );
     return useCase;
+  }
+
+  private static buildAiConfig(): AiConstructorConfig {
+    const openRouterApiKey = env.OPENROUTER_API_KEY;
+    const geminiApiKey = env.GEMINI_API_KEY;
+    const redisUrl = env.REDIS_URL;
+    const checkpointerRedisUrl =
+      MakeGetMovieRecommendationUseCaseFactory.toCheckpointerRedisUrl(
+        redisUrl,
+      );
+    const hasOpenRouterApiKey = !StringUtils.isEmptyString(openRouterApiKey);
+    const hasGeminiApiKey = !StringUtils.isEmptyString(geminiApiKey);
+
+    return {
+      ...(hasOpenRouterApiKey ? { openRouterApiKey } : {}),
+      ...(hasGeminiApiKey
+        ? {
+            googleGeminiToken: geminiApiKey,
+            aiModelsFallback: [AiModels.GEMINI_FALLBACK],
+          }
+        : {}),
+      memory: {
+        type: "redis",
+        url: checkpointerRedisUrl,
+        options: {
+          defaultTTL: CHAT_MEMORY_TTL_SECONDS,
+          refreshOnRead: true,
+        },
+      },
+    };
+  }
+
+  private static toCheckpointerRedisUrl(redisUrl: string): string {
+    const hasProtocol = redisUrl.includes("://");
+    if (hasProtocol) return redisUrl;
+
+    const checkpointerRedisUrl = `redis://${redisUrl}`;
+    Logger.debug("Prefixed redis:// for LangGraph checkpointer", {
+      envHasProtocol: false,
+    });
+    return checkpointerRedisUrl;
   }
 }

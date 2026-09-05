@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano — migrate-luanpoppe-ai</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes">Decisões macro</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>migrate-luanpoppe-ai</strong> / plan</p>
+    <h1>Migrar runtime de IA para @luanpoppe/ai</h1>
+    <p class="lp-meta">Atualizado em 2026-09-03</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>O backend recomenda filmes e gera exemplos de query via wrapper local <code>src/lib/langchain</code> (Gemini + LangChain). Esta mudança troca esse runtime pela biblioteca pública <code>@luanpoppe/ai</code>, com OpenRouter como provedor primário, fallback nativo para Gemini quando a chave existir, e histórico de chat na memória da lib (checkpointer no Redis já usado), sem mudar HTTP, SPA nem cota/auth.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: Adapters fazem <code>new AI()</code> no call site; <code>lib/ai</code> só constantes. <strong>Por quê</strong>: a lib já é facade. <strong>Alternativa descartada</strong>: singleton <code>AiClient</code>.</li>
+        <li><strong>Decisão</strong>: <code>IChatHistoryRepository</code> adapta a memória da lib; <code>chatId</code> e TTL 20 min. <strong>Por quê</strong>: use case já orquestra load/save. <strong>Alternativa descartada</strong>: lib dona do thread; dual-write.</li>
+        <li><strong>Decisão</strong>: OpenRouter primário, fallback nativo para Gemini. Só <code>OPENROUTER_API_KEY</code> obrigatória. <strong>Por quê</strong>: Gemini não é mandatório. <strong>Alternativa descartada</strong>: duas chaves sempre obrigatórias.</li>
+        <li><strong>Decisão</strong>: Checkpointer no Redis existente; chaves antigas expiram; logs de provedor, latência e falha de schema. <strong>Por quê</strong>: chat efêmero. <strong>Alternativa descartada</strong>: Postgres/SQLite, migrar histórico, logar prompt.</li>
+        <li><strong>Decisão</strong>: Unitário mocka <code>AI</code> no adapter; live opt-in local. <strong>Por quê</strong>: igual TMDB. <strong>Alternativa descartada</strong>: live na CI.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>ai-client</strong> — Pacote, env e <code>AiModels</code>; sem wrapper.</li>
+        <li><strong>recommendation-provider</strong> — Recommendation via <code>new AI()</code>, porta igual.</li>
+        <li><strong>query-examples-provider</strong> — <code>GET /movie/queries</code> via <code>new AI()</code>.</li>
+        <li><strong>chat-memory</strong> — Adapter de <code>IChatHistoryRepository</code> na memória da lib (Redis + TTL 20 min + <code>chatId</code>).</li>
+        <li><strong>remove-langchain-wrapper</strong> — Remover <code>src/lib/langchain</code> e dependências LangChain diretas.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro:</strong> pacote; constantes; dois providers com <code>new AI()</code>; memória; env; logs nos adapters; limpeza LangChain.</p>
+      <p><strong>Fora:</strong> SPA, cota/Bearer, Redis de refresh token, áudio/embeddings, agentes novos, contrato HTTP, live na CI.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new</code>. Espelho HTML do <code>plan.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

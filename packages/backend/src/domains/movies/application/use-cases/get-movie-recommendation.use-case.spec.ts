@@ -1,37 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { GetMovieRecommendationUseCase } from "./get-movie-recommendation.use-case";
-import { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
 import { IMovieRecommendationProvider } from "../providers/movie-recommendation.provider";
 import { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation.entity";
 
 describe("GetMovieRecommendationUseCase", () => {
-  let chatHistoryRepository: IChatHistoryRepository;
   let movieRecommendationProvider: IMovieRecommendationProvider;
   let getMovieRecommendationUseCase: GetMovieRecommendationUseCase;
 
   beforeEach(() => {
-    chatHistoryRepository = {
-      getHistory: vi.fn(),
-      addMessage: vi.fn(),
-    };
     movieRecommendationProvider = {
       getStructuredMoviesRecommendation: vi.fn(),
       getChatResponse: vi.fn(),
     };
 
     getMovieRecommendationUseCase = new GetMovieRecommendationUseCase(
-      chatHistoryRepository,
       movieRecommendationProvider
     );
   });
 
-  it("should return movie recommendations and chat response", async () => {
+  it("devolve filmes e resposta do chat passando chatId ao provider", async () => {
     const userMessage = "I want to watch a sci-fi movie";
     const chatId = "test-chat-id";
-    const mockChatHistory: Array<["user" | "ai", string]> = [
-      ["user", "hello"],
-      ["ai", "hi"],
-    ];
     const mockStructuredMovies: MovieRecommendationEntity = {
       movies: [
         {
@@ -53,9 +44,6 @@ describe("GetMovieRecommendationUseCase", () => {
     const mockChatResponse =
       "Here are some sci-fi movie recommendations for you!";
 
-    vi.mocked(chatHistoryRepository.getHistory).mockResolvedValue(
-      mockChatHistory
-    );
     vi.mocked(
       movieRecommendationProvider.getStructuredMoviesRecommendation
     ).mockResolvedValue(mockStructuredMovies);
@@ -68,85 +56,50 @@ describe("GetMovieRecommendationUseCase", () => {
       chatId
     );
 
-    expect(chatHistoryRepository.getHistory).toHaveBeenCalledWith(chatId);
     expect(
       movieRecommendationProvider.getStructuredMoviesRecommendation
-    ).toHaveBeenCalledWith(userMessage, mockChatHistory);
+    ).toHaveBeenCalledWith(userMessage, chatId);
     expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledWith(
       mockStructuredMovies,
       userMessage,
-      mockChatHistory
-    );
-    expect(chatHistoryRepository.addMessage).toHaveBeenCalledWith(
-      [
-        ["user", userMessage],
-        ["ai", mockChatResponse],
-      ],
-      chatId,
-      expect.any(Number)
+      chatId
     );
     expect(result).toEqual({
       movies: mockStructuredMovies.movies,
       response: mockChatResponse,
     });
+    expect(
+      movieRecommendationProvider.getStructuredMoviesRecommendation,
+    ).toHaveBeenCalledTimes(1);
+    expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledTimes(1);
   });
 
-  it("should handle empty chat history", async () => {
-    const userMessage = "Recommend a comedy";
-    const chatId = "new-chat-id";
-    const mockStructuredMovies: MovieRecommendationEntity = {
-      movies: [
-        {
-          title: "The Hangover",
-          director: "Todd Phillips",
-          actors: ["Bradley Cooper", "Ed Helms"],
-          releaseYear: 2009,
-          streamingPlatform: "Hulu",
-          imdbRating: 7.7,
-          synopsis:
-            "Three groomsmen lose their best man during a bachelor party in Las Vegas.",
-          whySuggestion:
-            "It's a hilarious, chaotic comedy with truly unforgettable set pieces and a surprising amount of heart.",
-
-          durationInMinutes: 100,
-        },
-      ],
-    };
-    const mockChatResponse = "Looking for a laugh? Try this one!";
-
-    vi.mocked(chatHistoryRepository.getHistory).mockResolvedValue([]);
+  it("não chama getChatResponse quando a recomendação estruturada falha", async () => {
+    const failure = new Error("structured failed");
     vi.mocked(
-      movieRecommendationProvider.getStructuredMoviesRecommendation
-    ).mockResolvedValue(mockStructuredMovies);
-    vi.mocked(movieRecommendationProvider.getChatResponse).mockResolvedValue(
-      mockChatResponse
-    );
+      movieRecommendationProvider.getStructuredMoviesRecommendation,
+    ).mockRejectedValue(failure);
 
-    const result = await getMovieRecommendationUseCase.execute(
-      userMessage,
-      chatId
-    );
+    await expect(
+      getMovieRecommendationUseCase.execute("msg", "chat-id"),
+    ).rejects.toThrow("structured failed");
 
-    expect(chatHistoryRepository.getHistory).toHaveBeenCalledWith(chatId);
-    expect(
-      movieRecommendationProvider.getStructuredMoviesRecommendation
-    ).toHaveBeenCalledWith(userMessage, []);
-    expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledWith(
-      mockStructuredMovies,
-      userMessage,
-      []
+    expect(movieRecommendationProvider.getChatResponse).not.toHaveBeenCalled();
+  });
+
+  it("não importa IChatHistoryRepository nem chama getHistory", async () => {
+    const useCasePath = path.join(
+      process.cwd(),
+      "src/domains/movies/application/use-cases/get-movie-recommendation.use-case.ts",
     );
-    expect(chatHistoryRepository.addMessage).toHaveBeenCalledWith(
-      [
-        ["user", userMessage],
-        ["ai", mockChatResponse],
-      ],
-      chatId,
-      expect.any(Number)
-    );
-    expect(result).toEqual({
-      movies: mockStructuredMovies.movies,
-      response: mockChatResponse,
-    });
+    const useCaseSource = readFileSync(useCasePath, "utf8");
+    const useCaseRecord = getMovieRecommendationUseCase as unknown as Record<
+      string,
+      unknown
+    >;
+
+    expect(useCaseSource).not.toMatch(/IChatHistoryRepository/);
+    expect(useCaseSource).not.toMatch(/getHistory/);
+    expect(useCaseRecord.chatHistoryRepository).toBeUndefined();
   });
 });

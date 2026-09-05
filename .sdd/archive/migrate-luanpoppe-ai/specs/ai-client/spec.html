@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: ai-client — migrate-luanpoppe-ai</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">migrate-luanpoppe-ai</a> / specs / <strong>ai-client</strong> / spec</p>
+    <h1>Spec: Pacote @luanpoppe/ai</h1>
+    <p class="lp-meta">Atualizado em 2026-09-03</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Instala <code>@luanpoppe/ai</code>, env OpenRouter/Gemini e constantes <code>AiModels</code>. Sem wrapper: cada adapter faz <code>new AI()</code> no call site.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Pacote e constantes</h3>
+      <ul>
+        <li><strong>Então</strong> <code>AiModels.PRIMARY</code> / <code>GEMINI_FALLBACK</code> como na spec.md</li>
+      </ul>
+      <h3>REQ-2: Instância no call site</h3>
+      <ul>
+        <li><strong>Então</strong> cada chamada usa <code>new AI()</code> próprio, Gemini só se a chave não for vazia</li>
+      </ul>
+      <h3>REQ-3: Boot sem OpenRouter</h3>
+      <ul>
+        <li><strong>Então</strong> env falha em dev/prod; test não exige a chave</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Gemini <code>""</code> → sem fallback no construtor. Logs ficam nos adapters.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <ul>
+        <li>Pacote + <code>AiModels</code> + <code>env</code>. Chamada = API da lib.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code>.</p>
+  </footer>
+</body>
+</html>

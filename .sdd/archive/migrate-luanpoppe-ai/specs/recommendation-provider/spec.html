@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: recommendation-provider — migrate-luanpoppe-ai</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">migrate-luanpoppe-ai</a> / specs / <strong>recommendation-provider</strong> / spec</p>
+    <h1>Spec: Provider de recomendação via @luanpoppe/ai</h1>
+    <p class="lp-meta">Atualizado em 2026-09-03</p>
+  </header>
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Adapter do POST de recommendation usa <code>AI.callStructuredOutput</code> + <code>AI.call</code>. Um <code>new AI()</code> na factory (já é por request). Porta, HTTP, Redis de chat e prompts iguais.</p>
+    </details>
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Filmes estruturados</h3>
+      <ul>
+        <li><strong>Então</strong> <code>callStructuredOutput</code> + <code>MovieRecommendationSchema</code> + exception se parse falhar + logs</li>
+      </ul>
+      <h3>REQ-2: Texto conversacional</h3>
+      <ul>
+        <li><strong>Então</strong> <code>ai.call</code>, devolve <code>text</code>, remove <code>console.log</code></li>
+      </ul>
+      <h3>REQ-3: Factory</h3>
+      <ul>
+        <li><strong>Então</strong> um <code>new AI(config)</code> injetado em <code>AiMovieRecommendationProvider</code>; Gemini opcional omitido se vazio</li>
+      </ul>
+      <h3>REQ-4: Contrato HTTP</h3>
+      <ul>
+        <li><strong>Então</strong> POST, cota e <code>chatid</code> iguais</li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Histórico vazio; assertion de Zod só na borda; queries LangChain ainda existem.</li>
+        <li>Unificar as duas chamadas LLM numa só fica para uma feature futura (mexe no use case).</li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <ul>
+        <li><code>IMovieRecommendationProvider</code> + schema atual + <code>AIMessages</code> + <code>AiModels</code>.</li>
+      </ul>
+    </details>
+  </main>
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>.</p>
+  </footer>
+</body>
+</html>
