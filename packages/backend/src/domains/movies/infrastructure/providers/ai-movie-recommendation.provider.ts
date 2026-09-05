@@ -1,5 +1,4 @@
 import { AI, AIMessages } from "@luanpoppe/ai";
-import { ChatHistoryEntity } from "@/core/entities/chat-history.entity";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { IMovieRecommendationProvider } from "../../application/providers/movie-recommendation.provider";
@@ -8,7 +7,6 @@ import {
   MovieRecommendationSchema,
 } from "../../domain/entities/movie-recommendation.entity";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
-import { ChatHistoryAiMessagesUtils } from "./chat-history-ai-messages.utils";
 import { MovieRecommendationPrompts } from "./movie-recommendation-prompts";
 
 export class AiMovieRecommendationProvider
@@ -18,11 +16,10 @@ export class AiMovieRecommendationProvider
 
   async getStructuredMoviesRecommendation(
     userMessage: string,
-    chatHistory: ChatHistoryEntity,
+    chatId: string,
   ) {
-    const mappedHistory = ChatHistoryAiMessagesUtils.toAiMessages(chatHistory);
     const humanMessage = AIMessages.human(userMessage);
-    const messages = [...mappedHistory, humanMessage];
+    const messages = [humanMessage];
     const systemPrompt = MovieRecommendationPrompts.structured();
     const startedAtMs = Date.now();
 
@@ -31,6 +28,7 @@ export class AiMovieRecommendationProvider
         aiModel: AiModels.PRIMARY,
         systemPrompt,
         messages,
+        threadId: chatId,
         outputSchema: MovieRecommendationSchema as never,
       });
       const parseResult = MovieRecommendationSchema.safeParse(result.response);
@@ -51,13 +49,12 @@ export class AiMovieRecommendationProvider
   async getChatResponse(
     movies: MovieRecommendationEntity,
     userMessage: string,
-    chatHistory: ChatHistoryEntity,
+    chatId: string,
   ) {
     const moviesJson = JSON.stringify(movies);
     const systemPrompt = MovieRecommendationPrompts.chat(moviesJson);
-    const mappedHistory = ChatHistoryAiMessagesUtils.toAiMessages(chatHistory);
     const humanMessage = AIMessages.human(userMessage);
-    const messages = [...mappedHistory, humanMessage];
+    const messages = [humanMessage];
     const startedAtMs = Date.now();
 
     try {
@@ -65,6 +62,7 @@ export class AiMovieRecommendationProvider
         aiModel: AiModels.PRIMARY,
         systemPrompt,
         messages,
+        threadId: chatId,
       });
       const durationMs = Date.now() - startedAtMs;
       this.logSuccess("Movie chat recommendation completed", durationMs);
