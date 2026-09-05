@@ -116,6 +116,7 @@ describe("MovieCatalogLookupService", () => {
       buildKey: vi.fn(),
       get: vi.fn(),
       set: vi.fn().mockResolvedValue(undefined),
+      setMany: vi.fn().mockResolvedValue(undefined),
     } as unknown as TmdbMovieDetailsCache;
     resolver = {
       resolveByTmdbId: vi.fn(),
@@ -514,6 +515,251 @@ describe("MovieCatalogLookupService", () => {
         "en-US",
       );
       expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(hit.id, "en-US");
+    });
+  });
+
+  describe("findDetailsByTitlesBatch", () => {
+    it("2 fresh local hits via findByTitlesAndYears -> both found, cache.setMany called, no TMDB", async () => {
+      const detailsA = MovieCatalogLookupFixtures.details({
+        tmdbId: 157336,
+        title: "Interestelar",
+      });
+      const detailsB = MovieCatalogLookupFixtures.details({
+        tmdbId: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(detailsA, freshUpdatedAt),
+        MovieCatalogLookupFixtures.storedRecord(detailsB, freshUpdatedAt),
+      ]);
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+        { query: "Duna", year: 2021 },
+      ]);
+
+      expect(results).toEqual([
+        { found: true, details: detailsA },
+        { found: true, details: detailsB },
+      ]);
+      expect(repository.findByTitlesAndYears).toHaveBeenCalledWith([
+        {
+          title: "Interestelar",
+          year: undefined,
+          language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+        },
+        {
+          title: "Duna",
+          year: 2021,
+          language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+        },
+      ]);
+      expect(cache.setMany).toHaveBeenCalledWith([
+        {
+          movieId: detailsA.tmdbId,
+          details: detailsA,
+          lang: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+        },
+        {
+          movieId: detailsB.tmdbId,
+          details: detailsB,
+          lang: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+        },
+      ]);
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
+    });
+
+    it("mixed: 1 fresh hit + 1 miss -> findDetailsByTitle called once for miss only", async () => {
+      const freshDetails = MovieCatalogLookupFixtures.details({
+        tmdbId: 157336,
+        title: "Interestelar",
+      });
+      const tmdbDetails = MovieCatalogLookupFixtures.details({
+        tmdbId: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const hit = MovieCatalogLookupFixtures.searchHit({
+        id: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(freshDetails, freshUpdatedAt),
+        null,
+      ]);
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(tmdbDetails);
+      const findDetailsByTitleSpy = vi.spyOn(service, "findDetailsByTitle");
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+        { query: "Duna" },
+      ]);
+
+      expect(results).toEqual([
+        { found: true, details: freshDetails },
+        { found: true, details: tmdbDetails },
+      ]);
+      expect(findDetailsByTitleSpy).toHaveBeenCalledTimes(1);
+      expect(findDetailsByTitleSpy).toHaveBeenCalledWith({ query: "Duna" });
+      expect(catalog.searchMovies).toHaveBeenCalledTimes(1);
+    });
+
+    it("empty query in batch -> miss at index, others proceed", async () => {
+      const details = MovieCatalogLookupFixtures.details();
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(details, freshUpdatedAt),
+      ]);
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "" },
+        { query: "Interestelar" },
+      ]);
+
+      expect(results).toEqual([
+        {
+          found: false,
+          message: "Informe o nome de um filme para buscar no catálogo.",
+        },
+        { found: true, details },
+      ]);
+      expect(repository.findByTitlesAndYears).toHaveBeenCalledWith([
+        {
+          title: "Interestelar",
+          year: undefined,
+          language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+        },
+      ]);
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
+    });
+
+    it("findByTitlesAndYears throws -> warn log, falls back to findDetailsByTitle for all non-empty", async () => {
+      const hitA = MovieCatalogLookupFixtures.searchHit({
+        id: 157336,
+        title: "Interestelar",
+      });
+      const hitB = MovieCatalogLookupFixtures.searchHit({
+        id: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const detailsA = MovieCatalogLookupFixtures.details();
+      const detailsB = MovieCatalogLookupFixtures.details({
+        tmdbId: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      vi.mocked(repository.findByTitlesAndYears).mockRejectedValue(
+        new Error("Postgres indisponível"),
+      );
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies)
+        .mockResolvedValueOnce(MovieCatalogLookupFixtures.searchPage([hitA]))
+        .mockResolvedValueOnce(MovieCatalogLookupFixtures.searchPage([hitB]));
+      vi.mocked(resolver.resolveByTmdbId)
+        .mockResolvedValueOnce(detailsA)
+        .mockResolvedValueOnce(detailsB);
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+        { query: "Duna", year: 2021 },
+      ]);
+
+      expect(results).toEqual([
+        { found: true, details: detailsA },
+        { found: true, details: detailsB },
+      ]);
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Movie catalog findByTitlesAndYears failed, skipping to TMDB",
+        expect.objectContaining({
+          count: 2,
+          reason: "Postgres indisponível",
+        }),
+      );
+      expect(catalog.searchMovies).toHaveBeenCalledTimes(2);
+    });
+
+    it("stale record (>30d) -> treated as phase 2 miss, findDetailsByTitle called", async () => {
+      const staleDetails = MovieCatalogLookupFixtures.details();
+      const tmdbDetails = MovieCatalogLookupFixtures.details({
+        overview: "Sinopse TMDB atualizada",
+      });
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const staleUpdatedAt = MovieCatalogLookupFixtures.staleUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(staleDetails, staleUpdatedAt),
+      ]);
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(
+        MovieCatalogLookupFixtures.storedRecord(staleDetails, staleUpdatedAt),
+      );
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(tmdbDetails);
+      const findDetailsByTitleSpy = vi.spyOn(service, "findDetailsByTitle");
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+      ]);
+
+      expect(results).toEqual([{ found: true, details: tmdbDetails }]);
+      expect(findDetailsByTitleSpy).toHaveBeenCalledTimes(1);
+      expect(cache.setMany).not.toHaveBeenCalled();
+      expect(catalog.searchMovies).toHaveBeenCalledTimes(1);
+    });
+
+    it("order preserved with 3 items", async () => {
+      const detailsA = MovieCatalogLookupFixtures.details({
+        tmdbId: 157336,
+        title: "Interestelar",
+      });
+      const detailsC = MovieCatalogLookupFixtures.details({
+        tmdbId: 603,
+        title: "Matrix",
+        year: 1999,
+      });
+      const hitB = MovieCatalogLookupFixtures.searchHit({
+        id: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const tmdbDetailsB = MovieCatalogLookupFixtures.details({
+        tmdbId: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(detailsA, freshUpdatedAt),
+        null,
+        MovieCatalogLookupFixtures.storedRecord(detailsC, freshUpdatedAt),
+      ]);
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hitB]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(tmdbDetailsB);
+
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+        { query: "Duna", year: 2021 },
+        { query: "Matrix", year: 1999 },
+      ]);
+
+      expect(results).toEqual([
+        { found: true, details: detailsA },
+        { found: true, details: tmdbDetailsB },
+        { found: true, details: detailsC },
+      ]);
     });
   });
 });
