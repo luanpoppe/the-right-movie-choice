@@ -349,5 +349,25 @@ describe("PrismaMovieCatalogRepository", () => {
       expect(result).toBeNull();
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
+
+    it("edge empate de título: usa id retornado pelo SQL (updatedAt DESC)", async () => {
+      const newestRow = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 99,
+        title: "Interestelar",
+        updatedAt: new Date("2026-09-01T00:00:00.000Z"),
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([{ id: 99 }]);
+      vi.mocked(prisma.movie.findFirst).mockResolvedValue(newestRow as never);
+
+      const result = await repository.findByTitleAndYear("interestelar", undefined, "pt-BR");
+
+      expect(prisma.$queryRaw).toHaveBeenCalled();
+      expect(prisma.movie.findFirst).toHaveBeenCalledWith({
+        where: { id: 99 },
+        include: MOVIE_CATALOG_CHILDREN_INCLUDE,
+      });
+      expect(result?.details.title).toBe("Interestelar");
+      expect(result?.updatedAt).toEqual(new Date("2026-09-01T00:00:00.000Z"));
+    });
   });
 });

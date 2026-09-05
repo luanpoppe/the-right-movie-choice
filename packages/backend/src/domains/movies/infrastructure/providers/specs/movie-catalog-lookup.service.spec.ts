@@ -426,6 +426,66 @@ describe("MovieCatalogLookupService", () => {
       );
     });
 
+    it("REQ-2: miss local consulta TMDB, pega 1º hit e resolve details", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit({
+        id: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      const details = MovieCatalogLookupFixtures.details({
+        tmdbId: 438631,
+        title: "Duna",
+        year: 2021,
+      });
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      const result = await service.findDetailsByTitle({ query: "Duna" });
+
+      expect(result).toEqual({ found: true, details });
+      expect(repository.findByTitleAndYear).toHaveBeenCalledWith(
+        "Duna",
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Duna",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        hit.id,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("edge language omitido: find local e TMDB usam pt-BR por padrão", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const details = MovieCatalogLookupFixtures.details();
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      await service.findDetailsByTitle({ query: "Interestelar" });
+
+      expect(repository.findByTitleAndYear).toHaveBeenCalledWith(
+        "Interestelar",
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
     it("usa language do input no find local, search TMDB e resolver", async () => {
       const hit = MovieCatalogLookupFixtures.searchHit();
       const details = MovieCatalogLookupFixtures.details({
