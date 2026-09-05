@@ -16,8 +16,6 @@
     "@fastify/cors": "11.1.0",
     "@fastify/swagger": "9.5.2",
     "@fastify/swagger-ui": "5.2.3",
-    "@langchain/core": "0.3.78",
-    "@langchain/google-genai": "0.2.18",
     "@langchain/langgraph-checkpoint-redis": "1.0.11",
     "@luanpoppe/ai": "^1.1.6",
     "@prisma/adapter-pg": "7.8.0",
@@ -29,7 +27,6 @@
     "google-auth-library": "10.6.2",
     "ioredis": "5.8.0",
     "jose": "6.2.3",
-    "langchain": "0.3.35",
     "pg": "8.21.0",
     "pino": "9.14.0",
     "zod": "4.1.11"
