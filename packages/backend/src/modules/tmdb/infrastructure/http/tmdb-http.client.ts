@@ -37,18 +37,23 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     query: string,
     page?: number,
     year?: number,
+    language?: string,
   ): Promise<MovieSearchPage> {
     const searchParams = TmdbHttpUtils.buildSearchMoviesParams(
       query,
       page,
       year,
+      language,
     );
     const json = await this.getJson("/search/movie", searchParams);
     return this.mapSearchPage(json);
   }
 
-  async getMovieDetails(movieId: number): Promise<MovieCatalogDetails> {
-    const searchParams = TmdbHttpUtils.buildMovieDetailsParams();
+  async getMovieDetails(
+    movieId: number,
+    language?: string,
+  ): Promise<MovieCatalogDetails> {
+    const searchParams = TmdbHttpUtils.buildMovieDetailsParams(language);
     const path = `/movie/${movieId}`;
     const json = await this.getJson(path, searchParams);
     return this.mapCatalogDetails(json);

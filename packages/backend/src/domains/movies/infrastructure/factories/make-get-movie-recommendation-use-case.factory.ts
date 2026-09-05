@@ -2,11 +2,15 @@ import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
 import { AiModels } from "@/lib/ai/ai-models";
 import { Logger } from "@/lib/logger/logger";
+import { Redis } from "@/lib/redis/redis";
 import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
+import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
+import { PrismaMovieCatalogRepository } from "../repositories/movie-catalog/prisma-movie-catalog.repository";
 import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendation.provider";
+import { MovieCatalogDetailsResolver } from "../providers/movie-catalog-details.resolver";
 import { MovieCatalogLookupAiTool } from "../providers/movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
 
@@ -20,7 +24,16 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const ai = new AI(config);
 
     const catalog = MakeTmdbHttpClientFactory.create();
-    const catalogLookup = new MovieCatalogLookupService(catalog);
+    const redis = new Redis();
+    const cache = new TmdbMovieDetailsCache(redis);
+    const repo = new PrismaMovieCatalogRepository();
+    const resolver = new MovieCatalogDetailsResolver(cache, repo, catalog);
+    const catalogLookup = new MovieCatalogLookupService(
+      catalog,
+      repo,
+      cache,
+      resolver,
+    );
     const lookupMoviesAiTool = new MovieCatalogLookupAiTool(catalogLookup);
     const lookupMoviesTool = lookupMoviesAiTool.createLookupMoviesTool();
     const movieRecommendationProvider = new AiMovieRecommendationProvider({

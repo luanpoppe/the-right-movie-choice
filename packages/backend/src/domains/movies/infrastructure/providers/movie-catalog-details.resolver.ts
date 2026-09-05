@@ -64,7 +64,7 @@ export class MovieCatalogDetailsResolver {
     staleDetails: MovieCatalogDetails,
   ): Promise<MovieCatalogDetails> {
     try {
-      const tmdbDetails = await this.catalog.getMovieDetails(tmdbId);
+      const tmdbDetails = await this.catalog.getMovieDetails(tmdbId, lang);
       await this.cache.set(tmdbId, tmdbDetails, lang);
       return tmdbDetails;
     } catch (error) {
@@ -77,7 +77,7 @@ export class MovieCatalogDetailsResolver {
     tmdbId: number,
     lang: string,
   ): Promise<MovieCatalogDetails> {
-    const tmdbDetails = await this.catalog.getMovieDetails(tmdbId);
+    const tmdbDetails = await this.catalog.getMovieDetails(tmdbId, lang);
     await this.cache.set(tmdbId, tmdbDetails, lang);
     return tmdbDetails;
   }

@@ -17,12 +17,14 @@ export class TmdbHttpUtils {
     query: string,
     page?: number,
     year?: number,
+    language?: string,
   ): URLSearchParams {
     const pageNumber = page ?? 1;
+    const catalogLanguage = TmdbHttpUtils.resolveLanguage(language);
     const searchParams = new URLSearchParams();
     searchParams.set("query", query);
     searchParams.set("page", String(pageNumber));
-    searchParams.set("language", TmdbHttpConstants.DEFAULT_LANGUAGE);
+    searchParams.set("language", catalogLanguage);
 
     const hasYear = year !== undefined;
     if (hasYear) {
@@ -32,9 +34,10 @@ export class TmdbHttpUtils {
     return searchParams;
   }
 
-  static buildMovieDetailsParams(): URLSearchParams {
+  static buildMovieDetailsParams(language?: string): URLSearchParams {
+    const catalogLanguage = TmdbHttpUtils.resolveLanguage(language);
     const searchParams = new URLSearchParams();
-    searchParams.set("language", TmdbHttpConstants.DEFAULT_LANGUAGE);
+    searchParams.set("language", catalogLanguage);
     searchParams.set(
       "append_to_response",
       TmdbHttpUtils.DETAILS_APPEND_TO_RESPONSE,
@@ -46,6 +49,15 @@ export class TmdbHttpUtils {
   static buildRequestUrl(path: string, searchParams: URLSearchParams): string {
     const queryString = searchParams.toString();
     return `${TmdbHttpConstants.API_BASE_URL}${path}?${queryString}`;
+  }
+
+  static resolveLanguage(language?: string): string {
+    const isLanguageEmpty = StringUtils.isEmptyString(language);
+    if (isLanguageEmpty) {
+      return TmdbHttpConstants.DEFAULT_LANGUAGE;
+    }
+
+    return language;
   }
 
   static backoffMs(attemptIndex: number): number {

@@ -166,7 +166,7 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     ]);
   });
 
-  it("não instancia Redis JSON nem injeta ChatHistoryAiMemoryRepository no use case", () => {
+  it("permite Redis para TmdbMovieDetailsCache e não injeta ChatHistoryAiMemoryRepository no use case", () => {
     const factoryPath = path.join(
       process.cwd(),
       "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
@@ -175,7 +175,10 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
     const useCaseRecord = useCase as unknown as Record<string, unknown>;
 
-    expect(factorySource).not.toMatch(/new Redis\(/);
+    expect(factorySource).toMatch(/new Redis\(/);
+    expect(factorySource).toMatch(/new TmdbMovieDetailsCache/);
+    expect(factorySource).toMatch(/new PrismaMovieCatalogRepository/);
+    expect(factorySource).toMatch(/new MovieCatalogDetailsResolver/);
     expect(factorySource).not.toMatch(/ChatHistoryRedisRepository/);
     expect(factorySource).not.toMatch(/ChatHistoryAiMemoryRepository/);
     expect(useCaseRecord.chatHistoryRepository).toBeUndefined();
@@ -259,6 +262,9 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
 
     expect(factorySource).toMatch(/MakeTmdbHttpClientFactory/);
     expect(factorySource).toMatch(/new MovieCatalogLookupService/);
+    expect(factorySource).toMatch(/new MovieCatalogDetailsResolver/);
+    expect(factorySource).toMatch(/new PrismaMovieCatalogRepository/);
+    expect(factorySource).toMatch(/new TmdbMovieDetailsCache/);
     expect(factorySource).toMatch(/createLookupMoviesTool/);
     expect(factorySource).not.toMatch(/MakeMovieCatalogLookup/);
     expect(provider).toBeInstanceOf(AiMovieRecommendationProvider);

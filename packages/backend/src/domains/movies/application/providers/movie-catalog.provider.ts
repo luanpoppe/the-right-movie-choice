@@ -6,7 +6,11 @@ export interface IMovieCatalogProvider {
     query: string,
     page?: number,
     year?: number,
+    language?: string,
   ): Promise<MovieSearchPage>;
 
-  getMovieDetails(movieId: number): Promise<MovieCatalogDetails>;
+  getMovieDetails(
+    movieId: number,
+    language?: string,
+  ): Promise<MovieCatalogDetails>;
 }

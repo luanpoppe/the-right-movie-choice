@@ -1,9 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { IMovieCatalogProvider } from "@/domains/movies/application/providers/movie-catalog.provider";
 import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie-catalog-details.entity";
 import type { MovieSearchHit, MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
+import { MovieCatalogFreshnessUtils } from "@/domains/movies/domain/movie-catalog-freshness.utils";
+import {
+  DEFAULT_MOVIE_CATALOG_LANGUAGE,
+  IMovieCatalogRepository,
+  MovieCatalogStoredRecord,
+} from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { Logger } from "@/lib/logger/logger";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
+import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
+import { MovieCatalogDetailsResolver } from "../movie-catalog-details.resolver";
 import { MovieCatalogLookupService } from "../movie-catalog-lookup.service";
 
 vi.mock("@/lib/logger/logger", () => ({
@@ -56,19 +64,72 @@ class MovieCatalogLookupFixtures {
       ...overrides,
     };
   }
+
+  static storedRecord(
+    details: MovieCatalogDetails,
+    updatedAt: Date,
+  ): MovieCatalogStoredRecord {
+    return {
+      details,
+      updatedAt,
+    };
+  }
+
+  static freshUpdatedAt(now: Date): Date {
+    const freshForMs = MovieCatalogFreshnessUtils.FRESH_FOR_MS;
+    const updatedAtMs = now.getTime() - freshForMs + 1;
+    return new Date(updatedAtMs);
+  }
+
+  static staleUpdatedAt(now: Date): Date {
+    const freshForMs = MovieCatalogFreshnessUtils.FRESH_FOR_MS;
+    const updatedAtMs = now.getTime() - freshForMs;
+    return new Date(updatedAtMs);
+  }
 }
 
 describe("MovieCatalogLookupService", () => {
+  const now = new Date("2026-09-05T12:00:00.000Z");
+
   let catalog: IMovieCatalogProvider;
+  let repository: IMovieCatalogRepository;
+  let cache: TmdbMovieDetailsCache;
+  let resolver: MovieCatalogDetailsResolver;
   let service: MovieCatalogLookupService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
     catalog = {
       searchMovies: vi.fn(),
       getMovieDetails: vi.fn(),
     };
-    service = new MovieCatalogLookupService(catalog);
+    repository = {
+      upsert: vi.fn(),
+      findByTmdbId: vi.fn(),
+      findByTitleAndYear: vi.fn().mockResolvedValue(null),
+    };
+    cache = {
+      buildKey: vi.fn(),
+      get: vi.fn(),
+      set: vi.fn().mockResolvedValue(undefined),
+    } as unknown as TmdbMovieDetailsCache;
+    resolver = {
+      resolveByTmdbId: vi.fn(),
+    } as unknown as MovieCatalogDetailsResolver;
+
+    service = new MovieCatalogLookupService(
+      catalog,
+      repository,
+      cache,
+      resolver,
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("findDetailsByTitle", () => {
@@ -78,14 +139,22 @@ describe("MovieCatalogLookupService", () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([hit]),
       );
-      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
 
       const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(result).toEqual({ found: true, details });
-      expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar");
-      expect(catalog.getMovieDetails).toHaveBeenCalledWith(hit.id);
-      expect(catalog.getMovieDetails).toHaveBeenCalledTimes(1);
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        hit.id,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledTimes(1);
     });
 
     it("busca só pelo título quando year está ausente", async () => {
@@ -94,11 +163,16 @@ describe("MovieCatalogLookupService", () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([hit]),
       );
-      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
 
       await service.findDetailsByTitle({ query: "Interestelar" });
 
-      expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar");
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
     });
 
     it("passa year como filtro separado, sem colar no texto da query", async () => {
@@ -107,11 +181,16 @@ describe("MovieCatalogLookupService", () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([hit]),
       );
-      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
 
       await service.findDetailsByTitle({ query: "Interestelar", year: 2014 });
 
-      expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar", 1, 2014);
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        2014,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
     });
 
     it("aceita imdbId null nos details e ainda retorna found true", async () => {
@@ -120,14 +199,14 @@ describe("MovieCatalogLookupService", () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([hit]),
       );
-      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
 
       const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(result).toEqual({ found: true, details });
     });
 
-    it("REQ-2: devolve found false sem chamar getMovieDetails quando search não tem resultados", async () => {
+    it("REQ-2: devolve found false sem chamar resolver quando search não tem resultados", async () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([]),
       );
@@ -138,35 +217,46 @@ describe("MovieCatalogLookupService", () => {
         found: false,
         message: 'Nenhum filme encontrado para "FilmeInexistente".',
       });
-      expect(catalog.searchMovies).toHaveBeenCalledWith("FilmeInexistente");
-      expect(catalog.getMovieDetails).not.toHaveBeenCalled();
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "FilmeInexistente",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
     });
 
     it.each([
       {
         phase: "searchMovies",
-        setupMocks: (catalogMock: IMovieCatalogProvider) => {
+        setupMocks: (
+          catalogMock: IMovieCatalogProvider,
+          _resolverMock: MovieCatalogDetailsResolver,
+        ) => {
           vi.mocked(catalogMock.searchMovies).mockRejectedValue(
             new TmdbHttpException("TMDB timeout", 504),
           );
         },
       },
       {
-        phase: "getMovieDetails",
-        setupMocks: (catalogMock: IMovieCatalogProvider) => {
+        phase: "resolveByTmdbId",
+        setupMocks: (
+          catalogMock: IMovieCatalogProvider,
+          resolverMock: MovieCatalogDetailsResolver,
+        ) => {
           const hit = MovieCatalogLookupFixtures.searchHit();
           vi.mocked(catalogMock.searchMovies).mockResolvedValue(
             MovieCatalogLookupFixtures.searchPage([hit]),
           );
-          vi.mocked(catalogMock.getMovieDetails).mockRejectedValue(
+          vi.mocked(resolverMock.resolveByTmdbId).mockRejectedValue(
             new TmdbHttpException("TMDB 502", 502),
           );
         },
       },
     ])(
       "REQ-3: captura TmdbHttpException em $phase e devolve found false sem relançar",
-      async ({ setupMocks }) => {
-        setupMocks(catalog);
+      async ({ setupMocks, phase }) => {
+        setupMocks(catalog, resolver);
 
         const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
@@ -206,7 +296,7 @@ describe("MovieCatalogLookupService", () => {
       vi.mocked(catalog.searchMovies).mockResolvedValue(
         MovieCatalogLookupFixtures.searchPage([hit]),
       );
-      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
 
       await service.findDetailsByTitle({ query: "Interestelar" });
 
@@ -226,8 +316,9 @@ describe("MovieCatalogLookupService", () => {
         found: false,
         message: "Informe o nome de um filme para buscar no catálogo.",
       });
+      expect(repository.findByTitleAndYear).not.toHaveBeenCalled();
       expect(catalog.searchMovies).not.toHaveBeenCalled();
-      expect(catalog.getMovieDetails).not.toHaveBeenCalled();
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
     });
 
     it("devolve found false para erro inesperado sem relançar", async () => {
@@ -242,6 +333,126 @@ describe("MovieCatalogLookupService", () => {
         message: "Não foi possível consultar o catálogo de filmes no momento.",
       });
       expect(Logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it("REQ-1 local: hit fresco no banco não chama searchMovies, aquece cache e devolve details", async () => {
+      const details = MovieCatalogLookupFixtures.details();
+      const updatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      const storedRecord = MovieCatalogLookupFixtures.storedRecord(
+        details,
+        updatedAt,
+      );
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(storedRecord);
+
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
+
+      expect(result).toEqual({ found: true, details });
+      expect(repository.findByTitleAndYear).toHaveBeenCalledWith(
+        "Interestelar",
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
+      expect(cache.set).toHaveBeenCalledWith(
+        details.tmdbId,
+        details,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("REQ-4 local: registro stale no banco cai no search TMDB e resolver", async () => {
+      const details = MovieCatalogLookupFixtures.details();
+      const staleUpdatedAt = MovieCatalogLookupFixtures.staleUpdatedAt(now);
+      const storedRecord = MovieCatalogLookupFixtures.storedRecord(
+        details,
+        staleUpdatedAt,
+      );
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const tmdbDetails = MovieCatalogLookupFixtures.details({
+        overview: "Sinopse TMDB atualizada",
+      });
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(storedRecord);
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(tmdbDetails);
+
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
+
+      expect(result).toEqual({ found: true, details: tmdbDetails });
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        hit.id,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("REQ-5: findByTitleAndYear falha, loga warn e segue para search TMDB", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const details = MovieCatalogLookupFixtures.details();
+      vi.mocked(repository.findByTitleAndYear).mockRejectedValue(
+        new Error("Postgres indisponível"),
+      );
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
+
+      expect(result).toEqual({ found: true, details });
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Movie catalog findByTitleAndYear failed, skipping to TMDB",
+        expect.objectContaining({
+          title: "Interestelar",
+          reason: "Postgres indisponível",
+        }),
+      );
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interestelar",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        hit.id,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("usa language do input no find local, search TMDB e resolver", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const details = MovieCatalogLookupFixtures.details({
+        title: "Interstellar",
+      });
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      await service.findDetailsByTitle({
+        query: "Interstellar",
+        language: "en-US",
+      });
+
+      expect(repository.findByTitleAndYear).toHaveBeenCalledWith(
+        "Interstellar",
+        undefined,
+        "en-US",
+      );
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "Interstellar",
+        1,
+        undefined,
+        "en-US",
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(hit.id, "en-US");
     });
   });
 });

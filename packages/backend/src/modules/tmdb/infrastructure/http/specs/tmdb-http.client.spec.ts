@@ -107,6 +107,17 @@ describe("TmdbHttpClient", () => {
       });
     });
 
+    it("envia language explícito no GET de details", async () => {
+      const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, DETAILS_FIXTURE));
+      const { client } = createClient(fetchFn);
+
+      await client.getMovieDetails(11, "en-US");
+
+      const [url] = fetchFn.mock.calls[0] as [string];
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get("language")).toBe("en-US");
+    });
+
     it("REQ-2: retries 429 twice with backoff 1000 then 2000 and returns 200 JSON", async () => {
       const fetchFn = vi
         .fn()
@@ -269,6 +280,19 @@ describe("TmdbHttpClient", () => {
       expect(parsedUrl.searchParams.get("query")).toBe("The Name of the Rose");
       expect(parsedUrl.searchParams.get("page")).toBe("1");
       expect(parsedUrl.searchParams.get("primary_release_year")).toBe("1986");
+    });
+
+    it("envia language explícito no GET de search", async () => {
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValue(jsonResponse(200, SEARCH_FIXTURE));
+      const { client } = createClient(fetchFn);
+
+      await client.searchMovies("Interstellar", 1, undefined, "en-US");
+
+      const [url] = fetchFn.mock.calls[0] as [string];
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get("language")).toBe("en-US");
     });
 
     it("sends the given page when provided", async () => {

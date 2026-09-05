@@ -3,6 +3,7 @@ import type { MovieCatalogDetails } from './movie-catalog-details.entity';
 export type MovieCatalogLookupInput = {
   query: string;
   year?: number;
+  language?: string;
 };
 
 export type MovieCatalogLookupFound = {

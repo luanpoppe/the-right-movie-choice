@@ -158,7 +158,7 @@ describe("MovieCatalogDetailsResolver", () => {
     const result = await resolver.resolveByTmdbId(tmdbId);
 
     expect(result).toBe(tmdbDetails);
-    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId);
+    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
     expect(repository.upsert).not.toHaveBeenCalled();
   });
@@ -203,7 +203,7 @@ describe("MovieCatalogDetailsResolver", () => {
       "Movie catalog findByTmdbId failed, skipping to TMDB",
       expect.objectContaining({ tmdbId }),
     );
-    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId);
+    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
   });
 
@@ -217,7 +217,7 @@ describe("MovieCatalogDetailsResolver", () => {
     const result = await resolver.resolveByTmdbId(tmdbId);
 
     expect(result).toBe(tmdbDetails);
-    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId);
+    expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
   });
 
