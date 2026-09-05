@@ -134,6 +134,36 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
         refreshOnRead: true,
       },
     });
+    expect(Object.keys(config.memory.options)).toEqual([
+      "defaultTTL",
+      "refreshOnRead",
+    ]);
+  });
+
+  it("não instancia Redis JSON nem injeta ChatHistoryAiMemoryRepository no use case", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+    const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
+    const useCaseRecord = useCase as unknown as Record<string, unknown>;
+
+    expect(factorySource).not.toMatch(/new Redis\(/);
+    expect(factorySource).not.toMatch(/ChatHistoryRedisRepository/);
+    expect(factorySource).not.toMatch(/ChatHistoryAiMemoryRepository/);
+    expect(useCaseRecord.chatHistoryRepository).toBeUndefined();
+  });
+
+  it("declara @langchain/langgraph-checkpoint-redis no package.json do backend", () => {
+    const packageJsonPath = path.join(process.cwd(), "package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      dependencies: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies).toHaveProperty(
+      "@langchain/langgraph-checkpoint-redis",
+    );
   });
 
   it("não referencia Langchain nem BaseChatModel no factory", () => {

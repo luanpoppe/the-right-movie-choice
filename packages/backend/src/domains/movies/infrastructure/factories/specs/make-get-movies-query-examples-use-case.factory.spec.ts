@@ -119,4 +119,11 @@ describe("MakeGetMoviesQueryExamplesUseCaseFactory", () => {
     expect(factorySource).not.toMatch(/FLASH_LITE/);
     expect(factorySource).not.toMatch(/cache:\s*false/);
   });
+
+  it("não inclui memory no config do AI", () => {
+    MakeGetMoviesQueryExamplesUseCaseFactory.create();
+
+    const config = aiConstructorCalls[0] as Record<string, unknown>;
+    expect(config).not.toHaveProperty("memory");
+  });
 });

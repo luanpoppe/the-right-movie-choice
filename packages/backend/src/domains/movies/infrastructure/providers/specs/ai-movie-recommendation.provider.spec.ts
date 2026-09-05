@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { AI, AIMessages } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
@@ -107,6 +109,18 @@ describe("AiMovieRecommendationProvider", () => {
       expect(structuredCallArgs.threadId).toBe(chatId);
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(result).toEqual(validEntity);
+      expect(structuredCallArgs.messages).toHaveLength(1);
+    });
+
+    it("não engole o erro da lib quando callStructuredOutput falha por threadId", async () => {
+      const libError = new Error("threadId is required");
+      callStructuredOutput.mockRejectedValue(libError);
+
+      await expect(
+        provider.getStructuredMoviesRecommendation(userMessage, chatId),
+      ).rejects.toBe(libError);
+
+      expect(Logger.error).toHaveBeenCalled();
     });
 
     it("lança WrongMovieSchemaFromLlmException quando o response não passa no safeParse", async () => {
@@ -168,7 +182,18 @@ describe("AiMovieRecommendationProvider", () => {
       expect(callArgs.threadId).toBe(chatId);
       expect(callArgs.messages).toEqual([expectedHumanMessage]);
       expect(text).toBe(expectedText);
+      expect(callArgs.messages).toHaveLength(1);
       expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
+
+    it("não engole o erro da lib quando ai.call falha por threadId", async () => {
+      const movies = MovieRecommendationFixtures.validEntity();
+      const libError = new Error("threadId is required");
+      call.mockRejectedValue(libError);
+
+      await expect(
+        provider.getChatResponse(movies, userMessage, chatId),
+      ).rejects.toBe(libError);
     });
 
     it("loga model, durationMs e success sem o corpo do prompt", async () => {
@@ -203,5 +228,15 @@ describe("AiMovieRecommendationProvider", () => {
       expect(errorContext.error).toBe("llm down");
       LogContextAssertions.expectObservabilityWithoutPromptBody(errorContext);
     });
+  });
+
+  it("não importa ChatHistoryAiMessagesUtils no provider", () => {
+    const providerPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/providers/ai-movie-recommendation.provider.ts",
+    );
+    const providerSource = readFileSync(providerPath, "utf8");
+
+    expect(providerSource).not.toMatch(/ChatHistoryAiMessagesUtils/);
   });
 });

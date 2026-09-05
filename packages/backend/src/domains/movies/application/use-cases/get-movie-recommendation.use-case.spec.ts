@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { GetMovieRecommendationUseCase } from "./get-movie-recommendation.use-case";
 import { IMovieRecommendationProvider } from "../providers/movie-recommendation.provider";
 import { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation.entity";
@@ -66,5 +68,38 @@ describe("GetMovieRecommendationUseCase", () => {
       movies: mockStructuredMovies.movies,
       response: mockChatResponse,
     });
+    expect(
+      movieRecommendationProvider.getStructuredMoviesRecommendation,
+    ).toHaveBeenCalledTimes(1);
+    expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledTimes(1);
+  });
+
+  it("não chama getChatResponse quando a recomendação estruturada falha", async () => {
+    const failure = new Error("structured failed");
+    vi.mocked(
+      movieRecommendationProvider.getStructuredMoviesRecommendation,
+    ).mockRejectedValue(failure);
+
+    await expect(
+      getMovieRecommendationUseCase.execute("msg", "chat-id"),
+    ).rejects.toThrow("structured failed");
+
+    expect(movieRecommendationProvider.getChatResponse).not.toHaveBeenCalled();
+  });
+
+  it("não importa IChatHistoryRepository nem chama getHistory", async () => {
+    const useCasePath = path.join(
+      process.cwd(),
+      "src/domains/movies/application/use-cases/get-movie-recommendation.use-case.ts",
+    );
+    const useCaseSource = readFileSync(useCasePath, "utf8");
+    const useCaseRecord = getMovieRecommendationUseCase as unknown as Record<
+      string,
+      unknown
+    >;
+
+    expect(useCaseSource).not.toMatch(/IChatHistoryRepository/);
+    expect(useCaseSource).not.toMatch(/getHistory/);
+    expect(useCaseRecord.chatHistoryRepository).toBeUndefined();
   });
 });
