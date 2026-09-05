@@ -3,7 +3,7 @@
 [![Status do Projeto](https://img.shields.io/badge/status-ativo-success.svg)]()
 [![Linguagem](https://img.shields.io/badge/linguagem-TypeScript-blue.svg)]()
 
-Plataforma de recomendação de filmes com **API** (Node.js + Fastify) e **interface web** (React + Vite). O backend usa IA generativa (Google Gemini), segue **Clean Architecture** e **SOLID**; o frontend consome a API para chat e exibição das sugestões.
+Plataforma de recomendação de filmes com **API** (Node.js + Fastify) e **interface web** (React + Vite). O backend usa IA generativa via **OpenRouter** (primário) e **Google Gemini** (fallback opcional), segue **Clean Architecture** e **SOLID**; o frontend consome a API para chat e exibição das sugestões.
 
 O repositório é um **monorepo pnpm**:
 
@@ -73,13 +73,13 @@ A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
 - **`application` (Camada de Aplicação):** Orquestra fluxos via **use cases** (ex.: `GetMovieRecommendationUseCase`, `GetMoviesQueryExamplesUseCase`, `CreateUserUseCase`, `LoginUseCase`). Depende de abstrações do domínio, não de Prisma ou Redis diretamente (**DIP**).
 
-- **`infrastructure` (Camada de Infraestrutura):** Adapters concretos (`PrismaUserRepository`, `ChatHistoryRedisRepository`), **mappers**, **factories** de composição e, onde aplicável, HTTP (controllers, DTOs, rotas Fastify).
+- **`infrastructure` (Camada de Infraestrutura):** Adapters concretos (`PrismaUserRepository`, `ChatHistoryAiMemoryRepository` / checkpointer Redis), **mappers**, **factories** de composição e, onde aplicável, HTTP (controllers, DTOs, rotas Fastify).
 
 - **`core`:** Abstrações compartilhadas entre contextos (`BaseException`, `IChatHistoryRepository`).
 
 - **`shared`:** Utilitários e constantes transversais (ex.: `PrismaUtil`, `BCRYPT_SALT_ROUNDS`).
 
-- **`lib`:** Clientes e utilitários técnicos (`lib/prisma`, `lib/redis`, `lib/langchain`, `lib/logger`).
+- **`lib`:** Clientes e utilitários técnicos (`lib/prisma`, `lib/redis`, `lib/ai`, `lib/logger`).
 
 A aplicação de cada classe a uma única responsabilidade (ex: um repositório apenas persiste dados, um caso de uso apenas orquestra um fluxo) garante o **Princípio da Responsabilidade Única (SRP)**.
 
@@ -100,7 +100,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Framework Web:** Fastify
 - **Validação / OpenAPI:** Zod + `fastify-type-provider-zod`
 - **Testes:** Vitest
-- **IA generativa:** Google Gemini via LangChain
+- **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
 - **Banco de dados:** PostgreSQL (usuários) + Redis (histórico de chat e refresh tokens, `ioredis`)
 - **Senhas:** bcrypt
@@ -161,7 +161,8 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    | `PORT` | Porta HTTP da API (padrão: `3333`) |
    | `DATABASE_URL` | Connection string PostgreSQL |
    | `REDIS_URL` | Host:porta do Redis (sem protocolo) |
-   | `GEMINI_API_KEY` | Chave da API Google Gemini |
+   | `OPENROUTER_API_KEY` | Chave OpenRouter (obrigatória fora de `test`) |
+   | `GEMINI_API_KEY` | Chave Google Gemini (opcional; vazia = sem fallback) |
    | `JWT_SECRET` | Segredo para assinar access tokens |
    | `JWT_ACCESS_EXPIRES_IN` | TTL do access token (padrão: `15m`) |
    | `REFRESH_TOKEN_TTL_SECONDS` | TTL do refresh no Redis (padrão: `604800` = 7 dias) |
@@ -357,4 +358,4 @@ curl -X POST http://localhost:3333/auth/logout -b cookies.txt
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit` em `packages/backend/vite.config.mts`). Cobertura atual: casos de uso de filmes, auth e users; providers LangChain; mapper de erros Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit` em `packages/backend/vite.config.mts`). Cobertura atual: casos de uso de filmes, auth e users; providers `@luanpoppe/ai`; mapper de erros Prisma.

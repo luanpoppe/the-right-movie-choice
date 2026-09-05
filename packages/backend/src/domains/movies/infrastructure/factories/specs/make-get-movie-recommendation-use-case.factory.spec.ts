@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { GetMovieRecommendationUseCase } from "../../../application/use-cases/get-movie-recommendation.use-case";
 import { AiMovieRecommendationProvider } from "../../providers/ai-movie-recommendation.provider";
@@ -164,6 +164,47 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(packageJson.dependencies).toHaveProperty(
       "@langchain/langgraph-checkpoint-redis",
     );
+  });
+
+  it("não declara @langchain/core, @langchain/google-genai nem langchain no package.json", () => {
+    const packageJsonPath = path.join(process.cwd(), "package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const declaredNames = [
+      ...Object.keys(packageJson.dependencies ?? {}),
+      ...Object.keys(packageJson.devDependencies ?? {}),
+    ];
+
+    expect(declaredNames).not.toContain("@langchain/core");
+    expect(declaredNames).not.toContain("@langchain/google-genai");
+    expect(declaredNames).not.toContain("langchain");
+  });
+
+  it("remove lib/langchain e leftover LangChain, preservando lib/ai e lib/redis", () => {
+    const langchainDir = path.join(process.cwd(), "src/lib/langchain");
+    const aiDir = path.join(process.cwd(), "src/lib/ai");
+    const redisDir = path.join(process.cwd(), "src/lib/redis");
+    const leftoverRecommendationProvider = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/providers/langchain-movie-recommendation.provider.ts",
+    );
+    const leftoverQueryExamplesProvider = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/providers/langchain-movies-query-examples.provider.ts",
+    );
+    const leftoverChatHistoryUtils = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/providers/chat-history-ai-messages.utils.ts",
+    );
+
+    expect(existsSync(langchainDir)).toBe(false);
+    expect(existsSync(leftoverRecommendationProvider)).toBe(false);
+    expect(existsSync(leftoverQueryExamplesProvider)).toBe(false);
+    expect(existsSync(leftoverChatHistoryUtils)).toBe(false);
+    expect(existsSync(aiDir)).toBe(true);
+    expect(existsSync(redisDir)).toBe(true);
   });
 
   it("não referencia Langchain nem BaseChatModel no factory", () => {
