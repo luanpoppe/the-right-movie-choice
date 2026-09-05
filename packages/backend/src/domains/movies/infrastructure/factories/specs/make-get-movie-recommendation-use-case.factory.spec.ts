@@ -113,6 +113,18 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(config.aiModelsFallback).toEqual([AiModels.GEMINI_FALLBACK]);
   });
 
+  it("prefixa redis:// no memory.url quando REDIS_URL é host:porta (ioredis)", () => {
+    envState.REDIS_URL = "localhost:6379";
+
+    MakeGetMovieRecommendationUseCaseFactory.create();
+
+    const config = aiConstructorCalls[0] as {
+      memory: { url: string };
+    };
+
+    expect(config.memory.url).toBe("redis://localhost:6379");
+  });
+
   it("passa memory redis no mesmo AI do provider com TTL de 20 minutos", () => {
     envState.REDIS_URL = "redis://memory-host:6380";
 

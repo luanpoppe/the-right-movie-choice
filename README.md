@@ -160,7 +160,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    | `NODE_ENV` | `dev`, `prod` ou `test` |
    | `PORT` | Porta HTTP da API (padrão: `3333`) |
    | `DATABASE_URL` | Connection string PostgreSQL |
-   | `REDIS_URL` | Host:porta do Redis (sem protocolo) |
+   | `REDIS_URL` | Host:porta do Redis, sem protocolo (ex.: `localhost:6379`). O `ioredis` usa assim; a factory prefixa `redis://` só para o checkpointer LangGraph. |
    | `OPENROUTER_API_KEY` | Chave OpenRouter (obrigatória fora de `test`) |
    | `GEMINI_API_KEY` | Chave Google Gemini (opcional; vazia = sem fallback) |
    | `JWT_SECRET` | Segredo para assinar access tokens |

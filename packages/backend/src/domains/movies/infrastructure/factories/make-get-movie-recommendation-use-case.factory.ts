@@ -1,6 +1,7 @@
 import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
 import { AiModels } from "@/lib/ai/ai-models";
+import { Logger } from "@/lib/logger/logger";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
@@ -27,6 +28,10 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const openRouterApiKey = env.OPENROUTER_API_KEY;
     const geminiApiKey = env.GEMINI_API_KEY;
     const redisUrl = env.REDIS_URL;
+    const checkpointerRedisUrl =
+      MakeGetMovieRecommendationUseCaseFactory.toCheckpointerRedisUrl(
+        redisUrl,
+      );
     const hasOpenRouterApiKey = !StringUtils.isEmptyString(openRouterApiKey);
     const hasGeminiApiKey = !StringUtils.isEmptyString(geminiApiKey);
 
@@ -40,12 +45,23 @@ export class MakeGetMovieRecommendationUseCaseFactory {
         : {}),
       memory: {
         type: "redis",
-        url: redisUrl,
+        url: checkpointerRedisUrl,
         options: {
           defaultTTL: CHAT_MEMORY_TTL_SECONDS,
           refreshOnRead: true,
         },
       },
     };
+  }
+
+  private static toCheckpointerRedisUrl(redisUrl: string): string {
+    const hasProtocol = redisUrl.includes("://");
+    if (hasProtocol) return redisUrl;
+
+    const checkpointerRedisUrl = `redis://${redisUrl}`;
+    Logger.debug("Prefixed redis:// for LangGraph checkpointer", {
+      envHasProtocol: false,
+    });
+    return checkpointerRedisUrl;
   }
 }
