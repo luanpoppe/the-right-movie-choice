@@ -179,6 +179,7 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(factorySource).toMatch(/new TmdbMovieDetailsCache/);
     expect(factorySource).toMatch(/new PrismaMovieCatalogRepository/);
     expect(factorySource).toMatch(/new MovieCatalogDetailsResolver/);
+    expect(factorySource).toMatch(/CatalogPersistEnqueuer\.enqueue/);
     expect(factorySource).not.toMatch(/ChatHistoryRedisRepository/);
     expect(factorySource).not.toMatch(/ChatHistoryAiMemoryRepository/);
     expect(useCaseRecord.chatHistoryRepository).toBeUndefined();
@@ -263,10 +264,33 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(factorySource).toMatch(/MakeTmdbHttpClientFactory/);
     expect(factorySource).toMatch(/new MovieCatalogLookupService/);
     expect(factorySource).toMatch(/new MovieCatalogDetailsResolver/);
+    expect(factorySource).toMatch(/CatalogPersistEnqueuer\.enqueue/);
     expect(factorySource).toMatch(/new PrismaMovieCatalogRepository/);
     expect(factorySource).toMatch(/new TmdbMovieDetailsCache/);
     expect(factorySource).toMatch(/createLookupMoviesTool/);
     expect(factorySource).not.toMatch(/MakeMovieCatalogLookup/);
     expect(provider).toBeInstanceOf(AiMovieRecommendationProvider);
+  });
+
+  it("injeta CatalogPersistEnqueuer.enqueue no MovieCatalogDetailsResolver (factory e tmdb-debug)", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
+    );
+    const tmdbDebugRoutesPath = path.join(
+      process.cwd(),
+      "src/modules/tmdb/infrastructure/http/controllers/tmdb-debug.routes.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+    const tmdbDebugRoutesSource = readFileSync(tmdbDebugRoutesPath, "utf8");
+
+    expect(factorySource).toMatch(/CatalogPersistEnqueuer\.enqueue/);
+    expect(factorySource).toMatch(
+      /new MovieCatalogDetailsResolver\([\s\S]*enqueuePersist/,
+    );
+    expect(tmdbDebugRoutesSource).toMatch(/CatalogPersistEnqueuer\.enqueue/);
+    expect(tmdbDebugRoutesSource).toMatch(
+      /new MovieCatalogDetailsResolver\([\s\S]*enqueuePersist/,
+    );
   });
 });

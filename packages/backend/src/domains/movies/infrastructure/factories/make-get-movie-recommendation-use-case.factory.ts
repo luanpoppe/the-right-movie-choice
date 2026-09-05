@@ -13,6 +13,7 @@ import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendat
 import { MovieCatalogDetailsResolver } from "../providers/movie-catalog-details.resolver";
 import { MovieCatalogLookupAiTool } from "../providers/movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
+import { CatalogPersistEnqueuer } from "../workers/catalog-persist.enqueuer";
 
 type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
@@ -27,7 +28,13 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const redis = new Redis();
     const cache = new TmdbMovieDetailsCache(redis);
     const repo = new PrismaMovieCatalogRepository();
-    const resolver = new MovieCatalogDetailsResolver(cache, repo, catalog);
+    const enqueuePersist = CatalogPersistEnqueuer.enqueue;
+    const resolver = new MovieCatalogDetailsResolver(
+      cache,
+      repo,
+      catalog,
+      enqueuePersist,
+    );
     const catalogLookup = new MovieCatalogLookupService(
       catalog,
       repo,
