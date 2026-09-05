@@ -22,27 +22,9 @@ export class GetMovieRecommendationUseCase {
       chatHistory
     );
 
-    await this.saveChatHistory(userMessage, chatResponse, chatId);
-
     return {
       movies: structuredMovies.movies,
       response: chatResponse,
     };
-  }
-
-  private async saveChatHistory(
-    userMessage: string,
-    chatResponse: string,
-    chatId: string
-  ) {
-    const tentyMinutesInSeconds = 60 * 20;
-    await this.chatHistoryRepository.addMessage(
-      [
-        ["user", userMessage],
-        ["ai", chatResponse],
-      ],
-      chatId,
-      tentyMinutesInSeconds
-    );
   }
 }

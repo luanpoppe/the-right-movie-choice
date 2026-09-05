@@ -12,7 +12,6 @@ describe("GetMovieRecommendationUseCase", () => {
   beforeEach(() => {
     chatHistoryRepository = {
       getHistory: vi.fn(),
-      addMessage: vi.fn(),
     };
     movieRecommendationProvider = {
       getStructuredMoviesRecommendation: vi.fn(),
@@ -77,14 +76,6 @@ describe("GetMovieRecommendationUseCase", () => {
       userMessage,
       mockChatHistory
     );
-    expect(chatHistoryRepository.addMessage).toHaveBeenCalledWith(
-      [
-        ["user", userMessage],
-        ["ai", mockChatResponse],
-      ],
-      chatId,
-      expect.any(Number)
-    );
     expect(result).toEqual({
       movies: mockStructuredMovies.movies,
       response: mockChatResponse,
@@ -135,14 +126,6 @@ describe("GetMovieRecommendationUseCase", () => {
       mockStructuredMovies,
       userMessage,
       []
-    );
-    expect(chatHistoryRepository.addMessage).toHaveBeenCalledWith(
-      [
-        ["user", userMessage],
-        ["ai", mockChatResponse],
-      ],
-      chatId,
-      expect.any(Number)
     );
     expect(result).toEqual({
       movies: mockStructuredMovies.movies,
