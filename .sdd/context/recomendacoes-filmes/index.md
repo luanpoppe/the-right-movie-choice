@@ -3,7 +3,7 @@
 
 ## Áreas
 - [Cliente @luanpoppe/ai](cliente-luanpoppe-ai.md) — pacote + `AiModels`; sem wrapper LangChain; factory faz `new AI()`.
-- [Recomendação via IA](recomendacao-ia.md) — `POST /movie/recommendation`: OpenRouter estruturado + texto conversacional.
+- [Recomendação via IA](recomendacao-ia.md) — `POST /movie/recommendation`: uma invoke structured (cards + texto).
 - [Cota anônima e Bearer](cota-anonima-e-bearer.md) — 2 POSTs por `guest-id`; JWT ilimitado; `GET /movie/queries` sem cota.
 - [Histórico de chat no Redis](historico-chat-redis.md) — checkpointer da lib (`threadId` = `chatid`), TTL de 20 min.
 - [Exemplos de queries](exemplos-de-queries.md) — `GET /movie/queries` gera prompts de exemplo para a landing.

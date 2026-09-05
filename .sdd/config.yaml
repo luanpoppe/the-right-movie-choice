@@ -14,3 +14,15 @@ chunk_order: inside-out
 tests: on              # off (padrão): não gera testes automaticamente | on: ao concluir cada feature (ou a correção de um bug-fix), um subagente tester dedicado escreve os testes da funcionalidade — foco em borda e falha, não só caminho feliz — roda e reporta sem corrigir.
 auto_commit: full      # full: commita o chunk ao aprovar | suggest-only (padrão): só sugere o comando | off: não menciona git
 created: 2026-08-21
+subagents:
+  implementer:
+    cursor: { model: composer-2.5 }
+mcp: on                     # off (padrão): nada é gravado fora de .sdd/ | on: cada etapa também vai para o SQLite global (~/.sdd/sdd.db) via MCP local
+tasks_storage: mcp          # file (padrão): tasks.md no repo | mcp: plano no banco; MCP vira obrigatório
+state_storage: mcp          # file (padrão): estado no .sdd.yaml | mcp: state/current_*/in_review/updated/status das features no banco
+mcp_record:
+  symbols: true
+  diff: true
+  context: true
+  explain: true
+  scenarios: true

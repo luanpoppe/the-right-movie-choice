@@ -7,3 +7,6 @@ dist-ssr
 .env
 **/generated/prisma
 coverage
+
+# Path absoluto da home no servidor SDD MCP — local por máquina
+.cursor/mcp.json

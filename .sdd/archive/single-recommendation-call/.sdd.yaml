@@ -1,0 +1,14 @@
+id: single-recommendation-call
+title: Uma call de recomendação (texto + cards)
+created: 2026-09-04
+updated: 2026-09-04
+archived: 2026-09-04
+state: archived
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: unify-recommendation-call
+    title: Unificar call de recomendação
+    summary: Uma invoke structured devolve filmes e texto; porta/use case deixam de fazer duas calls. HTTP e SPA iguais.
+    status: done
