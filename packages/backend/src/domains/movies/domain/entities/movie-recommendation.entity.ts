@@ -14,10 +14,24 @@ export const SingleMovieReccomendationSchema = z.object({
   durationInMinutes: z.coerce.number().describe("Duração do filme em minutos"),
 });
 
+export const SingleMovieReccomendationInternalSchema =
+  SingleMovieReccomendationSchema.extend({
+    tmdbId: z.number().optional(),
+    imdbId: z.string().optional(),
+  });
+
 export const MovieRecommendationSchema = z.object({
-  movies: z.array(SingleMovieReccomendationSchema).min(0).max(3),
+  movies: z.array(SingleMovieReccomendationInternalSchema).min(0).max(3),
   response: z.string().nonempty(),
 });
+
+export type SingleMovieReccomendationEntity = z.infer<
+  typeof SingleMovieReccomendationSchema
+>;
+
+export type SingleMovieReccomendationInternalEntity = z.infer<
+  typeof SingleMovieReccomendationInternalSchema
+>;
 
 export type MovieRecommendationEntity = z.infer<
   typeof MovieRecommendationSchema
