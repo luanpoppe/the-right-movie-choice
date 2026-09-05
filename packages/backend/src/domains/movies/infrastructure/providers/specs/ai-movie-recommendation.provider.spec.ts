@@ -142,6 +142,33 @@ describe("AiMovieRecommendationProvider", () => {
       expect(result).toEqual(validEntity);
     });
 
+    it("segue funcionando quando a tool lookupMovies não é invocada pelo modelo", async () => {
+      const entityWithoutCatalogIds = MovieRecommendationFixtures.validEntity();
+      callStructuredOutput.mockResolvedValue({ response: entityWithoutCatalogIds });
+
+      const result = await provider.getMovieRecommendation(userMessage, chatId);
+
+      expect(result.movies[0]).not.toHaveProperty("tmdbId");
+      expect(result.movies[0]).not.toHaveProperty("imdbId");
+      expect(result).toEqual(entityWithoutCatalogIds);
+      expect(callStructuredOutput).toHaveBeenCalledTimes(1);
+    });
+
+    it("aceita filme recomendado sem ids quando catálogo retornou found false", async () => {
+      const movieAfterCatalogMiss = MovieRecommendationFixtures.validMovie();
+      const entity = {
+        movies: [movieAfterCatalogMiss],
+        response: "Sugiro mesmo sem hit no catálogo.",
+      };
+      callStructuredOutput.mockResolvedValue({ response: entity });
+
+      const result = await provider.getMovieRecommendation(userMessage, chatId);
+
+      expect(result).toEqual(entity);
+      expect(result.movies[0]).not.toHaveProperty("tmdbId");
+      expect(result.movies[0]).not.toHaveProperty("imdbId");
+    });
+
     it("aceita filme com tmdbId e imdbId opcionais no schema interno", async () => {
       const entityWithIds = MovieRecommendationFixtures.validEntityWithCatalogIds();
       callStructuredOutput.mockResolvedValue({ response: entityWithIds });

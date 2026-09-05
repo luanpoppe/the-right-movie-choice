@@ -126,4 +126,30 @@ describe("MakeGetMoviesQueryExamplesUseCaseFactory", () => {
     const config = aiConstructorCalls[0] as Record<string, unknown>;
     expect(config).not.toHaveProperty("memory");
   });
+
+  it("não referencia lookupMovies nem catálogo TMDB no factory", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movies-query-examples-use-case.factory.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+
+    expect(factorySource).not.toMatch(/lookupMovies/);
+    expect(factorySource).not.toMatch(/MovieCatalogLookup/);
+    expect(factorySource).not.toMatch(/MakeTmdbHttpClientFactory/);
+    expect(factorySource).not.toMatch(/createLookupMoviesTool/);
+  });
+
+  it("não injeta tool lookupMovies no provider de query examples", () => {
+    const useCase = MakeGetMoviesQueryExamplesUseCaseFactory.create();
+    const provider = (
+      useCase as unknown as {
+        movieQueryExampleProvider: AiMoviesQueryExamplesProvider;
+      }
+    ).movieQueryExampleProvider;
+    const providerRecord = provider as unknown as Record<string, unknown>;
+
+    expect(providerRecord.lookupMoviesTool).toBeUndefined();
+    expect(providerRecord.tools).toBeUndefined();
+  });
 });

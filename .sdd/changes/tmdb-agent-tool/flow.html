@@ -34,7 +34,7 @@
     .meta { color: var(--muted); font-size: .85rem; margin: 0; }
     .progress { max-width: 900px; margin: 1rem auto; }
     .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); overflow: hidden; border: 1px solid var(--line); }
-    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 55%; transition: width .3s; }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 100%; transition: width .3s; }
     .progress-label { font-size: .85rem; color: var(--muted); margin-top: .4rem; }
 
     .legend { max-width: 900px; margin: 0 auto 1.5rem; display: flex; flex-wrap: wrap; gap: .75rem; font-size: .8rem; }
@@ -131,7 +131,7 @@
 
   <div class="progress">
     <div class="bar"><span></span></div>
-    <p class="progress-label">5 de 9 chunks concluídos · feature atual: agent-tmdb-tool-call (2/6)</p>
+    <p class="progress-label">9 de 9 chunks concluídos · feature agent-tmdb-tool-call (6/6, em revisão)</p>
   </div>
 
   <div class="legend">
@@ -233,8 +233,8 @@ TMDB 502
       </div>
     </details>
 
-    <details class="feature current" open>
-      <summary>2. agent-tmdb-tool-call <span class="tag">em andamento · 2/6</span></summary>
+    <details class="feature done" open>
+      <summary>2. agent-tmdb-tool-call <span class="tag">concluído · 6/6</span></summary>
       <div class="flow">
         <div class="stage">
           <div class="node done has-detail" data-detail="F2.C1" tabindex="0"><div class="name">Schema</div><div class="sub">F2.C1 · MovieRecommendationSchema</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
@@ -245,19 +245,19 @@ TMDB 502
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node current"><div class="name">Prompt</div><div class="sub">F2.C3 · MovieRecommendationPrompts</div><span class="badge">►</span></div>
+          <div class="node done has-detail" data-detail="F2.C3" tabindex="0"><div class="name">Prompt</div><div class="sub">F2.C3 · MovieRecommendationPrompts</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node pending"><div class="name">Provider</div><div class="sub">F2.C4 · AiMovieRecommendationProvider</div></div>
+          <div class="node done has-detail" data-detail="F2.C4" tabindex="0"><div class="name">Provider</div><div class="sub">F2.C4 · AiMovieRecommendationProvider</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node pending"><div class="name">Factory</div><div class="sub">F2.C5 · MakeGetMovieRecommendationUseCaseFactory</div></div>
+          <div class="node done has-detail" data-detail="F2.C5" tabindex="0"><div class="name">Factory</div><div class="sub">F2.C5 · MakeGetMovieRecommendationUseCaseFactory</div><span class="badge">✓</span><span class="hint">detalhes</span></div>
         </div>
         <div class="connector"></div>
         <div class="stage">
-          <div class="node pending"><div class="name">HTTP</div><div class="sub">F2.C6 · MovieRecommendationController</div></div>
+          <div class="node current has-detail" data-detail="F2.C6" tabindex="0"><div class="name">HTTP</div><div class="sub">F2.C6 · MovieRecommendationController</div><span class="badge">►</span><span class="hint">detalhes</span></div>
         </div>
       </div>
       <div class="detail-panel" hidden>
@@ -308,6 +308,99 @@ Zod rejeita 0 ou 9 queries</div>
           <ul>
             <li>Usa <code>MovieCatalogLookupService</code> do domínio.</li>
             <li>O provider passa o retorno de <code>createLookupMoviesTool()</code> em <code>agent.tools</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C3" hidden>
+          <h4>Prompt <span class="chunk-id">F2.C3 · MovieRecommendationPrompts</span></h4>
+          <p class="what">O system prompt unificado ensina o lote de candidatos, uma chamada a <code>lookupMovies</code> e a cópia de ids só quando <code>found: true</code>.</p>
+          <p class="block-label">Como funciona</p>
+          <p>Três parágrafos novos no meio do texto: gerar 4–8 candidatos, chamar a tool uma vez com 1–8 queries, depois escolher 0–3 e copiar <code>tmdbId</code>/<code>imdbId</code> sem inventar. O restante (card, <code>response</code>, sem markdown) permanece.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/providers/movie-recommendation-prompts.ts"><code>Antes de montar o JSON final, pense em mais títulos candidatos...
+chame a tool lookupMovies uma única vez... { queries: [{ query, year? }] }...
+se ... found: true, copie tmdbId e imdbId ... Se found: false, ... sem incluir tmdbId nem imdbId.</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">pedido do usuário
+→ 4–8 títulos candidatos
+→ uma lookupMovies com queries
+→ 0–3 filmes no JSON, ids só se found true</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Lido pelo provider de recommendation no chunk seguinte.</li>
+            <li>O nome <code>lookupMovies</code> bate com <code>MovieCatalogLookupAiTool.TOOL_NAME</code>.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C4" hidden>
+          <h4>Provider <span class="chunk-id">F2.C4 · AiMovieRecommendationProvider</span></h4>
+          <p class="what">A invoke structured passa a tool injetada em <code>agent.tools</code> e continua parseando o schema interno.</p>
+          <p class="block-label">Como funciona</p>
+          <p>O construtor recebe <code>Params</code> com <code>ai</code> e <code>lookupMoviesTool</code>. Não instancia HTTP/TMDB. A factory ainda precisa injetar a tool real (próximo chunk).</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/providers/ai-movie-recommendation.provider.ts"><code>const lookupMoviesTool = this.params.lookupMoviesTool;
+const result = await this.params.ai.callStructuredOutput({
+  aiModel: AiModels.PRIMARY,
+  systemPrompt,
+  messages,
+  threadId: chatId,
+  outputSchema: MovieRecommendationSchema as never,
+  agent: { tools: [lookupMoviesTool] },
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">Params { ai, lookupMoviesTool }
+→ callStructuredOutput com agent.tools[0]
+→ result.response
+→ MovieRecommendationSchema.safeParse (ids opcionais OK)</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>Lê <code>MovieRecommendationPrompts.unified()</code>.</li>
+            <li>A tool vem de <code>MovieCatalogLookupAiTool.createLookupMoviesTool()</code> na factory.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C5" hidden>
+          <h4>Factory <span class="chunk-id">F2.C5 · MakeGetMovieRecommendationUseCaseFactory</span></h4>
+          <p class="what">O bootstrap do POST monta catálogo → lookup → adapter Zod e injeta <code>Params</code> no provider. Sem factory extra para o serviço.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>buildAiConfig</code> e <code>new AI</code> ficam iguais. Em seguida intermediários nomeados: TMDB factory, <code>new MovieCatalogLookupService</code>, <code>MovieCatalogLookupAiTool</code>, tool, provider.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts"><code>const catalog = MakeTmdbHttpClientFactory.create();
+const catalogLookup = new MovieCatalogLookupService(catalog);
+const lookupMoviesAiTool = new MovieCatalogLookupAiTool(catalogLookup);
+const lookupMoviesTool = lookupMoviesAiTool.createLookupMoviesTool();
+const movieRecommendationProvider = new AiMovieRecommendationProvider({
+  ai,
+  lookupMoviesTool,
+});</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">request POST /movie/recommendation
+→ factory.create()
+→ AI + lookupMoviesTool
+→ use case com provider</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>GET /movie/queries usa outra factory — sem esta tool.</li>
+            <li>O controller stripa ids no schema público antes do send.</li>
+          </ul>
+        </div>
+        <div class="detail" data-detail-for="F2.C6" hidden>
+          <h4>HTTP <span class="chunk-id">F2.C6 · MovieRecommendationController</span></h4>
+          <p class="what">O POST público mapeia cada filme pelo schema do card, sem <code>tmdbId</code>/<code>imdbId</code>. Destructuring do use case não basta.</p>
+          <p class="block-label">Como funciona</p>
+          <p><code>toPublicResponseBody</code> faz <code>SingleMovieReccomendationSchema.parse</code> por item (Zod strip). Os dois <code>send</code> (logado e guest) usam o mesmo body.</p>
+          <pre data-file="packages/backend/src/domains/movies/infrastructure/http/controllers/movie-recommendation.controller.ts"><code>const publicMovies = movies.map((movie) => {
+  const publicMovie = SingleMovieReccomendationSchema.parse(movie);
+  return publicMovie;
+});
+const responseBody: MovieRecommendationResponseDTO = {
+  response,
+  movies: publicMovies,
+};</code></pre>
+          <p class="block-label">Dados fluindo</p>
+          <div class="data">filme interno { title, …, tmdbId, imdbId }
+→ parse schema público
+→ JSON sem ids
+movies []
+→ { movies: [], response }</div>
+          <p class="block-label">Conecta</p>
+          <ul>
+            <li>DTO HTTP já lista o schema público; o parse no controller é o que impede o vazamento.</li>
+            <li>Cota anônima e cookie seguem iguais.</li>
           </ul>
         </div>
       </div>

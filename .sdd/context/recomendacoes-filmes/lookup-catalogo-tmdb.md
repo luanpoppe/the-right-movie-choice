@@ -18,4 +18,4 @@ Serviço acima de `IMovieCatalogProvider`: busca por título (+ ano opcional), p
 - Nome `*Tool` só no adapter da IA — o serviço unitário é `findDetailsByTitle`. (origem: revisão F2.C2, 2026-09-05)
 
 ## Notas
-O wiring `callStructuredOutput` / prompt / schema interno ainda é a feature `agent-tmdb-tool-call`.
+O POST de recommendation já registra `lookupMovies` no `callStructuredOutput`. Detalhe do wiring, prompt e strip HTTP: [Agente e tool TMDB](agente-tool-tmdb.md).
