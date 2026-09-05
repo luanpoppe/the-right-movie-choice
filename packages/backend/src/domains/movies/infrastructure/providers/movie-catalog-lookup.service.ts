@@ -12,6 +12,7 @@ import {
 import { Logger } from "@/lib/logger/logger";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
+import { ErrorUtils } from "@/shared/utils/error.utils";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 import { MovieCatalogDetailsResolver } from "./movie-catalog-details.resolver";
@@ -188,8 +189,7 @@ export class MovieCatalogLookupService {
   }
 
   private logFailure(message: string, durationMs: number, error: unknown) {
-    const isErrorInstance = error instanceof Error;
-    const errorMessage = isErrorInstance ? error.message : String(error);
+    const errorMessage = ErrorUtils.message(error);
     Logger.error(message, {
       durationMs,
       success: false,
@@ -198,19 +198,10 @@ export class MovieCatalogLookupService {
   }
 
   private static logRepositorySkip(title: string, error: unknown): void {
-    const reason = MovieCatalogLookupService.errorMessage(error);
+    const reason = ErrorUtils.message(error);
     Logger.warn("Movie catalog findByTitleAndYear failed, skipping to TMDB", {
       title,
       reason,
     });
-  }
-
-  private static errorMessage(error: unknown): string {
-    const isErrorInstance = error instanceof Error;
-    if (isErrorInstance) {
-      return error.message;
-    }
-
-    return String(error);
   }
 }

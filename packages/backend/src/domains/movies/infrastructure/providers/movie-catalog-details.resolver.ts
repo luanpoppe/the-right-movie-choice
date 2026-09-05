@@ -8,6 +8,7 @@ import {
 } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { Logger } from "@/lib/logger/logger";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
+import { ErrorUtils } from "@/shared/utils/error.utils";
 
 export class MovieCatalogDetailsResolver {
   constructor(
@@ -97,7 +98,7 @@ export class MovieCatalogDetailsResolver {
   }
 
   private static logRepositorySkip(tmdbId: number, error: unknown): void {
-    const reason = MovieCatalogDetailsResolver.errorMessage(error);
+    const reason = ErrorUtils.message(error);
     Logger.warn("Movie catalog findByTmdbId failed, skipping to TMDB", {
       tmdbId,
       reason,
@@ -105,7 +106,7 @@ export class MovieCatalogDetailsResolver {
   }
 
   private static logStaleFallback(tmdbId: number, error: unknown): void {
-    const reason = MovieCatalogDetailsResolver.errorMessage(error);
+    const reason = ErrorUtils.message(error);
     Logger.warn(
       "Movie catalog details TMDB refresh failed, returning stale local record",
       {
@@ -113,14 +114,5 @@ export class MovieCatalogDetailsResolver {
         reason,
       },
     );
-  }
-
-  private static errorMessage(error: unknown): string {
-    const isErrorInstance = error instanceof Error;
-    if (isErrorInstance) {
-      return error.message;
-    }
-
-    return String(error);
   }
 }
