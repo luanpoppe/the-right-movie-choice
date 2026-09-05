@@ -8,6 +8,8 @@ import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendat
 
 type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
+const CHAT_MEMORY_TTL_SECONDS = 1200;
+
 export class MakeGetMovieRecommendationUseCaseFactory {
   static create() {
     const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
@@ -24,6 +26,7 @@ export class MakeGetMovieRecommendationUseCaseFactory {
   private static buildAiConfig(): AiConstructorConfig {
     const openRouterApiKey = env.OPENROUTER_API_KEY;
     const geminiApiKey = env.GEMINI_API_KEY;
+    const redisUrl = env.REDIS_URL;
     const hasOpenRouterApiKey = !StringUtils.isEmptyString(openRouterApiKey);
     const hasGeminiApiKey = !StringUtils.isEmptyString(geminiApiKey);
 
@@ -35,6 +38,14 @@ export class MakeGetMovieRecommendationUseCaseFactory {
             aiModelsFallback: [AiModels.GEMINI_FALLBACK],
           }
         : {}),
+      memory: {
+        type: "redis",
+        url: redisUrl,
+        options: {
+          defaultTTL: CHAT_MEMORY_TTL_SECONDS,
+          refreshOnRead: true,
+        },
+      },
     };
   }
 }

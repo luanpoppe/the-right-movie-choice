@@ -9,6 +9,7 @@ const { envState, aiConstructorCalls } = vi.hoisted(() => ({
   envState: {
     OPENROUTER_API_KEY: "openrouter-key",
     GEMINI_API_KEY: "gemini-key",
+    REDIS_URL: "redis://localhost:6379",
   },
   aiConstructorCalls: [] as unknown[],
 }));
@@ -21,6 +22,9 @@ vi.mock("@/env", () => ({
     get GEMINI_API_KEY() {
       return envState.GEMINI_API_KEY;
     },
+    get REDIS_URL() {
+      return envState.REDIS_URL;
+    },
   },
 }));
 
@@ -32,14 +36,6 @@ vi.mock("@luanpoppe/ai", () => ({
   },
 }));
 
-vi.mock("@/lib/redis/redis", () => ({
-  Redis: class Redis {},
-}));
-
-vi.mock("@/infrastructure/repositories/chat-history-redis.repository", () => ({
-  ChatHistoryRedisRepository: class ChatHistoryRedisRepository {},
-}));
-
 import { MakeGetMovieRecommendationUseCaseFactory } from "../make-get-movie-recommendation-use-case.factory";
 
 describe("MakeGetMovieRecommendationUseCaseFactory", () => {
@@ -47,6 +43,7 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     aiConstructorCalls.length = 0;
     envState.OPENROUTER_API_KEY = "openrouter-key";
     envState.GEMINI_API_KEY = "gemini-key";
+    envState.REDIS_URL = "redis://localhost:6379";
   });
 
   it("cria um único AI e injeta AiMovieRecommendationProvider no use case", () => {
@@ -114,6 +111,29 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     const config = aiConstructorCalls[0] as Record<string, unknown>;
     expect(config.googleGeminiToken).toBe("  ");
     expect(config.aiModelsFallback).toEqual([AiModels.GEMINI_FALLBACK]);
+  });
+
+  it("passa memory redis no mesmo AI do provider com TTL de 20 minutos", () => {
+    envState.REDIS_URL = "redis://memory-host:6380";
+
+    MakeGetMovieRecommendationUseCaseFactory.create();
+
+    const config = aiConstructorCalls[0] as {
+      memory: {
+        type: string;
+        url: string;
+        options: { defaultTTL: number; refreshOnRead: boolean };
+      };
+    };
+
+    expect(config.memory).toEqual({
+      type: "redis",
+      url: "redis://memory-host:6380",
+      options: {
+        defaultTTL: 1200,
+        refreshOnRead: true,
+      },
+    });
   });
 
   it("não referencia Langchain nem BaseChatModel no factory", () => {
