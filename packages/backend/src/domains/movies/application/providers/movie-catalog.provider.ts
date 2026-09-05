@@ -2,7 +2,11 @@ import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie
 import type { MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 
 export interface IMovieCatalogProvider {
-  searchMovies(query: string, page?: number): Promise<MovieSearchPage>;
+  searchMovies(
+    query: string,
+    page?: number,
+    year?: number,
+  ): Promise<MovieSearchPage>;
 
   getMovieDetails(movieId: number): Promise<MovieCatalogDetails>;
 }

@@ -23,8 +23,8 @@ export class MovieCatalogLookupService {
     const startedAtMs = Date.now();
 
     try {
-      const searchQuery = MovieCatalogLookupService.buildSearchQuery(input);
-      const searchPage = await this.catalog.searchMovies(searchQuery);
+      const searchQuery = input.query;
+      const searchPage = await this.searchCatalog(searchQuery, input.year);
       const firstHit = searchPage.results[0];
       const hasSearchResults = firstHit !== undefined;
 
@@ -63,6 +63,15 @@ export class MovieCatalogLookupService {
     }
   }
 
+  private async searchCatalog(query: string, year?: number) {
+    const hasYear = year !== undefined;
+    if (!hasYear) {
+      return this.catalog.searchMovies(query);
+    }
+
+    return this.catalog.searchMovies(query, 1, year);
+  }
+
   private miss(message: string): MovieCatalogLookupResult {
     return { found: false, message };
   }
@@ -82,16 +91,5 @@ export class MovieCatalogLookupService {
       success: false,
       error: errorMessage,
     });
-  }
-
-  private static buildSearchQuery(input: MovieCatalogLookupInput): string {
-    const hasYear = input.year !== undefined;
-    if (!hasYear) {
-      return input.query;
-    }
-
-    const yearText = String(input.year);
-    const searchQuery = `${input.query} ${yearText}`;
-    return searchQuery;
   }
 }

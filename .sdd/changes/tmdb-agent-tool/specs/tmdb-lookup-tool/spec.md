@@ -11,7 +11,7 @@ Uma tool no domínio `movies` consulta o catálogo já existente: `searchMovies`
 ### REQ-1: Lookup com match
 
 - **Dado que** `IMovieCatalogProvider.searchMovies` devolve ao menos um hit
-- **Quando** a tool é invocada com `query` (e `year` opcional concatenado na search)
+- **Quando** a tool é invocada com `query` (e `year` opcional como filtro `primary_release_year` na search)
 - **Então** chama `getMovieDetails` com o `id` do primeiro hit e devolve `{ found: true, details }` no formato de `MovieCatalogDetails` (incluindo `id` TMDB e `imdbId`)
 
 ### REQ-2: Search sem resultados
@@ -29,7 +29,7 @@ Uma tool no domínio `movies` consulta o catálogo já existente: `searchMovies`
 ## Edge cases
 
 - `year` ausente: search só com `query`.
-- `year` presente: a query enviada à porta inclui o ano (ex.: `Interestelar 2014`).
+- `year` presente: o texto da search continua só o `query`; a porta envia `primary_release_year` (ex.: query `Interestelar`, year `2014`).
 - `imdbId` null no details: ainda é `{ found: true, details }` — o catálogo já admite IMDb ausente.
 - `query` vazia (`StringUtils.isEmptyString`): `{ found: false, message }`, sem chamar a porta.
 - Logar a `TmdbHttpException` (sem body de prompt) e ainda assim devolver `found: false`.
@@ -40,7 +40,7 @@ Uma tool no domínio `movies` consulta o catálogo já existente: `searchMovies`
 - Input: `{ query: string; year?: number }`.
 - Output sucesso: `{ found: true; details: MovieCatalogDetails }` — tipo em `packages/backend/src/domains/movies/domain/entities/movie-catalog-details.entity.ts`.
 - Output sem match **ou** catálogo indisponível: `{ found: false; message: string }` (nunca throw da tool).
-- Porta: `IMovieCatalogProvider` — sem client HTTP novo; `TmdbHttpClient` inalterado.
+- Porta: `IMovieCatalogProvider.searchMovies(query, page?, year?)` — `year` vira `primary_release_year` no `TmdbHttpClient`.
 - Código do serviço: `packages/backend/src/domains/movies/infrastructure/` (não `modules/tmdb`, não `lib/ai`).
 - Params da factory: tipo `Params`, não `Deps`.
 - Testes unitários: pasta `specs/` no nível da unidade; sem live TMDB no `pnpm test` da CI.

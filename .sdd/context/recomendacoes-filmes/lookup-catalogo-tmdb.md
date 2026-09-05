@@ -7,7 +7,7 @@ Serviço acima de `IMovieCatalogProvider`: busca por título (+ ano opcional), p
 
 ## Como funciona
 - Input `{ query, year? }`. Query vazia → `{ found: false }` sem HTTP.
-- Search: se `year` veio, o texto é `"${query} ${year}"`. Primeiro `results[0]`; lista vazia → miss, sem details.
+- Search: `query` é só o título. Se `year` veio, a porta manda `primary_release_year` na TMDB (não cola o ano no texto). Primeiro `results[0]`; lista vazia → miss, sem details.
 - Sucesso: `getMovieDetails` → `{ found: true, details }` mesmo com `imdbId` null.
 - `TmdbHttpException` e erro inesperado: log (`durationMs`, `success`, mensagem, sem body de prompt) e `{ found: false }` — não relança.
 - Composição: `new MovieCatalogLookupService(catalog)` no bootstrap da recommendation (sem factory só para um `new`).

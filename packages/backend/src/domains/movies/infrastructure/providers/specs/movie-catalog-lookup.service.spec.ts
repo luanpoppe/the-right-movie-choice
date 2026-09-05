@@ -88,36 +88,31 @@ describe("MovieCatalogLookupService", () => {
       expect(catalog.getMovieDetails).toHaveBeenCalledTimes(1);
     });
 
-    it.each([
-      {
-        label: "year ausente",
-        query: "Interestelar",
-        year: undefined,
-        expectedSearchQuery: "Interestelar",
-      },
-      {
-        label: "year presente",
-        query: "Interestelar",
-        year: 2014,
-        expectedSearchQuery: "Interestelar 2014",
-      },
-    ])(
-      "monta query de busca com $label",
-      async ({ query, year, expectedSearchQuery }) => {
-        const hit = MovieCatalogLookupFixtures.searchHit();
-        const details = MovieCatalogLookupFixtures.details();
-        vi.mocked(catalog.searchMovies).mockResolvedValue(
-          MovieCatalogLookupFixtures.searchPage([hit]),
-        );
-        vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+    it("busca só pelo título quando year está ausente", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const details = MovieCatalogLookupFixtures.details();
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
 
-        const lookupInput =
-          year === undefined ? { query } : { query, year };
-        await service.findDetailsByTitle(lookupInput);
+      await service.findDetailsByTitle({ query: "Interestelar" });
 
-        expect(catalog.searchMovies).toHaveBeenCalledWith(expectedSearchQuery);
-      },
-    );
+      expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar");
+    });
+
+    it("passa year como filtro separado, sem colar no texto da query", async () => {
+      const hit = MovieCatalogLookupFixtures.searchHit();
+      const details = MovieCatalogLookupFixtures.details();
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([hit]),
+      );
+      vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
+
+      await service.findDetailsByTitle({ query: "Interestelar", year: 2014 });
+
+      expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar", 1, 2014);
+    });
 
     it("aceita imdbId null nos details e ainda retorna found true", async () => {
       const hit = MovieCatalogLookupFixtures.searchHit();

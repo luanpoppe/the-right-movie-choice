@@ -33,7 +33,7 @@
       <h3>REQ-1: Lookup com match</h3>
       <ul>
         <li><strong>Dado que</strong> <code>searchMovies</code> devolve ao menos um hit</li>
-        <li><strong>Quando</strong> a tool é invocada com <code>query</code> (e <code>year</code> opcional concatenado na search)</li>
+        <li><strong>Quando</strong> a tool é invocada com <code>query</code> (e <code>year</code> opcional como <code>primary_release_year</code>)</li>
         <li><strong>Então</strong> chama <code>getMovieDetails</code> com o <code>id</code> do primeiro hit e devolve <code>{ found: true, details }</code></li>
       </ul>
       <h3>REQ-2: Search sem resultados</h3>
@@ -54,7 +54,7 @@
       <summary><h2>Edge cases</h2></summary>
       <ul>
         <li><code>year</code> ausente: search só com <code>query</code>.</li>
-        <li><code>year</code> presente: query da porta inclui o ano.</li>
+        <li><code>year</code> presente: o texto da search continua só o título; a TMDB recebe <code>primary_release_year</code>.</li>
         <li><code>imdbId</code> null: ainda é sucesso.</li>
         <li><code>query</code> vazia: <code>found: false</code>, sem chamar a porta.</li>
         <li>Logar a exception e ainda assim devolver <code>found: false</code>.</li>
