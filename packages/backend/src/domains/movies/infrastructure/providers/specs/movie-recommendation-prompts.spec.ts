@@ -24,6 +24,13 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("zero filmes");
     expect(prompt).not.toContain("já foi feito por outra IA");
     expect(prompt).not.toContain("Filmes sugeridos:");
+    expect(prompt).toContain("lookupMovies");
+    expect(prompt).toContain("{ queries: [{ query, year? }] }");
+    expect(prompt).toContain("tmdbId");
+    expect(prompt).toContain("imdbId");
+    expect(prompt).toContain("found: true");
+    expect(prompt).toContain("found: false");
+    expect(prompt).toMatch(/uma única vez|uma\s+única\s+vez/i);
   });
 
   it("expõe só unified na API — sem structured nem chat", () => {
