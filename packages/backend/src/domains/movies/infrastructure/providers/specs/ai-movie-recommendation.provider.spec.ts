@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { AI, AIMessages } from "@luanpoppe/ai";
+import type { AICallParams } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { MovieRecommendationEntity, MovieRecommendationSchema } from "../../../domain/entities/movie-recommendation.entity";
@@ -19,21 +20,23 @@ vi.mock("@/lib/logger/logger", () => ({
 }));
 
 class MovieRecommendationFixtures {
+  static validMovie(): MovieRecommendationEntity["movies"][number] {
+    return {
+      title: "Inception",
+      director: "Christopher Nolan",
+      actors: ["Leonardo DiCaprio"],
+      releaseYear: 2010,
+      streamingPlatform: "Netflix",
+      imdbRating: 8.8,
+      synopsis: "A thief who steals corporate secrets through dream-sharing.",
+      whySuggestion: "Fits a mind-bending request",
+      durationInMinutes: 148,
+    };
+  }
+
   static validEntity(): MovieRecommendationEntity {
     return {
-      movies: [
-        {
-          title: "Inception",
-          director: "Christopher Nolan",
-          actors: ["Leonardo DiCaprio"],
-          releaseYear: 2010,
-          streamingPlatform: "Netflix",
-          imdbRating: 8.8,
-          synopsis: "A thief who steals corporate secrets through dream-sharing.",
-          whySuggestion: "Fits a mind-bending request",
-          durationInMinutes: 148,
-        },
-      ],
+      movies: [MovieRecommendationFixtures.validMovie()],
       response: "sugestão em texto",
     };
   }
@@ -44,7 +47,24 @@ class MovieRecommendationFixtures {
       response: "não encontrei filmes para esse pedido",
     };
   }
+
+  static validEntityWithCatalogIds(): MovieRecommendationEntity {
+    const movieWithCatalogIds = {
+      ...MovieRecommendationFixtures.validMovie(),
+      tmdbId: 27205,
+      imdbId: "tt1375666",
+    };
+
+    return {
+      movies: [movieWithCatalogIds],
+      response: "sugestão com ids do catálogo",
+    };
+  }
 }
+
+type AgentTool = NonNullable<
+  NonNullable<AICallParams["agent"]>["tools"]
+>[number];
 
 class VitestMockCallUtils {
   static firstCall(calls: unknown[][]) {
@@ -80,14 +100,16 @@ describe("AiMovieRecommendationProvider", () => {
   const chatId = "chat-123";
   let callStructuredOutput: ReturnType<typeof vi.fn>;
   let call: ReturnType<typeof vi.fn>;
+  let lookupMoviesTool: AgentTool;
   let provider: AiMovieRecommendationProvider;
 
   beforeEach(() => {
     vi.clearAllMocks();
     callStructuredOutput = vi.fn();
     call = vi.fn();
+    lookupMoviesTool = { name: "lookupMovies" } as AgentTool;
     const ai = { callStructuredOutput, call } as unknown as AI;
-    provider = new AiMovieRecommendationProvider(ai);
+    provider = new AiMovieRecommendationProvider({ ai, lookupMoviesTool });
   });
 
   describe("getMovieRecommendation", () => {
@@ -107,6 +129,7 @@ describe("AiMovieRecommendationProvider", () => {
         systemPrompt: unknown;
         messages: unknown;
         threadId: unknown;
+        agent: { tools: AgentTool[] };
       }>(callStructuredOutput.mock.calls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
       expect(structuredCallArgs.outputSchema).toBe(MovieRecommendationSchema);
@@ -114,7 +137,18 @@ describe("AiMovieRecommendationProvider", () => {
       expect(structuredCallArgs.threadId).toBe(chatId);
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs.messages).toHaveLength(1);
+      expect(structuredCallArgs.agent.tools).toHaveLength(1);
+      expect(structuredCallArgs.agent.tools[0]).toBe(lookupMoviesTool);
       expect(result).toEqual(validEntity);
+    });
+
+    it("aceita filme com tmdbId e imdbId opcionais no schema interno", async () => {
+      const entityWithIds = MovieRecommendationFixtures.validEntityWithCatalogIds();
+      callStructuredOutput.mockResolvedValue({ response: entityWithIds });
+
+      const result = await provider.getMovieRecommendation(userMessage, chatId);
+
+      expect(result).toEqual(entityWithIds);
     });
 
     it("aceita zero filmes com response nonempty", async () => {
@@ -141,7 +175,7 @@ describe("AiMovieRecommendationProvider", () => {
 
     it("lança WrongMovieSchemaFromLlmException quando o JSON traz 4 filmes", async () => {
       const fourMovies = Array.from({ length: 4 }, () => ({
-        ...MovieRecommendationFixtures.validEntity().movies[0],
+        ...MovieRecommendationFixtures.validMovie(),
       }));
       callStructuredOutput.mockResolvedValue({
         response: {
