@@ -18,6 +18,7 @@ import {
   serializerCompiler,
 } from "fastify-type-provider-zod";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
+import { CatalogPersistWorkerStarter } from "./domains/movies/infrastructure/workers/start-catalog-persist-worker";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -82,5 +83,9 @@ app.register(authControllers);
 if (env.NODE_ENV !== "prod") {
   app.register(tmdbDebugControllers);
 }
+
+app.addHook("onReady", () => {
+  CatalogPersistWorkerStarter.start();
+});
 
 export { app };
