@@ -40,7 +40,7 @@ const DETAILS_FIXTURE = {
 };
 
 const DETAILS_DTO = {
-  id: 11,
+  tmdbId: 11,
   title: "Star Wars",
   year: 1977,
   posterPath: null,

@@ -79,7 +79,7 @@ export class TmdbMovieDetailsCache {
     if (Array.isArray(value)) return false;
 
     const candidate = value as Partial<MovieCatalogDetails>;
-    return typeof candidate.id === "number" && typeof candidate.title === "string";
+    return typeof candidate.tmdbId === "number" && typeof candidate.title === "string";
   }
 
   private logCacheFailure(

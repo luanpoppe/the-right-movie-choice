@@ -21,7 +21,7 @@ class MovieCatalogLookupAiToolFixtures {
     return {
       found: true,
       details: {
-        id: 1,
+        tmdbId: 1,
         title,
         year: 2010,
         posterPath: "/poster.jpg",

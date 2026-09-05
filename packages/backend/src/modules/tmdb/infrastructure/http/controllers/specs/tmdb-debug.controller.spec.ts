@@ -24,7 +24,7 @@ const SEARCH_PAGE: MovieSearchPage = {
 };
 
 const DETAILS: MovieCatalogDetails = {
-  id: 11,
+  tmdbId: 11,
   title: "Star Wars",
   year: 1977,
   posterPath: null,

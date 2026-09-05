@@ -36,7 +36,7 @@ class MovieCatalogLookupFixtures {
 
   static details(overrides: Partial<MovieCatalogDetails> = {}): MovieCatalogDetails {
     return {
-      id: 157336,
+      tmdbId: 157336,
       title: "Interestelar",
       year: 2014,
       posterPath: "/poster.jpg",

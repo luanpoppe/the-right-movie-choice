@@ -32,7 +32,7 @@ describe.skipIf(shouldSkipLiveTests)("TmdbHttpClient live", () => {
 
       const details = await client.getMovieDetails(movieId);
 
-      expect(typeof details.id).toBe("number");
+      expect(typeof details.tmdbId).toBe("number");
       expect(typeof details.title).toBe("string");
       expect(details.watchProviders).toBeDefined();
       expect(Array.isArray(details.watchProviders.flatrate)).toBe(true);

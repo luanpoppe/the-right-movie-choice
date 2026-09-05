@@ -97,9 +97,9 @@ O campo whySuggestion deve explicar de forma breve e específica por que aquela 
 
 ## tmdbId e imdbId
 
-No JSON final, o schema usa tmdbId e imdbId. A tool não devolve um campo chamado tmdbId.
+No JSON final, o schema usa tmdbId e imdbId no filme. Na tool, esses valores estão em details.tmdbId e details.imdbId (não no root da function call).
 
-Quando found: true, o hit vem como details: copie details.id para tmdbId e details.imdbId para imdbId, exatamente como retornados, sem converter formato nem completar valor ausente.
+Quando found: true, o hit vem como details: copie details.tmdbId para tmdbId e details.imdbId para imdbId, exatamente como retornados, sem converter formato nem completar valor ausente.
 
 Nunca invente, estime, deduza ou altere tmdbId ou imdbId.
 
