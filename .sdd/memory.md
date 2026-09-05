@@ -60,6 +60,24 @@
   - **Exemplo**: `@luanpoppe/ai` no backend de recomendações — sem `AiClient`
   - **Registrado em**: 2026-09-03
 
+- Troca de vendor/runtime não funde passos de pipeline (JSON + texto, etc.) se isso exige mudar use case ou porta; anotar follow-up e manter as duas chamadas.
+  - **Quando**: migrar adapter sem redesenhar o fluxo do domínio
+  - **Por quê**: misturar simplificação de contrato com troca de lib infla o diff e o risco
+  - **Exemplo**: recommendation continua `getStructuredMoviesRecommendation` + `getChatResponse` nesta mudança
+  - **Registrado em**: 2026-09-03
+
+- Config de construtor com campos opcionais (omitir vazio, não passar `undefined`) sai do `create()` para um método privado estático da factory.
+  - **Quando**: montar `new AI()` / cliente HTTP no bootstrap
+  - **Por quê**: o `create()` fica só orquestração; a regra de chaves fica nomeada e reutilizável no arquivo
+  - **Exemplo**: `MakeGetMovieRecommendationUseCaseFactory.buildAiConfig`
+  - **Registrado em**: 2026-09-04
+
+- Com `memory`/`checkpointer` no `AI`, a persistência do turno é o `invoke` (`threadId` obrigatório). Não gravar de novo no Redis JSON/`addMessage`.
+  - **Quando**: histórico de chat via `@luanpoppe/ai`
+  - **Por quê**: dual-write duplica estado; a lib já salva o checkpoint na call
+  - **Exemplo**: recommendation passa `threadId: chatId` e `messages` só do turno atual
+  - **Registrado em**: 2026-09-04
+
 ## Stack / Domínio
 
 <!-- Decisões sobre tecnologia/arquitetura. Carrega, mas só para CONFIRMAR rápido — nunca substitui grill. -->

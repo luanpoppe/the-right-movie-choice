@@ -26,4 +26,4 @@ O backend recomenda filmes e gera exemplos de query via wrapper local `src/lib/l
 
 **Dentro**: pacote `@luanpoppe/ai` no backend; constantes de modelo; dois providers com `new AI()` cada; memória de chat via lib; env OpenRouter; fallback Gemini se houver chave; logs nos adapters; limpeza do wrapper LangChain.
 
-**Fora**: SPA, cota anônima/Bearer, Redis de refresh token, áudio/embeddings, agentes novos, mudança de contrato HTTP, live na CI.
+**Fora**: SPA, cota anônima/Bearer, Redis de refresh token, áudio/embeddings, agentes novos, mudança de contrato HTTP, live na CI. Unificar as duas chamadas LLM da recommendation (estruturado + texto) numa só — follow-up; mexe no use case/porta e não entra nesta mudança.

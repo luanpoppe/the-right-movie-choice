@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: remove-langchain-wrapper — migrate-luanpoppe-ai</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">migrate-luanpoppe-ai</a> / specs / <strong>remove-langchain-wrapper</strong> / spec</p>
+    <h1>Spec: Remover wrapper LangChain</h1>
+    <p class="lp-meta">Atualizado em 2026-09-04</p>
+  </header>
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Some <code>src/lib/langchain</code> e adapters leftover. Ficam <code>@luanpoppe/ai</code> e o checkpointer Redis. README atualiza menções ao wrapper e ao repo JSON.</p>
+    </details>
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Pasta e adapters leftover</h3>
+      <ul>
+        <li><strong>Então</strong> apaga <code>lib/langchain/</code>, os dois <code>langchain-*-provider</code> e specs irmãs; testes verdes</li>
+      </ul>
+      <h3>REQ-2: package.json</h3>
+      <ul>
+        <li><strong>Então</strong> remove core, google-genai e <code>langchain</code>; mantém <code>@langchain/langgraph-checkpoint-redis</code></li>
+      </ul>
+      <h3>REQ-3: Utils morto</h3>
+      <ul>
+        <li><strong>Então</strong> apaga <code>ChatHistoryAiMessagesUtils</code> + spec</li>
+      </ul>
+      <h3>REQ-4: README</h3>
+      <ul>
+        <li><strong>Então</strong> tira <code>lib/langchain</code>; troca <code>ChatHistoryRedisRepository</code>; intro OpenRouter + Gemini opcional</li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Specs “não referencia Langchain” nas factories continuam</li>
+        <li>Não forçar pin de <code>@langchain/core</code> 0.3 depois do remove</li>
+        <li>Não apagar <code>lib/redis</code> / <code>lib/ai</code> / HTTP / SPA</li>
+        <li>Não remover o checkpointer</li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p>Sem mudança de HTTP/portas. Única dep LangChain direta restante: checkpointer Redis.</p>
+    </details>
+  </main>
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code>.</p>
+  </footer>
+</body>
+</html>

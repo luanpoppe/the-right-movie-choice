@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: chat-memory — migrate-luanpoppe-ai</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">migrate-luanpoppe-ai</a> / specs / <strong>chat-memory</strong> / spec</p>
+    <h1>Spec: Memória de chat via @luanpoppe/ai</h1>
+    <p class="lp-meta">Atualizado em 2026-09-04</p>
+  </header>
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Recommendation persiste via checkpointer Redis da lib (<code>memory</code> + <code>threadId</code> = <code>chatId</code>). Sem dual-write no JSON antigo. Query examples sem memory.</p>
+    </details>
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Factory liga memory no mesmo AI</h3>
+      <ul>
+        <li><strong>Então</strong> <code>memory: { type: "redis", url: REDIS_URL, options: { defaultTTL: 1200, refreshOnRead: true } }</code> no mesmo <code>new AI()</code> do provider; pacote <code>@langchain/langgraph-checkpoint-redis</code>; some Redis JSON desta factory</li>
+      </ul>
+      <h3>REQ-2: threadId sem reenviar histórico</h3>
+      <ul>
+        <li><strong>Então</strong> <code>threadId</code> = <code>chatId</code>; <code>messages</code> só o turno atual; a lib exige <code>threadId</code> quando há memory</li>
+      </ul>
+      <h3>REQ-3: Use case e portas</h3>
+      <ul>
+        <li><strong>Então</strong> execute não chama getHistory; provider troca <code>chatHistory</code> por <code>chatId</code>; porta de histórico só <code>getHistory</code>; HTTP igual</li>
+      </ul>
+      <h3>REQ-4: Adapter da porta</h3>
+      <ul>
+        <li><strong>Então</strong> classe nova mapeia <code>ai.memory.getHistory</code> → <code>ChatHistoryEntity</code>; a porta não tem <code>addMessage</code></li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>JSON antigo expira sozinho. Sem prefixo na API da lib. TTL via <code>defaultTTL</code>. Redis 8+/RedisJSON é requisito da lib.</li>
+      </ul>
+    </details>
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <ul>
+        <li><code>IMovieRecommendationProvider</code> com <code>chatId</code>. <code>IChatHistoryRepository</code> igual. TTL 1200s constante, não env.</li>
+      </ul>
+    </details>
+  </main>
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>.</p>
+  </footer>
+</body>
+</html>

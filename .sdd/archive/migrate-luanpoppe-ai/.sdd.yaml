@@ -1,8 +1,9 @@
 id: migrate-luanpoppe-ai
 title: Migrar runtime de IA para @luanpoppe/ai
 created: 2026-09-03
-updated: 2026-09-03
-state: awaiting-feature-spec
+updated: 2026-09-04
+archived: 2026-09-04
+state: archived
 format: both
 lang: pt-BR
 chunk_size: small
@@ -14,26 +15,16 @@ features:
   - slug: recommendation-provider
     title: Provider de recomendação
     summary: Recommendation (JSON estruturado + texto) via new AI(), mantendo IMovieRecommendationProvider.
-    status: pending
+    status: done
   - slug: query-examples-provider
     title: Provider de exemplos de query
     summary: GET /movie/queries via new AI().
-    status: pending
+    status: done
   - slug: chat-memory
     title: Memória de chat
     summary: Adapter de IChatHistoryRepository na memória da lib (Redis + TTL 20 min + chatId).
-    status: pending
+    status: done
   - slug: remove-langchain-wrapper
     title: Remover wrapper LangChain
     summary: Remover src/lib/langchain e dependências LangChain diretas do package.json.
-    status: pending
-current_feature: null
-current_chunk: null
-in_review:
-  chunks: ["F1.C2"]
-  files:
-    - packages/backend/src/lib/ai/ai-models.ts
-    - packages/backend/package.json
-    - packages/backend/src/lib/ai/specs/ai-models.spec.ts
-  commit_message: "feat(ai-client): adicionar @luanpoppe/ai e constantes de modelo"
-  updated: 2026-09-03
+    status: done
