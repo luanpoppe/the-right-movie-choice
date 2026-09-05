@@ -6,6 +6,7 @@ import { MovieCatalogImdbConflictException } from "../../../domain/exceptions/mo
 import {
   DEFAULT_MOVIE_CATALOG_LANGUAGE,
   IMovieCatalogRepository,
+  MovieCatalogStoredRecord,
 } from "../../../domain/repositories/movie-catalog.repository";
 import { MovieCatalogPrismaMapper } from "../../mappers/movie-catalog-prisma.mapper";
 import { StringUtils } from "@/shared/utils/string.utils";
@@ -74,7 +75,7 @@ export class PrismaMovieCatalogRepository implements IMovieCatalogRepository {
   async findByTmdbId(
     tmdbId: number,
     language?: string,
-  ): Promise<MovieCatalogDetails | null> {
+  ): Promise<MovieCatalogStoredRecord | null> {
     const catalogLanguage = language ?? DEFAULT_MOVIE_CATALOG_LANGUAGE;
 
     const row = await prisma.movie.findFirst({
@@ -100,14 +101,18 @@ export class PrismaMovieCatalogRepository implements IMovieCatalogRepository {
     });
 
     const details = MovieCatalogPrismaMapper.toDetails(row);
-    return details;
+    const storedRecord: MovieCatalogStoredRecord = {
+      details,
+      updatedAt: row.updatedAt,
+    };
+    return storedRecord;
   }
 
   async findByTitleAndYear(
     title: string,
     year?: number,
     language?: string,
-  ): Promise<MovieCatalogDetails | null> {
+  ): Promise<MovieCatalogStoredRecord | null> {
     const catalogLanguage = language ?? DEFAULT_MOVIE_CATALOG_LANGUAGE;
     if (StringUtils.isEmptyString(title)) {
       Logger.debug("Movie catalog find by title and year miss", {
@@ -156,6 +161,10 @@ export class PrismaMovieCatalogRepository implements IMovieCatalogRepository {
     });
 
     const details = MovieCatalogPrismaMapper.toDetails(row);
-    return details;
+    const storedRecord: MovieCatalogStoredRecord = {
+      details,
+      updatedAt: row.updatedAt,
+    };
+    return storedRecord;
   }
 }

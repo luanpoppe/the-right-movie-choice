@@ -267,9 +267,10 @@ describe("PrismaMovieCatalogRepository", () => {
         include: MOVIE_CATALOG_CHILDREN_INCLUDE,
         orderBy: { updatedAt: "desc" },
       });
-      expect(result?.tmdbId).toBe(157336);
-      expect(result?.tmdbId).not.toBe(row.id);
-      expect(result?.imdbId).toBe("tt0816692");
+      expect(result?.details.tmdbId).toBe(157336);
+      expect(result?.details.tmdbId).not.toBe(row.id);
+      expect(result?.details.imdbId).toBe("tt0816692");
+      expect(result?.updatedAt).toEqual(new Date("2026-01-02T00:00:00.000Z"));
       expect(Logger.debug).toHaveBeenCalledWith("Movie catalog find by tmdbId hit", {
         tmdbId: 157336,
         language: "pt-BR",
@@ -320,8 +321,9 @@ describe("PrismaMovieCatalogRepository", () => {
         where: { id: 42 },
         include: MOVIE_CATALOG_CHILDREN_INCLUDE,
       });
-      expect(result?.title).toBe("O Senhor dos Anéis");
-      expect(result?.year).toBe(2014);
+      expect(result?.details.title).toBe("O Senhor dos Anéis");
+      expect(result?.details.year).toBe(2014);
+      expect(result?.updatedAt).toEqual(new Date("2026-01-02T00:00:00.000Z"));
     });
 
     it("REQ-4 erro year omitido ainda busca por trecho e pede o id mais recente no SQL", async () => {
