@@ -2,8 +2,9 @@ import { Worker, type WorkerOptions } from "bullmq";
 import { Redis as IORedis } from "ioredis";
 import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { MovieCatalogPersistConstants } from "@/domains/movies/domain/movie-catalog-persist.constants";
-import { env } from "@/env";
 import { CatalogPersistProcessor } from "../workers/catalog-persist.processor";
+
+import { CatalogPersistBullmqConnection } from "./catalog-persist-bullmq.connection";
 
 export type MakeCatalogPersistWorkerFactoryParams = {
   repository: IMovieCatalogRepository;
@@ -13,9 +14,8 @@ export type MakeCatalogPersistWorkerFactoryParams = {
 export class MakeCatalogPersistWorkerFactory {
   static create(params: MakeCatalogPersistWorkerFactoryParams): Worker {
     const repository = params.repository;
-    const connection = MakeCatalogPersistWorkerFactory.resolveConnection(
-      params.connection,
-    );
+    const providedConnection = params.connection;
+    const connection = CatalogPersistBullmqConnection.get(providedConnection);
 
     const processor = new CatalogPersistProcessor(repository);
     const workerOptions =
@@ -58,18 +58,6 @@ export class MakeCatalogPersistWorkerFactory {
     }
 
     return 0;
-  }
-
-  private static resolveConnection(provided?: IORedis): IORedis {
-    if (provided !== undefined) {
-      return provided;
-    }
-
-    const redisUrl = env.REDIS_URL;
-    const connection = new IORedis(redisUrl, {
-      maxRetriesPerRequest: null,
-    });
-    return connection;
   }
 
   private static buildWorkerOptions(connection: IORedis): WorkerOptions {

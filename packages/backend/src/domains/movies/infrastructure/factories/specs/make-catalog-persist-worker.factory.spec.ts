@@ -122,7 +122,7 @@ describe("MakeCatalogPersistWorkerFactory", () => {
   it("cria connection com maxRetriesPerRequest null quando omitida", () => {
     const sourcePath = join(
       process.cwd(),
-      "src/domains/movies/infrastructure/factories/make-catalog-persist-worker.factory.ts",
+      "src/domains/movies/infrastructure/factories/catalog-persist-bullmq.connection.ts",
     );
     const source = readFileSync(sourcePath, "utf8");
 
