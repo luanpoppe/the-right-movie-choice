@@ -7,15 +7,14 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
-    "target": "es2023",
+    "module": "NodeNext",
+    "target": "ESNext",
     "types": ["vitest/globals"],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
     // and npm install -D @types/node
 
-    "baseUrl": "./",
     "paths": {
       "@/*": ["./src/*"]
     },
@@ -39,6 +38,7 @@
 
     // Recommended Options
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
     "verbatimModuleSyntax": false,
     "isolatedModules": true,
