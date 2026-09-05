@@ -2,10 +2,13 @@ import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
 import { AiModels } from "@/lib/ai/ai-models";
 import { Logger } from "@/lib/logger/logger";
+import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
 import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendation.provider";
+import { MovieCatalogLookupAiTool } from "../providers/movie-catalog-lookup.ai-tool";
+import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
 
 type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
@@ -16,7 +19,14 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
     const ai = new AI(config);
 
-    const movieRecommendationProvider = new AiMovieRecommendationProvider(ai);
+    const catalog = MakeTmdbHttpClientFactory.create();
+    const catalogLookup = new MovieCatalogLookupService(catalog);
+    const lookupMoviesAiTool = new MovieCatalogLookupAiTool(catalogLookup);
+    const lookupMoviesTool = lookupMoviesAiTool.createLookupMoviesTool();
+    const movieRecommendationProvider = new AiMovieRecommendationProvider({
+      ai,
+      lookupMoviesTool,
+    });
 
     const useCase = new GetMovieRecommendationUseCase(
       movieRecommendationProvider,

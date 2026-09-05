@@ -34,7 +34,21 @@ vi.mock("@luanpoppe/ai", () => ({
       aiConstructorCalls.push(config);
     }
   },
+  AITools: class AITools {
+    createTool() {
+      return { name: "lookupMovies", description: "stub", execute: vi.fn() };
+    }
+  },
 }));
+
+vi.mock(
+  "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory",
+  () => ({
+    MakeTmdbHttpClientFactory: {
+      create: vi.fn(() => ({})),
+    },
+  }),
+);
 
 import { MakeGetMovieRecommendationUseCaseFactory } from "../make-get-movie-recommendation-use-case.factory";
 
@@ -228,5 +242,25 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
 
     expect(factorySource).not.toMatch(/Langchain/);
     expect(factorySource).not.toMatch(/BaseChatModel/);
+  });
+
+  it("liga catálogo TMDB, lookup e tool ao AiMovieRecommendationProvider", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+    const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
+    const provider = (
+      useCase as unknown as {
+        movieRecommendationProvider: AiMovieRecommendationProvider;
+      }
+    ).movieRecommendationProvider;
+
+    expect(factorySource).toMatch(/MakeTmdbHttpClientFactory/);
+    expect(factorySource).toMatch(/new MovieCatalogLookupService/);
+    expect(factorySource).toMatch(/createLookupMoviesTool/);
+    expect(factorySource).not.toMatch(/MakeMovieCatalogLookup/);
+    expect(provider).toBeInstanceOf(AiMovieRecommendationProvider);
   });
 });
