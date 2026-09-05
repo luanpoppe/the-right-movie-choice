@@ -2,14 +2,23 @@ import { prisma } from "@/lib/prisma/prisma";
 import type { MovieCatalogDetails } from "../../../domain/entities/movie-catalog-details.entity";
 import { MovieCatalogChildWritePayloadBuilder } from "./child-write-payload.builder";
 
-type PrismaTransactionClient = Omit<
+type PrismaInteractiveTx = Omit<
   typeof prisma,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends"
+  "$connect" | "$disconnect" | "$on" | "$use" | "$extends"
+>;
+
+export type MovieCatalogChildWriterTx = Pick<
+  PrismaInteractiveTx,
+  | "movieGenre"
+  | "movieDirector"
+  | "movieCast"
+  | "movieOriginCountry"
+  | "movieWatchProvider"
 >;
 
 export class MovieCatalogChildWriter {
   static async replaceAll(
-    tx: PrismaTransactionClient,
+    tx: MovieCatalogChildWriterTx,
     movieId: number,
     details: MovieCatalogDetails,
   ): Promise<void> {
