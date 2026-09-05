@@ -58,6 +58,15 @@ describe("MovieRecommendationSchema", () => {
     expect(parseResult.success).toBe(false);
   });
 
+  it("rejeita payload sem o campo response", () => {
+    const movies = MovieRecommendationEntityFixtures.movies(1);
+    const payload = { movies };
+
+    const parseResult = MovieRecommendationSchema.safeParse(payload);
+
+    expect(parseResult.success).toBe(false);
+  });
+
   it("aceita 3 filmes com response preenchida", () => {
     const movies = MovieRecommendationEntityFixtures.movies(3);
     const payload = {

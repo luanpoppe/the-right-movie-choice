@@ -74,6 +74,16 @@ describe("GetMovieRecommendationUseCase", () => {
     ).rejects.toThrow("recommendation failed");
   });
 
+  it("o mock da porta só precisa de getMovieRecommendation", () => {
+    const providerKeys = Object.keys(movieRecommendationProvider);
+
+    expect(providerKeys).toEqual(["getMovieRecommendation"]);
+    expect(movieRecommendationProvider).not.toHaveProperty(
+      "getStructuredMoviesRecommendation",
+    );
+    expect(movieRecommendationProvider).not.toHaveProperty("getChatResponse");
+  });
+
   it("não importa IChatHistoryRepository nem chama getHistory", async () => {
     const useCasePath = path.join(
       process.cwd(),

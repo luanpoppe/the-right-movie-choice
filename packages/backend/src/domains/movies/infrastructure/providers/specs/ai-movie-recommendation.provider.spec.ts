@@ -139,6 +139,39 @@ describe("AiMovieRecommendationProvider", () => {
       expect(call).not.toHaveBeenCalled();
     });
 
+    it("lança WrongMovieSchemaFromLlmException quando o JSON traz 4 filmes", async () => {
+      const fourMovies = Array.from({ length: 4 }, () => ({
+        ...MovieRecommendationFixtures.validEntity().movies[0],
+      }));
+      callStructuredOutput.mockResolvedValue({
+        response: {
+          movies: fourMovies,
+          response: "quatro sugestões",
+        },
+      });
+
+      await expect(
+        provider.getMovieRecommendation(userMessage, chatId),
+      ).rejects.toBeInstanceOf(WrongMovieSchemaFromLlmException);
+
+      expect(Logger.error).toHaveBeenCalled();
+    });
+
+    it("lança WrongMovieSchemaFromLlmException quando response é string vazia", async () => {
+      callStructuredOutput.mockResolvedValue({
+        response: {
+          movies: MovieRecommendationFixtures.validEntity().movies,
+          response: "",
+        },
+      });
+
+      await expect(
+        provider.getMovieRecommendation(userMessage, chatId),
+      ).rejects.toBeInstanceOf(WrongMovieSchemaFromLlmException);
+
+      expect(Logger.error).toHaveBeenCalled();
+    });
+
     it("lança WrongMovieSchemaFromLlmException quando o response não passa no safeParse", async () => {
       callStructuredOutput.mockResolvedValue({ response: { movies: "invalid" } });
 
