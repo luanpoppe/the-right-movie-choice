@@ -15,7 +15,8 @@ export const SingleMovieReccomendationSchema = z.object({
 });
 
 export const MovieRecommendationSchema = z.object({
-  movies: z.array(SingleMovieReccomendationSchema),
+  movies: z.array(SingleMovieReccomendationSchema).min(0).max(3),
+  response: z.string().nonempty(),
 });
 
 export type MovieRecommendationEntity = z.infer<

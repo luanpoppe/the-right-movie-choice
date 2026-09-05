@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano — single-recommendation-call</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes">Decisões macro</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>single-recommendation-call</strong> / plan</p>
+    <h1>Uma call de recomendação (texto + cards)</h1>
+    <p class="lp-meta">Atualizado em 2026-09-04</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>O POST de recommendation hoje faz duas invokes na <code>@luanpoppe/ai</code> (JSON dos cards, depois texto do chat). Esta mudança junta isso numa única call structured que devolve os dois, sem mudar HTTP, SPA nem cota.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: JSON HTTP permanece <code>{ movies, response }</code>. <strong>Por quê</strong>: o SPA e o DTO já batem. <strong>Alternativa descartada</strong>: renomear campos ou versionar a API.</li>
+        <li><strong>Decisão</strong>: adaptar provider, use case, prompts e schema atuais. <strong>Por quê</strong>: feature pequena. <strong>Alternativa descartada</strong>: provider novo em paralelo.</li>
+        <li><strong>Decisão</strong>: uma invoke (<code>callStructuredOutput</code>); sem wrapper. <strong>Por quê</strong>: a lib já é facade. <strong>Alternativa descartada</strong>: fallback para a call de texto se o schema falhar.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>unify-recommendation-call</strong> — Schema/prompt da resposta unificada, uma invoke no provider, porta e use case com um método; testes do pipeline.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro:</strong> backend de recommendation (porta, use case, provider, prompts, schema, testes unitários).</p>
+      <p><strong>Fora:</strong> SPA, cota/auth, <code>GET /movie/queries</code>, TMDB, live na CI.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new</code>. Espelho HTML do <code>plan.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

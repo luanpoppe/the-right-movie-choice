@@ -4,21 +4,15 @@ export class GetMovieRecommendationUseCase {
   constructor(private movieRecommendationProvider: IMovieRecommendationProvider) {}
 
   async execute(userMessage: string, chatId: string) {
-    const structuredMovies =
-      await this.movieRecommendationProvider.getStructuredMoviesRecommendation(
+    const recommendation =
+      await this.movieRecommendationProvider.getMovieRecommendation(
         userMessage,
-        chatId
+        chatId,
       );
 
-    const chatResponse = await this.movieRecommendationProvider.getChatResponse(
-      structuredMovies,
-      userMessage,
-      chatId
-    );
-
     return {
-      movies: structuredMovies.movies,
-      response: chatResponse,
+      movies: recommendation.movies,
+      response: recommendation.response,
     };
   }
 }

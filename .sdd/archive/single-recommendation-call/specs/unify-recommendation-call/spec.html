@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: unify-recommendation-call — single-recommendation-call</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">single-recommendation-call</a> / specs / <strong>unify-recommendation-call</strong> / spec</p>
+    <h1>Spec: unify-recommendation-call</h1>
+    <p class="lp-meta">Atualizado em 2026-09-04</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Uma invoke <code>callStructuredOutput</code> devolve cards e texto conversacional. Porta e use case passam a um método; o POST continua <code>{ movies, response }</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Uma invoke, dois resultados</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário envia <code>userMessage</code> com <code>chatId</code></li>
+        <li><strong>Quando</strong> o use case roda</li>
+        <li><strong>Então</strong> uma <code>callStructuredOutput</code> com <code>threadId</code>; sem <code>ai.call</code>; retorno <code>{ movies, response }</code></li>
+      </ul>
+      <h3>REQ-2: Schema Zod unificado</h3>
+      <ul>
+        <li><strong>Então</strong> <code>movies</code> min 0 max 3 + <code>response</code> nonempty; falha → <code>WrongMovieSchemaFromLlmException</code></li>
+      </ul>
+      <h3>REQ-3: Porta com um método</h3>
+      <ul>
+        <li><strong>Então</strong> só <code>getMovieRecommendation</code>; somem os dois métodos atuais</li>
+      </ul>
+      <h3>REQ-4: Prompt único</h3>
+      <ul>
+        <li><strong>Então</strong> uma função de prompt (cards + tom de chat, sem markdown)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Zero filmes + texto nonempty → 200 com array vazio</li>
+        <li>Mais de 3 filmes ou <code>response</code> vazia → exceção de schema</li>
+        <li>Erro de <code>threadId</code> não é engolido; factory/HTTP intactos</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p>Entidade em <code>movie-recommendation.entity.ts</code>. Porta <code>getMovieRecommendation</code>. DTO HTTP já alinhado — não mudar.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>
