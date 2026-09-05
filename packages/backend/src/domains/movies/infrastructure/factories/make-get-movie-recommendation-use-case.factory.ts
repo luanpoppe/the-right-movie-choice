@@ -1,9 +1,7 @@
 import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
-import { Redis } from "@/lib/redis/redis";
 import { AiModels } from "@/lib/ai/ai-models";
 import { StringUtils } from "@/shared/utils/string.utils";
-import { ChatHistoryRedisRepository } from "@/infrastructure/repositories/chat-history-redis.repository";
 
 import { GetMovieRecommendationUseCase } from "../../application/use-cases/get-movie-recommendation.use-case";
 import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendation.provider";
@@ -15,12 +13,9 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
     const ai = new AI(config);
 
-    const redis = new Redis();
-    const chatHistoryRepository = new ChatHistoryRedisRepository(redis);
     const movieRecommendationProvider = new AiMovieRecommendationProvider(ai);
 
     const useCase = new GetMovieRecommendationUseCase(
-      chatHistoryRepository,
       movieRecommendationProvider,
     );
     return useCase;
