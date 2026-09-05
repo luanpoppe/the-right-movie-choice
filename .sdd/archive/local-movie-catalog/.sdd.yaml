@@ -1,0 +1,29 @@
+id: local-movie-catalog
+title: Catálogo local de filmes
+created: 2026-09-05
+updated: 2026-09-05
+state: archived
+archived: 2026-09-05
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: movie-prisma-model
+    title: Modelo Prisma de filme
+    summary: Persistir ficha de details com tmdbId e imdbId via Prisma/Postgres, no padrão do repositório de User.
+    status: done
+  - slug: local-first-lookup
+    title: Lookup local-first
+    summary: Redis → banco → TMDB no agente e no GET debug de details; título local primeiro; sem upsert Postgres (fila nas features seguintes); Redis no miss TMDB.
+    status: done
+  - slug: catalog-persist-worker
+    title: Worker de persistência
+    summary: Worker BullMQ no Redis existente que grava o filme no repositório.
+    status: done
+  - slug: enqueue-on-tmdb-miss
+    title: Enqueue no miss
+    summary: Trocar o write síncrono por enqueue; a resposta ao agente não espera o save; falha de persistência só loga.
+    status: done
+current_feature: null
+current_chunk: null
+in_review: null

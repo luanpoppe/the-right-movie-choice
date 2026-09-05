@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — local-movie-catalog</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes">Decisões macro</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>local-movie-catalog</strong> / plan</p>
+    <h1>Catálogo local de filmes</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Hoje o agente de recomendação ignora o Redis e vai direto ao TMDB. Esta mudança liga o cache no caminho do agente, cria catálogo no Postgres e define a ordem Redis → banco → TMDB. No miss do TMDB, a ficha persiste em background via fila para não atrasar a resposta.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: Prisma + Postgres, modelo de filme com <code>tmdbId</code> e <code>imdbId</code>. <strong>Por quê</strong>: stack já usado em User. <strong>Alternativa descartada</strong>: outro store.</li>
+        <li><strong>Decisão</strong>: persistir só a ficha de details do filme escolhido no lookup (não a lista de search). <strong>Por quê</strong>: é o que o agente usa. <strong>Alternativa descartada</strong>: gravar cada hit da search.</li>
+        <li><strong>Decisão</strong>: lookup do agente na ordem Redis (L1, 24h) → Postgres (L2) → TMDB. <strong>Por quê</strong>: o cache hoje só existe no debug; o agente precisa do mesmo atalho. <strong>Alternativa descartada</strong>: banco primeiro; Redis só no debug.</li>
+        <li><strong>Decisão</strong>: estender <code>MovieCatalogLookupService</code> + repo Prisma; reusar <code>TmdbMovieDetailsCache</code> e <code>IMovieCatalogProvider</code>. <strong>Por quê</strong>: peças já existem. <strong>Alternativa descartada</strong>: serviço paralelo do zero.</li>
+        <li><strong>Decisão</strong>: BullMQ no Redis existente; save não bloqueia a resposta; falha de persistência só loga. <strong>Por quê</strong>: fila de verdade sem broker novo; turno do usuário não depende do write. <strong>Alternativa descartada</strong>: fire-and-forget sem fila; falhar o turno se o save falhar.</li>
+        <li><strong>Decisão</strong>: ordem 1 modelo → 2 lookup só leitura (+ Redis no miss TMDB) → 3 worker → 4 enqueue. <strong>Por quê</strong>: persistir Postgres só na fila. <strong>Alternativa descartada</strong>: upsert síncrono na F2.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>movie-prisma-model</strong> — Modelo Prisma + repositório da ficha (tmdbId, imdbId), no padrão de persistência de User.</li>
+        <li><strong>local-first-lookup</strong> — Redis → banco → TMDB no agente e no GET debug de details; título local primeiro; sem upsert Postgres; Redis no miss TMDB.</li>
+        <li><strong>catalog-persist-worker</strong> — Worker BullMQ no Redis atual que persiste a ficha no repositório.</li>
+        <li><strong>enqueue-on-tmdb-miss</strong> — Troca o write síncrono por enqueue; a resposta não espera o save.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro:</strong> catálogo local de details; lookup do agente com Redis → banco → TMDB; <code>/debug/tmdb</code>; fila BullMQ de persistência.</p>
+      <p><strong>Fora:</strong> persistir resultados de search; UI; backfill histórico; troca de vendor TMDB; histórico de chat.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code>. Espelho HTML do <code>plan.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

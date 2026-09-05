@@ -13,7 +13,7 @@ Transporte HTTP da TMDB API v3 no backend. A aplicação fala com `IMovieCatalog
 - Adapter: `TmdbHttpClient` — `fetch` + timeout 5s, retry 429/5xx. Depois do 200: Zod (`TmdbSearchResponseSchema` / `TmdbMovieDetailsResponseSchema`) + `TmdbCatalogMapper`. Payload inesperado → `TmdbHttpException` 502.
 - Details TMDB: `append_to_response=credits,watch/providers,external_ids`, `watch_region=BR`, `language=pt-BR`. Search: `query` + `language=pt-BR`; ano opcional em `primary_release_year` (não concatenado no texto). Sem `include_adult`.
 - Cache: `TmdbMovieDetailsCache`, chave `catalog:movie:{id}:{lang}`, TTL 24h, `getString` (não `Redis.get()`). GET não renova TTL. Redis down → log + miss/no-op.
-- Debug: plugin `tmdbDebugControllers` só se `NODE_ENV !== "prod"`. `TmdbLoopbackGuard` no `preHandler`. Search: query vazia → 400. Details: cache hit sem TMDB.
+- Debug: plugin `tmdbDebugControllers` só se `NODE_ENV !== "prod"`. `TmdbLoopbackGuard` no `preHandler`. Search: query vazia → 400; só TMDB. Details: `MovieCatalogDetailsResolver` (Redis → Postgres fresco → TMDB).
 - Live: `pnpm --filter @the-right-movie-choice/backend test:tmdb-live` (projeto Vitest `tmdb-live`). `pnpm test` é só `--project unit` e exclui `*.live.spec.ts`.
 
 ## Decisões e porquês
