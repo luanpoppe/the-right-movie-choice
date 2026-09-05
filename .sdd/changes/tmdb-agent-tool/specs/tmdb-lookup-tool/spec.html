@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Spec: tmdb-lookup-tool — tmdb-agent-tool</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">tmdb-agent-tool</a> / specs / <strong>tmdb-lookup-tool</strong> / spec</p>
+    <h1>Spec: tmdb-lookup-tool</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Uma tool no domínio <code>movies</code> consulta o catálogo já existente: <code>searchMovies</code> + <code>getMovieDetails</code> no primeiro hit. Sucesso devolve <code>MovieCatalogDetails</code> completo. Search vazia, query vazia ou TMDB fora devolvem <code>{ found: false }</code> — a tool não derruba o turno da IA.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Lookup com match</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>searchMovies</code> devolve ao menos um hit</li>
+        <li><strong>Quando</strong> a tool é invocada com <code>query</code> (e <code>year</code> opcional concatenado na search)</li>
+        <li><strong>Então</strong> chama <code>getMovieDetails</code> com o <code>id</code> do primeiro hit e devolve <code>{ found: true, details }</code></li>
+      </ul>
+      <h3>REQ-2: Search sem resultados</h3>
+      <ul>
+        <li><strong>Dado que</strong> a search devolve <code>results</code> vazio</li>
+        <li><strong>Quando</strong> a tool é invocada</li>
+        <li><strong>Então</strong> não chama <code>getMovieDetails</code> e devolve <code>{ found: false, message }</code></li>
+      </ul>
+      <h3>REQ-3: TMDB fora não quebra o turno</h3>
+      <ul>
+        <li><strong>Dado que</strong> a porta lança <code>TmdbHttpException</code> (timeout, 502, etc.)</li>
+        <li><strong>Quando</strong> a tool é invocada</li>
+        <li><strong>Então</strong> devolve <code>{ found: false, message }</code> e não relança — o agente responde com o que já sabe</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li><code>year</code> ausente: search só com <code>query</code>.</li>
+        <li><code>year</code> presente: query da porta inclui o ano.</li>
+        <li><code>imdbId</code> null: ainda é sucesso.</li>
+        <li><code>query</code> vazia: <code>found: false</code>, sem chamar a porta.</li>
+        <li>Logar a exception e ainda assim devolver <code>found: false</code>.</li>
+        <li>Wiring no agente: fora desta feature; <code>found: false</code> é o que permite o agente continuar.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p>Input <code>{ query: string; year?: number }</code>. Sucesso <code>{ found: true; details: MovieCatalogDetails }</code>. Sem match ou TMDB fora: <code>{ found: false; message: string }</code> (a tool não lança). Porta <code>IMovieCatalogProvider</code>. Código em <code>domains/movies/infrastructure/</code>.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>

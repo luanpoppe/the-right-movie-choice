@@ -4,7 +4,7 @@
 
 ## O que é
 
-Transporte HTTP da TMDB API v3 no backend, **sem** tools LangChain. A aplicação fala com `IMovieCatalogProvider`; search e details devolvem DTOs camelCase. Em `dev`/`test` há GETs debug só em loopback. Cache Redis só de details.
+Transporte HTTP da TMDB API v3 no backend. A aplicação fala com `IMovieCatalogProvider`; search e details devolvem DTOs camelCase. Em `dev`/`test` há GETs debug só em loopback. Cache Redis só de details. O serviço `MovieCatalogLookupService` usa essa porta; a tool do agente é só `lookupMovies`.
 
 ## Como funciona
 

@@ -4,7 +4,7 @@ import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie
 import type { MovieSearchHit, MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 import { Logger } from "@/lib/logger/logger";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
-import { MovieCatalogLookupTool } from "../movie-catalog-lookup.tool";
+import { MovieCatalogLookupService } from "../movie-catalog-lookup.service";
 
 vi.mock("@/lib/logger/logger", () => ({
   Logger: {
@@ -58,9 +58,9 @@ class MovieCatalogLookupFixtures {
   }
 }
 
-describe("MovieCatalogLookupTool", () => {
+describe("MovieCatalogLookupService", () => {
   let catalog: IMovieCatalogProvider;
-  let tool: MovieCatalogLookupTool;
+  let service: MovieCatalogLookupService;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,10 +68,10 @@ describe("MovieCatalogLookupTool", () => {
       searchMovies: vi.fn(),
       getMovieDetails: vi.fn(),
     };
-    tool = new MovieCatalogLookupTool(catalog);
+    service = new MovieCatalogLookupService(catalog);
   });
 
-  describe("lookup", () => {
+  describe("findDetailsByTitle", () => {
     it("REQ-1: devolve found true com MovieCatalogDetails ao encontrar hit na search", async () => {
       const hit = MovieCatalogLookupFixtures.searchHit();
       const details = MovieCatalogLookupFixtures.details();
@@ -80,7 +80,7 @@ describe("MovieCatalogLookupTool", () => {
       );
       vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
 
-      const result = await tool.lookup({ query: "Interestelar" });
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(result).toEqual({ found: true, details });
       expect(catalog.searchMovies).toHaveBeenCalledWith("Interestelar");
@@ -111,7 +111,9 @@ describe("MovieCatalogLookupTool", () => {
         );
         vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
 
-        await tool.lookup({ query, year });
+        const lookupInput =
+          year === undefined ? { query } : { query, year };
+        await service.findDetailsByTitle(lookupInput);
 
         expect(catalog.searchMovies).toHaveBeenCalledWith(expectedSearchQuery);
       },
@@ -125,7 +127,7 @@ describe("MovieCatalogLookupTool", () => {
       );
       vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
 
-      const result = await tool.lookup({ query: "Interestelar" });
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(result).toEqual({ found: true, details });
     });
@@ -135,7 +137,7 @@ describe("MovieCatalogLookupTool", () => {
         MovieCatalogLookupFixtures.searchPage([]),
       );
 
-      const result = await tool.lookup({ query: "FilmeInexistente" });
+      const result = await service.findDetailsByTitle({ query: "FilmeInexistente" });
 
       expect(result).toEqual({
         found: false,
@@ -171,7 +173,7 @@ describe("MovieCatalogLookupTool", () => {
       async ({ setupMocks }) => {
         setupMocks(catalog);
 
-        const result = await tool.lookup({ query: "Interestelar" });
+        const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
         expect(result).toEqual({
           found: false,
@@ -186,7 +188,7 @@ describe("MovieCatalogLookupTool", () => {
         new TmdbHttpException("TMDB timeout", 504),
       );
 
-      await tool.lookup({ query: "Interestelar" });
+      await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(Logger.error).toHaveBeenCalledTimes(1);
       const logContext = vi.mocked(Logger.error).mock.calls[0]?.[1] as Record<
@@ -211,7 +213,7 @@ describe("MovieCatalogLookupTool", () => {
       );
       vi.mocked(catalog.getMovieDetails).mockResolvedValue(details);
 
-      await tool.lookup({ query: "Interestelar" });
+      await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(Logger.info).toHaveBeenCalledTimes(1);
       const logContext = vi.mocked(Logger.info).mock.calls[0]?.[1] as Record<
@@ -223,7 +225,7 @@ describe("MovieCatalogLookupTool", () => {
     });
 
     it("devolve found false para query vazia sem chamar o catálogo", async () => {
-      const result = await tool.lookup({ query: "" });
+      const result = await service.findDetailsByTitle({ query: "" });
 
       expect(result).toEqual({
         found: false,
@@ -238,7 +240,7 @@ describe("MovieCatalogLookupTool", () => {
         new Error("falha inesperada"),
       );
 
-      const result = await tool.lookup({ query: "Interestelar" });
+      const result = await service.findDetailsByTitle({ query: "Interestelar" });
 
       expect(result).toEqual({
         found: false,

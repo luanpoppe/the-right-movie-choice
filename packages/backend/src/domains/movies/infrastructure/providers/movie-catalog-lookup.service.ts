@@ -7,10 +7,10 @@ import { Logger } from "@/lib/logger/logger";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
 import { StringUtils } from "@/shared/utils/string.utils";
 
-export class MovieCatalogLookupTool {
+export class MovieCatalogLookupService {
   constructor(private readonly catalog: IMovieCatalogProvider) {}
 
-  async lookup(
+  async findDetailsByTitle(
     input: MovieCatalogLookupInput,
   ): Promise<MovieCatalogLookupResult> {
     const isQueryEmpty = StringUtils.isEmptyString(input.query);
@@ -23,7 +23,7 @@ export class MovieCatalogLookupTool {
     const startedAtMs = Date.now();
 
     try {
-      const searchQuery = MovieCatalogLookupTool.buildSearchQuery(input);
+      const searchQuery = MovieCatalogLookupService.buildSearchQuery(input);
       const searchPage = await this.catalog.searchMovies(searchQuery);
       const firstHit = searchPage.results[0];
       const hasSearchResults = firstHit !== undefined;
@@ -35,7 +35,7 @@ export class MovieCatalogLookupTool {
       const movieId = firstHit.id;
       const details = await this.catalog.getMovieDetails(movieId);
       const durationMs = Date.now() - startedAtMs;
-      this.logSuccess("Lookup no catálogo concluído", durationMs);
+      this.logSuccess("Busca da ficha por título no catálogo concluída", durationMs);
 
       return {
         found: true,
@@ -47,7 +47,7 @@ export class MovieCatalogLookupTool {
 
       if (isTmdbHttpError) {
         this.logFailure(
-          "Lookup no catálogo falhou (TMDB indisponível)",
+          "Busca da ficha por título no catálogo falhou (TMDB indisponível)",
           durationMs,
           error,
         );
@@ -56,7 +56,7 @@ export class MovieCatalogLookupTool {
         );
       }
 
-      this.logFailure("Lookup no catálogo falhou", durationMs, error);
+      this.logFailure("Busca da ficha por título no catálogo falhou", durationMs, error);
       return this.miss(
         "Não foi possível consultar o catálogo de filmes no momento.",
       );

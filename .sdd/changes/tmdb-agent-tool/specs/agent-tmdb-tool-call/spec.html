@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: agent-tmdb-tool-call — tmdb-agent-tool</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements (BDD)</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos">Contratos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">tmdb-agent-tool</a> / specs / <strong>agent-tmdb-tool-call</strong> / spec</p>
+    <h1>Spec: agent-tmdb-tool-call</h1>
+    <p class="lp-meta">Atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>O POST de recommendation passa uma tool Zod ao <code>@luanpoppe/ai</code>: o modelo pensa em mais candidatos do que vai devolver, faz <strong>uma</strong> chamada com até 8 <code>{ query, year? }</code>, o adapter dispara <code>Promise.all</code> em <code>MovieCatalogLookupService.findDetailsByTitle</code>. O JSON interno pode trazer <code>tmdbId</code>/<code>imdbId</code> opcionais; o HTTP público continua sem esses campos. GET <code>/movie/queries</code> não recebe a tool.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements (cenários BDD)</h2></summary>
+      <h3>REQ-1: Uma chamada batch, lookups em paralelo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o provider registra a tool no <code>callStructuredOutput</code></li>
+        <li><strong>Quando</strong> o modelo invoca com <code>{ queries: [{ query, year? }, ...] }</code> (1–8 itens)</li>
+        <li><strong>Então</strong> <code>Promise.all</code> de <code>lookup</code> e array de resultados na mesma ordem</li>
+      </ul>
+      <h3>REQ-2: Schema interno com ids</h3>
+      <ul>
+        <li><strong>Dado que</strong> o schema de recommendation inclui <code>tmdbId</code>/<code>imdbId</code> opcionais</li>
+        <li><strong>Quando</strong> o modelo escolhe até 3 filmes depois da tool</li>
+        <li><strong>Então</strong> copia ids do retorno; sem hit o parse não falha</li>
+      </ul>
+      <h3>REQ-3: HTTP público não vaza ids</h3>
+      <ul>
+        <li><strong>Dado que</strong> o use case devolve a entidade interna</li>
+        <li><strong>Quando</strong> o controller monta o body</li>
+        <li><strong>Então</strong> mapeia para o schema público; destructuring sozinho vazaria campos extras</li>
+      </ul>
+      <h3>REQ-4: Prompt ensina batch e escolha</h3>
+      <ul>
+        <li><strong>Dado que</strong> o system prompt unificado é o que o modelo lê</li>
+        <li><strong>Quando</strong> há pedido de recomendação</li>
+        <li><strong>Então</strong> pede pensar a mais, uma chamada com todas as queries, depois 0–3 filmes copiando ids</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li><code>queries</code> vazio ou &gt; 8: Zod rejeita (min 1, max 8).</li>
+        <li>Query vazia num item: miss de F1 naquele índice.</li>
+        <li>Tool não chamada: ids ausentes; HTTP igual ao de hoje.</li>
+        <li><code>found: false</code>: filme pode ir sem ids.</li>
+        <li>Falha de um lookup não cancela os outros.</li>
+        <li>GET <code>/movie/queries</code> sem esta tool.</li>
+        <li>DTO HTTP não reutiliza o Zod interno estendido.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos" open>
+      <summary><h2>Contratos</h2></summary>
+      <p>Input Zod da tool: <code>{ queries: { query: string; year?: number }[] }</code> (1–8). Execute devolve <code>MovieCatalogLookupResult[]</code>. <code>lookup</code> unitário não muda. Entidade interna em <code>movie-recommendation.entity.ts</code> (<code>tmdbId?</code>, <code>imdbId?</code>). Público em <code>movie-recommendation.dto.ts</code>. Factory de recommendation (não a de exemplos). Prompt em <code>movie-recommendation-prompts.ts</code>.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code>. Espelho HTML do <code>spec.md</code> (fonte é o .md).</p>
+  </footer>
+</body>
+</html>
