@@ -40,31 +40,37 @@ export class MovieCatalogTitleSearchSql {
       return null;
     }
 
-    const subqueries: Prisma.Sql[] = [];
+    const valueRows: Prisma.Sql[] = [];
 
     for (const item of items) {
-      const catalogLanguage = item.catalogLanguage;
-      const yearFilter =
-        item.year === undefined
-          ? Prisma.empty
-          : Prisma.sql`AND year = ${item.year}`;
-
-      const subquery = Prisma.sql`
-        SELECT ${item.index} AS idx, id
-        FROM "Movie"
-        WHERE language = ${catalogLanguage}
-          AND unaccent(title) ILIKE unaccent(${item.likePattern}) ESCAPE '\\'
-          ${yearFilter}
-        ORDER BY "updatedAt" DESC
-        LIMIT 1
-      `;
-
-      subqueries.push(subquery);
+      const year = item.year;
+      const hasYear = year !== undefined;
+      const valueRow = hasYear
+        ? Prisma.sql`(CAST(${item.index} AS INTEGER), ${item.catalogLanguage}, ${item.likePattern}, CAST(${year} AS INTEGER))`
+        : Prisma.sql`(CAST(${item.index} AS INTEGER), ${item.catalogLanguage}, ${item.likePattern}, CAST(NULL AS INTEGER))`;
+      valueRows.push(valueRow);
     }
 
-    const unionSeparator = " UNION ALL ";
-    const batchQuery = Prisma.join(subqueries, unionSeparator);
-    return batchQuery;
+    const valuesList = Prisma.join(valueRows);
+
+    return Prisma.sql`
+      SELECT ranked.idx, ranked.id
+      FROM (
+        SELECT
+          q.idx,
+          m.id,
+          ROW_NUMBER() OVER (
+            PARTITION BY q.idx
+            ORDER BY m."updatedAt" DESC
+          ) AS rn
+        FROM (VALUES ${valuesList}) AS q(idx, lang, like_pattern, year)
+        JOIN "Movie" m
+          ON m.language = q.lang
+         AND (q.year IS NULL OR m.year = q.year)
+         AND unaccent(m.title) ILIKE unaccent(q.like_pattern) ESCAPE '\\'
+      ) ranked
+      WHERE ranked.rn = 1
+    `;
   }
 
   private static escapeIlikeMetacharacters(value: string): string {

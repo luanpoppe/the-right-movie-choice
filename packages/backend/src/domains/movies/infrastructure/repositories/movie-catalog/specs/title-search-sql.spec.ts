@@ -34,7 +34,7 @@ describe("MovieCatalogTitleSearchSql", () => {
     expect(query.values).toContain(2021);
   });
 
-  it("batchFindIdsQuery usa UNION ALL com coluna idx e unaccent por item", () => {
+  it("batchFindIdsQuery usa ROW_NUMBER + VALUES e unaccent por item", () => {
     const pattern0 = MovieCatalogTitleSearchSql.buildLikePattern("interestelar");
     const pattern1 = MovieCatalogTitleSearchSql.buildLikePattern("duna");
     const query = MovieCatalogTitleSearchSql.buildBatchFindIdsQuery([
@@ -43,11 +43,13 @@ describe("MovieCatalogTitleSearchSql", () => {
     ]);
 
     expect(query).not.toBeNull();
-    expect(query!.sql).toContain("UNION ALL");
-    expect(query!.sql).toContain("unaccent(title) ILIKE unaccent(");
-    expect(query!.sql).toContain("idx");
-    expect(query!.sql).toContain('ORDER BY "updatedAt" DESC');
-    expect(query!.sql).toContain("LIMIT 1");
+    expect(query!.sql).toContain("ROW_NUMBER()");
+    expect(query!.sql).toContain("PARTITION BY q.idx");
+    expect(query!.sql).toContain("ranked.rn = 1");
+    expect(query!.sql).not.toContain("DISTINCT ON");
+    expect(query!.sql).toContain("VALUES");
+    expect(query!.sql).toContain("unaccent(m.title) ILIKE unaccent(");
+    expect(query!.sql).toContain('ORDER BY m."updatedAt" DESC');
     expect(query!.values).toContain("pt-BR");
     expect(query!.values).toContain(pattern0);
     expect(query!.values).toContain(pattern1);
@@ -62,7 +64,7 @@ describe("MovieCatalogTitleSearchSql", () => {
     ]);
 
     expect(query).not.toBeNull();
-    expect(query!.sql).toContain("AND year =");
+    expect(query!.sql).toContain("q.year IS NULL OR m.year = q.year");
     expect(query!.values).toContain(2021);
     expect(query!.values).toContain(2);
   });

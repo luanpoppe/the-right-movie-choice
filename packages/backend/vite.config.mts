@@ -12,7 +12,7 @@ export default defineConfig({
         test: {
           name: "unit",
           dir: "src/",
-          exclude: ["**/*.live.spec.ts"],
+          exclude: ["**/*.live.spec.ts", "**/*.bench.spec.ts"],
         },
       },
       {
@@ -21,6 +21,14 @@ export default defineConfig({
           name: "tmdb-live",
           dir: "src/",
           include: ["**/*.live.spec.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "catalog-lookup-bench",
+          dir: "src/",
+          include: ["**/*.bench.spec.ts"],
         },
       },
     ],
