@@ -17,10 +17,10 @@ describe("MovieRecommendationPrompts", () => {
   it("returns a unified prompt with card fields and conversational tone", () => {
     const prompt = MovieRecommendationPrompts.unified();
 
-    expect(prompt).toContain("até 03 filmes");
-    expect(prompt).toContain("nota do filme no IMDb");
+    expect(prompt).toContain("zero a três filmes");
+    expect(prompt).toContain("imdbRating");
     expect(prompt).toContain("campo response");
-    expect(prompt).toContain("não responda em markdown");
+    expect(prompt).toContain("Não use Markdown");
     expect(prompt).toContain("zero filmes");
     expect(prompt).not.toContain("já foi feito por outra IA");
     expect(prompt).not.toContain("Filmes sugeridos:");
@@ -30,19 +30,30 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("imdbId");
     expect(prompt).toContain("found: true");
     expect(prompt).toContain("found: false");
-    expect(prompt).toMatch(/uma única vez|uma\s+única\s+vez/i);
-    expect(prompt).toMatch(/4 a 8 candidatos/i);
-    expect(prompt).toContain("não invente esses ids");
-    expect(prompt).toContain("sem incluir tmdbId nem imdbId");
+    expect(prompt).toMatch(/exatamente uma vez/i);
+    expect(prompt).toContain("entre 4 e 8 candidatos");
+    expect(prompt).toContain("Nunca invente, estime, deduza ou altere tmdbId ou imdbId");
+    expect(prompt).toContain("não inclua tmdbId nem imdbId");
   });
 
   it("REQ-4: instrui mais candidatos, uma chamada lookupMovies e cópia de ids", () => {
     const prompt = MovieRecommendationPrompts.unified();
 
     expect(prompt).toMatch(/mais títulos candidatos/i);
-    expect(prompt).toContain("lookupMovies uma única vez");
-    expect(prompt).toContain("copie tmdbId e imdbId");
-    expect(prompt).toContain("não responda em markdown");
+    expect(prompt).toContain("chame a tool lookupMovies exatamente uma vez");
+    expect(prompt).toContain("copie details.id para tmdbId");
+    expect(prompt).toContain("details.imdbId para imdbId");
+    expect(prompt).toContain("Não use Markdown");
+  });
+
+  it("ensina query em pt-BR, year separado e ordem estável dos resultados", () => {
+    const prompt = MovieRecommendationPrompts.unified();
+
+    expect(prompt).toContain("português do Brasil");
+    expect(prompt).toContain("Não cole o ano no texto da query");
+    expect(prompt).toContain("mesma ordem das queries");
+    expect(prompt).toContain("mesma posição");
+    expect(prompt).toContain("não devolve um campo chamado tmdbId");
   });
 
   it("expõe só unified na API — sem structured nem chat", () => {

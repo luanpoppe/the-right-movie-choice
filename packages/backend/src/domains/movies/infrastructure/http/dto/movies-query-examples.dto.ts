@@ -1,8 +1,11 @@
 import z from "zod";
-import { SingleQueryExampleSchema } from "@/domains/movies/domain/entities/movie-query-examples.entity";
+import {
+  MOVIE_QUERY_EXAMPLES_COUNT,
+  SingleQueryExampleSchema,
+} from "@/domains/movies/domain/entities/movie-query-examples.entity";
 
 export const MoviesQueryExamplesResponseDTOSchema = z.object({
-  queries: z.array(SingleQueryExampleSchema),
+  queries: z.array(SingleQueryExampleSchema).length(MOVIE_QUERY_EXAMPLES_COUNT),
 });
 
 export type MoviesQueryExamplesResponseDTO = z.infer<
