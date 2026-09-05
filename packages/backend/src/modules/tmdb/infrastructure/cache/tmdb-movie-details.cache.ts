@@ -41,6 +41,51 @@ export class TmdbMovieDetailsCache {
     }
   }
 
+  async getMany(
+    items: Array<{ movieId: number; lang?: string }>,
+  ): Promise<Array<MovieCatalogDetails | null>> {
+    if (items.length === 0) return [];
+
+    const keys = items.map((item) => this.buildKey(item.movieId, item.lang));
+
+    try {
+      const rawValues = await this.redis.mgetStrings(keys);
+
+      return items.map((item, index) => {
+        const rawValue = rawValues[index] ?? null;
+        return this.parseCachedDetails(item.movieId, rawValue);
+      });
+    } catch (error) {
+      this.logCacheFailureMany("getMany", items, error);
+      return items.map(() => null);
+    }
+  }
+
+  async setMany(
+    items: Array<{
+      movieId: number;
+      details: MovieCatalogDetails;
+      lang?: string;
+    }>,
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const ttlSeconds = TmdbCacheConstants.DETAILS_TTL_SECONDS;
+    const entries = items.map((item) => ({
+      key: this.buildKey(item.movieId, item.lang),
+      value: item.details,
+    }));
+
+    try {
+      await this.redis.setManyWithExpiration(entries, ttlSeconds);
+      Logger.debug("TMDB movie details cache batch written", {
+        count: items.length,
+      });
+    } catch (error) {
+      this.logCacheFailureMany("setMany", items, error);
+    }
+  }
+
   private parseCachedDetails(
     movieId: number,
     rawValue: string | null,
@@ -91,6 +136,21 @@ export class TmdbMovieDetailsCache {
     Logger.warn("TMDB movie details cache failed", {
       operation,
       movieId,
+      reason,
+    });
+  }
+
+  private logCacheFailureMany(
+    operation: string,
+    items: Array<{ movieId: number }>,
+    error: unknown,
+  ): void {
+    const reason = error instanceof Error ? error.message : "unknown";
+    const movieIds = items.map((item) => item.movieId).join(",");
+    Logger.warn("TMDB movie details cache failed", {
+      operation,
+      movieIds,
+      count: items.length,
       reason,
     });
   }
