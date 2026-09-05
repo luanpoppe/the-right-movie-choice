@@ -48,4 +48,8 @@ describe("MovieCatalogPersistConstants", () => {
   it("retém os últimos 500 jobs failed", () => {
     expect(MovieCatalogPersistConstants.REMOVE_ON_FAIL_COUNT).toBe(500);
   });
+
+  it("retém os últimos 1000 jobs completed", () => {
+    expect(MovieCatalogPersistConstants.REMOVE_ON_COMPLETE_COUNT).toBe(1000);
+  });
 });

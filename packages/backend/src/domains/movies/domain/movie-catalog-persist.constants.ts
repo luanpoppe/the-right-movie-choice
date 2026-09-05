@@ -5,6 +5,7 @@ export class MovieCatalogPersistConstants {
     MovieCatalogPersistConstants.BACKOFF_DELAYS_MS.length + 1;
   static readonly CONCURRENCY = 3;
   static readonly REMOVE_ON_FAIL_COUNT = 500;
+  static readonly REMOVE_ON_COMPLETE_COUNT = 1000;
 
   static jobId(tmdbId: number, language: string): string {
     const jobId = `${tmdbId}:${language}`;
