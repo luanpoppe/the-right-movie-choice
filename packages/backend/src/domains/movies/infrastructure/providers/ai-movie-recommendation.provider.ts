@@ -14,10 +14,10 @@ export class AiMovieRecommendationProvider
 {
   constructor(private ai: AI) {}
 
-  async getStructuredMoviesRecommendation(
+  async getMovieRecommendation(
     userMessage: string,
     chatId: string,
-  ) {
+  ): Promise<MovieRecommendationEntity> {
     const humanMessage = AIMessages.human(userMessage);
     const messages = [humanMessage];
     const systemPrompt = MovieRecommendationPrompts.unified();
@@ -37,39 +37,11 @@ export class AiMovieRecommendationProvider
       }
 
       const durationMs = Date.now() - startedAtMs;
-      this.logSuccess("Movie structured recommendation completed", durationMs);
+      this.logSuccess("Recomendação de filme concluída", durationMs);
       return parseResult.data;
     } catch (error) {
       const durationMs = Date.now() - startedAtMs;
-      this.logFailure("Movie structured recommendation failed", durationMs, error);
-      throw error;
-    }
-  }
-
-  async getChatResponse(
-    movies: MovieRecommendationEntity,
-    userMessage: string,
-    chatId: string,
-  ) {
-    const systemPrompt = MovieRecommendationPrompts.unified();
-    const humanMessage = AIMessages.human(userMessage);
-    const messages = [humanMessage];
-    const startedAtMs = Date.now();
-
-    try {
-      const result = await this.ai.call({
-        aiModel: AiModels.PRIMARY,
-        systemPrompt,
-        messages,
-        threadId: chatId,
-      });
-
-      const durationMs = Date.now() - startedAtMs;
-      this.logSuccess("Movie chat recommendation completed", durationMs);
-      return result.text;
-    } catch (error) {
-      const durationMs = Date.now() - startedAtMs;
-      this.logFailure("Movie chat recommendation failed", durationMs, error);
+      this.logFailure("Recomendação de filme falhou", durationMs, error);
       throw error;
     }
   }

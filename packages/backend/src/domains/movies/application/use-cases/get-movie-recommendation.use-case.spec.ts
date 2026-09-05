@@ -11,8 +11,7 @@ describe("GetMovieRecommendationUseCase", () => {
 
   beforeEach(() => {
     movieRecommendationProvider = {
-      getStructuredMoviesRecommendation: vi.fn(),
-      getChatResponse: vi.fn(),
+      getMovieRecommendation: vi.fn(),
     };
 
     getMovieRecommendationUseCase = new GetMovieRecommendationUseCase(
@@ -20,10 +19,10 @@ describe("GetMovieRecommendationUseCase", () => {
     );
   });
 
-  it("devolve filmes e resposta do chat passando chatId ao provider", async () => {
+  it("devolve filmes e resposta de uma única chamada ao provider com chatId", async () => {
     const userMessage = "I want to watch a sci-fi movie";
     const chatId = "test-chat-id";
-    const mockStructuredMovies: MovieRecommendationEntity = {
+    const mockRecommendation: MovieRecommendationEntity = {
       movies: [
         {
           title: "Inception",
@@ -40,16 +39,12 @@ describe("GetMovieRecommendationUseCase", () => {
           durationInMinutes: 148,
         },
       ],
+      response: "Here are some sci-fi movie recommendations for you!",
     };
-    const mockChatResponse =
-      "Here are some sci-fi movie recommendations for you!";
 
     vi.mocked(
-      movieRecommendationProvider.getStructuredMoviesRecommendation
-    ).mockResolvedValue(mockStructuredMovies);
-    vi.mocked(movieRecommendationProvider.getChatResponse).mockResolvedValue(
-      mockChatResponse
-    );
+      movieRecommendationProvider.getMovieRecommendation
+    ).mockResolvedValue(mockRecommendation);
 
     const result = await getMovieRecommendationUseCase.execute(
       userMessage,
@@ -57,34 +52,26 @@ describe("GetMovieRecommendationUseCase", () => {
     );
 
     expect(
-      movieRecommendationProvider.getStructuredMoviesRecommendation
+      movieRecommendationProvider.getMovieRecommendation
     ).toHaveBeenCalledWith(userMessage, chatId);
-    expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledWith(
-      mockStructuredMovies,
-      userMessage,
-      chatId
-    );
-    expect(result).toEqual({
-      movies: mockStructuredMovies.movies,
-      response: mockChatResponse,
-    });
     expect(
-      movieRecommendationProvider.getStructuredMoviesRecommendation,
+      movieRecommendationProvider.getMovieRecommendation,
     ).toHaveBeenCalledTimes(1);
-    expect(movieRecommendationProvider.getChatResponse).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      movies: mockRecommendation.movies,
+      response: mockRecommendation.response,
+    });
   });
 
-  it("não chama getChatResponse quando a recomendação estruturada falha", async () => {
-    const failure = new Error("structured failed");
+  it("propaga o erro quando getMovieRecommendation falha", async () => {
+    const failure = new Error("recommendation failed");
     vi.mocked(
-      movieRecommendationProvider.getStructuredMoviesRecommendation,
+      movieRecommendationProvider.getMovieRecommendation,
     ).mockRejectedValue(failure);
 
     await expect(
       getMovieRecommendationUseCase.execute("msg", "chat-id"),
-    ).rejects.toThrow("structured failed");
-
-    expect(movieRecommendationProvider.getChatResponse).not.toHaveBeenCalled();
+    ).rejects.toThrow("recommendation failed");
   });
 
   it("não importa IChatHistoryRepository nem chama getHistory", async () => {
