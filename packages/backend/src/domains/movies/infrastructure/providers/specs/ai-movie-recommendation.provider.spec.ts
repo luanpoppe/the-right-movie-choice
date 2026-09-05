@@ -34,6 +34,7 @@ class MovieRecommendationFixtures {
           durationInMinutes: 148,
         },
       ],
+      response: "sugestão em texto",
     };
   }
 }
