@@ -59,6 +59,7 @@ describe("CatalogPersistProcessor", () => {
       upsert: vi.fn().mockResolvedValue(undefined),
       findByTmdbId: vi.fn(),
       findByTitleAndYear: vi.fn(),
+      findByTitlesAndYears: vi.fn(),
     };
     processor = new CatalogPersistProcessor(repository);
   });

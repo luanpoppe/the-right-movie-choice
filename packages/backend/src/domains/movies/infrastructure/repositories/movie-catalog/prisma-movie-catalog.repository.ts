@@ -7,11 +7,13 @@ import {
   DEFAULT_MOVIE_CATALOG_LANGUAGE,
   IMovieCatalogRepository,
   MovieCatalogStoredRecord,
+  MovieCatalogTitleYearLookupInput,
 } from "../../../domain/repositories/movie-catalog.repository";
 import { MovieCatalogPrismaMapper } from "../../mappers/movie-catalog-prisma.mapper";
 import { StringUtils } from "@/shared/utils/string.utils";
 import { MovieCatalogChildWriter } from "./child-writer";
 import { MovieCatalogMovieWritePayloadBuilder } from "./movie-write-payload.builder";
+import { MovieCatalogBatchTitleLookup } from "./batch-title-lookup";
 import { MovieCatalogTitleSearchSql } from "./title-search-sql";
 
 const MOVIE_CATALOG_CHILDREN_INCLUDE = {
@@ -166,5 +168,56 @@ export class PrismaMovieCatalogRepository implements IMovieCatalogRepository {
       updatedAt: row.updatedAt,
     };
     return storedRecord;
+  }
+
+  async findByTitlesAndYears(
+    inputs: MovieCatalogTitleYearLookupInput[],
+  ): Promise<Array<MovieCatalogStoredRecord | null>> {
+    const results = MovieCatalogBatchTitleLookup.createEmptyResults(
+      inputs.length,
+    );
+    const searchableItems =
+      MovieCatalogBatchTitleLookup.buildSearchableItems(inputs);
+    const batchFindIdsQuery =
+      MovieCatalogTitleSearchSql.buildBatchFindIdsQuery(searchableItems);
+
+    const hasNoSearchableItems = searchableItems.length === 0;
+    const hasNoBatchQuery = batchFindIdsQuery === null;
+    if (hasNoSearchableItems || hasNoBatchQuery) {
+      return results;
+    }
+
+    const idRows =
+      await prisma.$queryRaw<{ idx: number; id: number }[]>(batchFindIdsQuery);
+    const uniqueIds =
+      MovieCatalogBatchTitleLookup.collectUniqueMovieIds(idRows);
+
+    if (uniqueIds.length === 0) {
+      MovieCatalogBatchTitleLookup.logMissesForSearchableItems(
+        inputs,
+        searchableItems,
+      );
+      return results;
+    }
+
+    const rows = await prisma.movie.findMany({
+      where: { id: { in: uniqueIds } },
+      include: MOVIE_CATALOG_CHILDREN_INCLUDE,
+    });
+    const rowById = new Map(rows.map((row) => [row.id, row]));
+    const matchedIndices = MovieCatalogBatchTitleLookup.applyIdRowsToResults(
+      inputs,
+      idRows,
+      rowById,
+      results,
+    );
+
+    MovieCatalogBatchTitleLookup.logUnmatchedSearchableItems(
+      inputs,
+      searchableItems,
+      matchedIndices,
+    );
+
+    return results;
   }
 }

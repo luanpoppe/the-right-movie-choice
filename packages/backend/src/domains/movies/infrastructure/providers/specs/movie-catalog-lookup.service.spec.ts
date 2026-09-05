@@ -110,6 +110,7 @@ describe("MovieCatalogLookupService", () => {
       upsert: vi.fn(),
       findByTmdbId: vi.fn(),
       findByTitleAndYear: vi.fn().mockResolvedValue(null),
+      findByTitlesAndYears: vi.fn(),
     };
     cache = {
       buildKey: vi.fn(),

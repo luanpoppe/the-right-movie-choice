@@ -1,5 +1,12 @@
 import { Prisma } from "../../../../../../generated/prisma/client.js";
 
+export type MovieCatalogTitleSearchBatchItem = {
+  index: number;
+  catalogLanguage: string;
+  likePattern: string;
+  year?: number;
+};
+
 export class MovieCatalogTitleSearchSql {
   static buildLikePattern(title: string): string {
     const escaped = MovieCatalogTitleSearchSql.escapeIlikeMetacharacters(title);
@@ -26,12 +33,7 @@ export class MovieCatalogTitleSearchSql {
   }
 
   static buildBatchFindIdsQuery(
-    items: Array<{
-      index: number;
-      catalogLanguage: string;
-      likePattern: string;
-      year?: number;
-    }>,
+    items: MovieCatalogTitleSearchBatchItem[],
   ): Prisma.Sql | null {
     const hasItems = items.length > 0;
     if (!hasItems) {

@@ -93,6 +93,7 @@ describe("MovieCatalogDetailsResolver", () => {
       upsert: vi.fn(),
       findByTmdbId: vi.fn(),
       findByTitleAndYear: vi.fn(),
+      findByTitlesAndYears: vi.fn(),
     };
 
     catalog = {

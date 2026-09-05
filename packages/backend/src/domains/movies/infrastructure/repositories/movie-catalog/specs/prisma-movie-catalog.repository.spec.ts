@@ -17,6 +17,7 @@ vi.mock("@/lib/prisma/prisma", () => ({
     $queryRaw: vi.fn(),
     movie: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -368,6 +369,153 @@ describe("PrismaMovieCatalogRepository", () => {
       });
       expect(result?.details.title).toBe("Interestelar");
       expect(result?.updatedAt).toEqual(new Date("2026-09-01T00:00:00.000Z"));
+    });
+  });
+
+  describe("findByTitlesAndYears", () => {
+    it("batch com 2 hits retorna resultados alinhados por índice", async () => {
+      const row0 = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 42,
+        title: "Interestelar",
+      });
+      const row1 = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 43,
+        title: "Duna",
+        tmdbId: 438631,
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([
+        { idx: 0, id: 42 },
+        { idx: 1, id: 43 },
+      ]);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([row0, row1] as never);
+
+      const results = await repository.findByTitlesAndYears([
+        { title: "Interestelar", year: 2014 },
+        { title: "Duna", year: 2021 },
+      ]);
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.movie.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [42, 43] } },
+        include: MOVIE_CATALOG_CHILDREN_INCLUDE,
+      });
+      expect(results).toHaveLength(2);
+      expect(results[0]?.details.title).toBe("Interestelar");
+      expect(results[1]?.details.title).toBe("Duna");
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "Movie catalog find by titles and years hit",
+        expect.objectContaining({ tmdbId: 157336 }),
+      );
+    });
+
+    it("hit/miss misto: índice ausente no queryRaw permanece null", async () => {
+      const row0 = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 42,
+        title: "Interestelar",
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([{ idx: 0, id: 42 }]);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([row0] as never);
+
+      const results = await repository.findByTitlesAndYears([
+        { title: "Interestelar", year: 2014 },
+        { title: "Filme Inexistente", year: 1999 },
+      ]);
+
+      expect(results).toHaveLength(2);
+      expect(results[0]?.details.title).toBe("Interestelar");
+      expect(results[1]).toBeNull();
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "Movie catalog find by titles and years miss",
+        expect.objectContaining({ title: "Filme Inexistente" }),
+      );
+    });
+
+    it("título vazio no índice 1 permanece null; outro índice funciona", async () => {
+      const row0 = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 42,
+        title: "Interestelar",
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([{ idx: 0, id: 42 }]);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([row0] as never);
+
+      const results = await repository.findByTitlesAndYears([
+        { title: "Interestelar", year: 2014 },
+        { title: "", year: 2014 },
+      ]);
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(results).toHaveLength(2);
+      expect(results[0]?.details.title).toBe("Interestelar");
+      expect(results[1]).toBeNull();
+    });
+
+    it("todos os títulos vazios: sem queryRaw, todos null", async () => {
+      const results = await repository.findByTitlesAndYears([
+        { title: "" },
+        { title: "" },
+      ]);
+
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(prisma.movie.findMany).not.toHaveBeenCalled();
+      expect(results).toEqual([null, null]);
+    });
+
+    it("language distinto por item (pt-BR e en-US no mesmo batch)", async () => {
+      const rowPt = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 42,
+        title: "Interestelar",
+        language: "pt-BR",
+      });
+      const rowEn = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 55,
+        title: "Interstellar",
+        language: "en-US",
+        tmdbId: 157336,
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([
+        { idx: 0, id: 42 },
+        { idx: 1, id: 55 },
+      ]);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([rowPt, rowEn] as never);
+
+      const results = await repository.findByTitlesAndYears([
+        { title: "Interestelar", language: "pt-BR" },
+        { title: "Interstellar", language: "en-US" },
+      ]);
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const queryArg = vi.mocked(prisma.$queryRaw).mock.calls[0]?.[0] as {
+        values: unknown[];
+      };
+      expect(queryArg.values).toContain("pt-BR");
+      expect(queryArg.values).toContain("en-US");
+      expect(results[0]?.details.title).toBe("Interestelar");
+      expect(results[1]?.details.title).toBe("Interstellar");
+    });
+
+    it("findMany chamado uma vez com ids deduplicados", async () => {
+      const row = MovieCatalogRepositoryFixtures.prismaRowWithChildren({
+        id: 42,
+        title: "Interestelar",
+      });
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([
+        { idx: 0, id: 42 },
+        { idx: 1, id: 42 },
+      ]);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([row] as never);
+
+      const results = await repository.findByTitlesAndYears([
+        { title: "Interestelar", year: 2014 },
+        { title: "interestelar", year: 2014 },
+      ]);
+
+      expect(prisma.movie.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.movie.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [42] } },
+        include: MOVIE_CATALOG_CHILDREN_INCLUDE,
+      });
+      expect(results[0]?.details.title).toBe("Interestelar");
+      expect(results[1]?.details.title).toBe("Interestelar");
     });
   });
 });
