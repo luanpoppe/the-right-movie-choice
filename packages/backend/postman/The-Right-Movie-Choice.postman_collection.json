@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\nVariáveis da coleção:\n- `baseUrl` — URL da API (padrão: http://localhost:3010)\n- `chatId` — ID da sessão de chat (header `chatid` nas rotas de filmes)\n\nAuth: execute Login ou Google Auth primeiro; o Postman armazena o cookie `refreshToken` para Refresh e Logout (Cookie Jar ativo). Para Google Auth, cole um `idToken` válido obtido no login do frontend.",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (ambiente Local usa porta **3010**, que é o `PORT` deste checkout em `packages/backend/.env`; o padrão do clone no repositório é **3333** se você seguir `.env.example`/README)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação de filmes)\n- `accessToken` / `refreshToken` — preenchidos automaticamente após Login, Google Auth e Refresh (test script). O refresh vem do cookie httpOnly `refreshToken` (nome padrão de `REFRESH_COOKIE_NAME`). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}` além do Cookie Jar.\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId` — usadas nas rotas TMDB debug (somente dev)\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth; usado em Refresh e Logout\n- `guest-id` — httpOnly, definido na recomendação como convidado; o Postman persiste via Cookie Jar\n\n**Auth**\nExecute Login ou Google Auth primeiro; o test script salva `json.accessToken` em `accessToken`. Use \"Movie recommendation (Bearer)\" com `Authorization: Bearer {{accessToken}}` para pular a cota de convidado.\n\n**TMDB debug**\nPasta disponível apenas com `NODE_ENV !== prod`. `TmdbLoopbackGuard` exige origem loopback (127.0.0.1 / ::1) — em produção as rotas nem são registradas; chamadas remotas retornariam 403.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,6 +13,26 @@
     {
       "key": "chatId",
       "value": "minha-sessao-local"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "tmdbQuery",
+      "value": "matrix"
+    },
+    {
+      "key": "tmdbPage",
+      "value": "1"
+    },
+    {
+      "key": "tmdbMovieId",
+      "value": "603"
     }
   ],
   "item": [
@@ -25,12 +45,12 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/movie/queries",
-            "description": "Retorna exemplos de perguntas para pedir recomendações de filmes."
+            "description": "Retorna exemplos de perguntas para pedir recomendações de filmes. Não requer headers nem autenticação."
           },
           "response": []
         },
         {
-          "name": "Movie recommendation",
+          "name": "Movie recommendation (guest)",
           "request": {
             "method": "POST",
             "header": [
@@ -53,7 +73,39 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Gera recomendações de filmes com base na mensagem do usuário. Requer header `chatid`."
+            "description": "Gera recomendações de filmes com base na mensagem do usuário.\n\n**Headers obrigatórios**\n- `chatid`: {{chatId}} (campo Zod `chatid`; HTTP é case-insensitive)\n\n**Convidado (sem Authorization)**\n- Aplica cota de uso anônimo\n- Define cookie `guest-id` (httpOnly) — o Postman persiste via Cookie Jar\n- Resposta inclui header `X-Guest-Remaining` com tentativas restantes\n\n**Body**\n- `userMessage` (string, não vazia)"
+          },
+          "response": []
+        },
+        {
+          "name": "Movie recommendation (Bearer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "chatid",
+                "value": "{{chatId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userMessage\": \"Quero um filme de comédia leve para relaxar.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/recommendation",
+            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)"
           },
           "response": []
         }
@@ -82,7 +134,7 @@
               }
             },
             "url": "{{baseUrl}}/users/register",
-            "description": "Cadastra um novo usuário. Senha mínima: 8 caracteres. Respostas: 201, 400, 409."
+            "description": "Cadastra um novo usuário.\n\n**Body**\n- `email` (string)\n- `name` (string)\n- `password` (string, mínimo 8 caracteres)\n\nRespostas: 201, 400, 409."
           },
           "response": []
         }
@@ -93,6 +145,41 @@
       "item": [
         {
           "name": "Google auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "function persistAuthTokens() {",
+                  "    if (pm.response.code !== 200) return;",
+                  "    const json = pm.response.json();",
+                  "    if (json.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "        pm.environment.set('accessToken', json.accessToken);",
+                  "    }",
+                  "    const cookieName = 'refreshToken';",
+                  "    let refresh = null;",
+                  "    try { refresh = pm.cookies.get(cookieName); } catch (e) {}",
+                  "    if (!refresh) {",
+                  "        pm.response.headers.all().forEach(function (h) {",
+                  "            if (String(h.key).toLowerCase() !== 'set-cookie') return;",
+                  "            const first = String(h.value).split(';')[0];",
+                  "            const prefix = cookieName + '=';",
+                  "            if (first.toLowerCase().indexOf(prefix.toLowerCase()) !== 0) return;",
+                  "            refresh = decodeURIComponent(first.substring(prefix.length));",
+                  "        });",
+                  "    }",
+                  "    if (refresh) {",
+                  "        pm.collectionVariables.set('refreshToken', refresh);",
+                  "        pm.environment.set('refreshToken', refresh);",
+                  "    }",
+                  "}",
+                  "persistAuthTokens();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -111,12 +198,47 @@
               }
             },
             "url": "{{baseUrl}}/auth/google",
-            "description": "Autentica com ID token do Google. Vincula à conta nativa se o e-mail coincidir. Obtenha o token via login no frontend (DevTools > Network > POST /auth/google)."
+            "description": "Autentica com ID token do Google. Vincula à conta nativa se o e-mail coincidir.\n\n**Body**\n- `idToken` (string)\n\n**Resposta**\n- `accessToken` no body → variável `accessToken`\n- cookie httpOnly `refreshToken` → variável `refreshToken` (e Cookie Jar)\n\nObtenha o token via login no frontend (DevTools > Network > POST /auth/google)."
           },
           "response": []
         },
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "function persistAuthTokens() {",
+                  "    if (pm.response.code !== 200) return;",
+                  "    const json = pm.response.json();",
+                  "    if (json.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "        pm.environment.set('accessToken', json.accessToken);",
+                  "    }",
+                  "    const cookieName = 'refreshToken';",
+                  "    let refresh = null;",
+                  "    try { refresh = pm.cookies.get(cookieName); } catch (e) {}",
+                  "    if (!refresh) {",
+                  "        pm.response.headers.all().forEach(function (h) {",
+                  "            if (String(h.key).toLowerCase() !== 'set-cookie') return;",
+                  "            const first = String(h.value).split(';')[0];",
+                  "            const prefix = cookieName + '=';",
+                  "            if (first.toLowerCase().indexOf(prefix.toLowerCase()) !== 0) return;",
+                  "            refresh = decodeURIComponent(first.substring(prefix.length));",
+                  "        });",
+                  "    }",
+                  "    if (refresh) {",
+                  "        pm.collectionVariables.set('refreshToken', refresh);",
+                  "        pm.environment.set('refreshToken', refresh);",
+                  "    }",
+                  "}",
+                  "persistAuthTokens();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -135,17 +257,57 @@
               }
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Retorna accessToken no body e refreshToken em cookie httpOnly. Execute antes de Refresh/Logout."
+            "description": "Autentica com e-mail e senha.\n\n**Body**\n- `email` (string)\n- `password` (string)\n\n**Resposta**\n- `accessToken` no body → variável `accessToken` (usada em Movie recommendation Bearer)\n- cookie httpOnly `refreshToken` → variável `refreshToken` (usada em Refresh/Logout no header Cookie)\n\nExecute antes de Refresh/Logout ou da recomendação com Bearer."
           },
           "response": []
         },
         {
           "name": "Refresh access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "function persistAuthTokens() {",
+                  "    if (pm.response.code !== 200) return;",
+                  "    const json = pm.response.json();",
+                  "    if (json.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "        pm.environment.set('accessToken', json.accessToken);",
+                  "    }",
+                  "    const cookieName = 'refreshToken';",
+                  "    let refresh = null;",
+                  "    try { refresh = pm.cookies.get(cookieName); } catch (e) {}",
+                  "    if (!refresh) {",
+                  "        pm.response.headers.all().forEach(function (h) {",
+                  "            if (String(h.key).toLowerCase() !== 'set-cookie') return;",
+                  "            const first = String(h.value).split(';')[0];",
+                  "            const prefix = cookieName + '=';",
+                  "            if (first.toLowerCase().indexOf(prefix.toLowerCase()) !== 0) return;",
+                  "            refresh = decodeURIComponent(first.substring(prefix.length));",
+                  "        });",
+                  "    }",
+                  "    if (refresh) {",
+                  "        pm.collectionVariables.set('refreshToken', refresh);",
+                  "        pm.environment.set('refreshToken', refresh);",
+                  "    }",
+                  "}",
+                  "persistAuthTokens();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "refreshToken={{refreshToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/auth/refresh",
-            "description": "Usa o cookie refreshToken do Login. Rotaciona o refresh e retorna novo accessToken."
+            "description": "Renova o access token.\n\nEnvia `Cookie: refreshToken={{refreshToken}}` (preenchido no Login). Rotaciona o refresh e o test script atualiza `accessToken` e `refreshToken`."
           },
           "response": []
         },
@@ -153,9 +315,40 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "refreshToken={{refreshToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/auth/logout",
-            "description": "Revoga refresh no Redis e limpa o cookie."
+            "description": "Encerra a sessão.\n\nEnvia `Cookie: refreshToken={{refreshToken}}`. Revoga o refresh no Redis e limpa o cookie. Resposta: 204."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "TMDB debug",
+      "description": "Rotas de depuração do TMDB — registradas somente com `NODE_ENV !== prod`. `TmdbLoopbackGuard` aceita apenas requisições de loopback (127.0.0.1 / ::1). Em produção as rotas não existem; chamadas remotas retornariam 403.",
+      "item": [
+        {
+          "name": "Search movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/debug/tmdb/search?query={{tmdbQuery}}&page={{tmdbPage}}",
+            "description": "Busca filmes no TMDB (somente dev, loopback).\n\n**Query params**\n- `query` (obrigatório, string não vazia) — ex.: {{tmdbQuery}}\n- `page` (opcional, inteiro) — ex.: {{tmdbPage}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Get movie by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/debug/tmdb/movies/{{tmdbMovieId}}",
+            "description": "Detalhes de um filme no TMDB por ID (somente dev, loopback).\n\n**Path param**\n- `id` (inteiro) — ex.: {{tmdbMovieId}} (603 = Matrix)"
           },
           "response": []
         }
