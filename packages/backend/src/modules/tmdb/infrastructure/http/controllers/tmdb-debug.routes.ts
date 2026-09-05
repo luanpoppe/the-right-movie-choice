@@ -1,7 +1,9 @@
 import { FastifyInstance } from "fastify";
+import { MovieCatalogDetailsResolver } from "@/domains/movies/infrastructure/providers/movie-catalog-details.resolver";
+import { PrismaMovieCatalogRepository } from "@/domains/movies/infrastructure/repositories/movie-catalog/prisma-movie-catalog.repository";
 import { Redis } from "@/lib/redis/redis";
-import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
+import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
 import { TmdbLoopbackGuard } from "@/modules/tmdb/infrastructure/http/tmdb-loopback.guard";
 import { TmdbDebugController } from "./tmdb-debug.controller";
 
@@ -9,7 +11,9 @@ export async function tmdbDebugControllers(app: FastifyInstance) {
   const redis = new Redis();
   const cache = new TmdbMovieDetailsCache(redis);
   const catalog = MakeTmdbHttpClientFactory.create();
-  const controller = new TmdbDebugController(catalog, cache);
+  const repo = new PrismaMovieCatalogRepository();
+  const resolver = new MovieCatalogDetailsResolver(cache, repo, catalog);
+  const controller = new TmdbDebugController(catalog, resolver);
   const preHandler = TmdbLoopbackGuard.createPreHandler();
 
   app.addHook("preHandler", preHandler);

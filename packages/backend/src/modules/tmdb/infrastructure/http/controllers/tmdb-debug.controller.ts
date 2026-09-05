@@ -1,8 +1,8 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { BaseException } from "@/core/exceptions/base.exception";
 import { IMovieCatalogProvider } from "@/domains/movies/application/providers/movie-catalog.provider";
+import { MovieCatalogDetailsResolver } from "@/domains/movies/infrastructure/providers/movie-catalog-details.resolver";
 import { Logger } from "@/lib/logger/logger";
-import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 export class TmdbDebugQueryRequiredException extends BaseException {
@@ -24,52 +24,98 @@ export class TmdbDebugInvalidMovieIdException extends BaseException {
 export class TmdbDebugController {
   constructor(
     private readonly catalog: IMovieCatalogProvider,
-    private readonly cache: TmdbMovieDetailsCache,
+    private readonly resolver: MovieCatalogDetailsResolver,
   ) {}
 
   async search(request: FastifyRequest, reply: FastifyReply) {
-    const querystring = request.query as { query?: string; page?: string };
+    const querystring = request.query as {
+      query?: string;
+      page?: string;
+      language?: string;
+    };
     const query = querystring.query;
     if (StringUtils.isEmptyString(query)) {
       throw new TmdbDebugQueryRequiredException();
     }
 
     const page = TmdbDebugController.parseOptionalPage(querystring.page);
+    const language = TmdbDebugController.resolveOptionalLanguage(
+      querystring.language,
+    );
+    const startedAtMs = Date.now();
 
     Logger.info("TMDB debug search requested", {
       queryLength: query.length,
       page: page ?? 1,
+      startedAtMs,
     });
 
-    const result = await this.catalog.searchMovies(query, page);
+    try {
+      const hasLanguage = language !== undefined;
+      const result = hasLanguage
+        ? await this.catalog.searchMovies(query, page, undefined, language)
+        : await this.catalog.searchMovies(query, page);
 
-    Logger.debug("TMDB debug search completed", {
-      page: result.page,
-      resultCount: result.results.length,
-    });
+      const durationMs = Date.now() - startedAtMs;
+      TmdbDebugController.logSuccess("TMDB debug search completed", durationMs);
 
-    return reply.status(200).send(result);
+      Logger.debug("TMDB debug search result", {
+        page: result.page,
+        resultCount: result.results.length,
+        durationMs,
+        success: true,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      const durationMs = Date.now() - startedAtMs;
+      TmdbDebugController.logFailure("TMDB debug search failed", durationMs, error);
+      throw error;
+    }
   }
 
   async getMovie(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as { id: string };
+    const querystring = request.query as { language?: string };
     const movieId = Number(params.id);
     if (!Number.isInteger(movieId)) {
       throw new TmdbDebugInvalidMovieIdException();
     }
 
-    const cached = await this.cache.get(movieId);
-    if (cached !== null) {
-      Logger.info("TMDB debug movie details cache hit", { movieId });
-      return reply.status(200).send(cached);
+    const language = TmdbDebugController.resolveOptionalLanguage(
+      querystring.language,
+    );
+    const startedAtMs = Date.now();
+
+    Logger.info("TMDB debug movie details requested", {
+      movieId,
+      startedAtMs,
+    });
+
+    try {
+      const hasLanguage = language !== undefined;
+      const details = hasLanguage
+        ? await this.resolver.resolveByTmdbId(movieId, language)
+        : await this.resolver.resolveByTmdbId(movieId);
+
+      const durationMs = Date.now() - startedAtMs;
+      TmdbDebugController.logSuccess(
+        "TMDB debug movie details completed",
+        durationMs,
+        { movieId },
+      );
+
+      return reply.status(200).send(details);
+    } catch (error) {
+      const durationMs = Date.now() - startedAtMs;
+      TmdbDebugController.logFailure(
+        "TMDB debug movie details failed",
+        durationMs,
+        error,
+        { movieId },
+      );
+      throw error;
     }
-
-    Logger.info("TMDB debug movie details fetching from TMDB", { movieId });
-    const details = await this.catalog.getMovieDetails(movieId);
-    await this.cache.set(movieId, details);
-
-    Logger.debug("TMDB debug movie details fetched and cached", { movieId });
-    return reply.status(200).send(details);
   }
 
   private static parseOptionalPage(
@@ -85,5 +131,44 @@ export class TmdbDebugController {
     }
 
     return page;
+  }
+
+  private static resolveOptionalLanguage(
+    languageRaw: string | undefined,
+  ): string | undefined {
+    const isLanguageEmpty = StringUtils.isEmptyString(languageRaw);
+    if (isLanguageEmpty) {
+      return undefined;
+    }
+
+    return languageRaw;
+  }
+
+  private static logSuccess(
+    message: string,
+    durationMs: number,
+    extra?: Record<string, unknown>,
+  ) {
+    Logger.info(message, {
+      durationMs,
+      success: true,
+      ...extra,
+    });
+  }
+
+  private static logFailure(
+    message: string,
+    durationMs: number,
+    error: unknown,
+    extra?: Record<string, unknown>,
+  ) {
+    const isErrorInstance = error instanceof Error;
+    const errorMessage = isErrorInstance ? error.message : String(error);
+    Logger.error(message, {
+      durationMs,
+      success: false,
+      error: errorMessage,
+      ...extra,
+    });
   }
 }
