@@ -75,6 +75,7 @@ describe("MovieCatalogDetailsResolver", () => {
   let cache: TmdbMovieDetailsCache;
   let repository: IMovieCatalogRepository;
   let catalog: IMovieCatalogProvider;
+  let enqueuePersist: ReturnType<typeof vi.fn>;
   let resolver: MovieCatalogDetailsResolver;
 
   beforeEach(() => {
@@ -99,7 +100,14 @@ describe("MovieCatalogDetailsResolver", () => {
       getMovieDetails: vi.fn(),
     };
 
-    resolver = new MovieCatalogDetailsResolver(cache, repository, catalog);
+    enqueuePersist = vi.fn().mockResolvedValue(undefined);
+
+    resolver = new MovieCatalogDetailsResolver(
+      cache,
+      repository,
+      catalog,
+      enqueuePersist,
+    );
   });
 
   afterEach(() => {
@@ -117,6 +125,66 @@ describe("MovieCatalogDetailsResolver", () => {
     expect(repository.findByTmdbId).not.toHaveBeenCalled();
     expect(catalog.getMovieDetails).not.toHaveBeenCalled();
     expect(cache.set).not.toHaveBeenCalled();
+    expect(enqueuePersist).not.toHaveBeenCalled();
+  });
+
+  it("edge redis hit: ignora frescor de 30 dias do Postgres e não consulta o banco", async () => {
+    const cachedDetails = MovieCatalogDetailsResolverFixtures.details({
+      title: "Interestelar (cache L1)",
+      overview: "Ficha em Redis com TTL ativo",
+    });
+    vi.mocked(cache.get).mockResolvedValue(cachedDetails);
+
+    const result = await resolver.resolveByTmdbId(tmdbId);
+
+    expect(result).toBe(cachedDetails);
+    expect(repository.findByTmdbId).not.toHaveBeenCalled();
+    expect(catalog.getMovieDetails).not.toHaveBeenCalled();
+  });
+
+  it("REQ-5: cache miss (Redis indisponível) segue para banco fresco", async () => {
+    const localDetails = MovieCatalogDetailsResolverFixtures.details();
+    const updatedAt = MovieCatalogDetailsResolverFixtures.freshUpdatedAt(now);
+    const localRecord = MovieCatalogDetailsResolverFixtures.storedRecord(
+      localDetails,
+      updatedAt,
+    );
+
+    vi.mocked(cache.get).mockResolvedValue(null);
+    vi.mocked(repository.findByTmdbId).mockResolvedValue(localRecord);
+
+    const result = await resolver.resolveByTmdbId(tmdbId);
+
+    expect(result).toBe(localDetails);
+    expect(repository.findByTmdbId).toHaveBeenCalledWith(tmdbId, lang);
+    expect(catalog.getMovieDetails).not.toHaveBeenCalled();
+    expect(cache.set).toHaveBeenCalledWith(tmdbId, localDetails, lang);
+    expect(enqueuePersist).not.toHaveBeenCalled();
+  });
+
+  it("edge idioma omitido: resolve com DEFAULT_MOVIE_CATALOG_LANGUAGE", async () => {
+    const localDetails = MovieCatalogDetailsResolverFixtures.details();
+    const updatedAt = MovieCatalogDetailsResolverFixtures.freshUpdatedAt(now);
+    const localRecord = MovieCatalogDetailsResolverFixtures.storedRecord(
+      localDetails,
+      updatedAt,
+    );
+
+    vi.mocked(cache.get).mockResolvedValue(null);
+    vi.mocked(repository.findByTmdbId).mockResolvedValue(localRecord);
+
+    await resolver.resolveByTmdbId(tmdbId);
+
+    expect(cache.get).toHaveBeenCalledWith(tmdbId, DEFAULT_MOVIE_CATALOG_LANGUAGE);
+    expect(repository.findByTmdbId).toHaveBeenCalledWith(
+      tmdbId,
+      DEFAULT_MOVIE_CATALOG_LANGUAGE,
+    );
+    expect(cache.set).toHaveBeenCalledWith(
+      tmdbId,
+      localDetails,
+      DEFAULT_MOVIE_CATALOG_LANGUAGE,
+    );
   });
 
   it("fresh db: aquece Redis e devolve ficha local", async () => {
@@ -160,6 +228,7 @@ describe("MovieCatalogDetailsResolver", () => {
     expect(result).toBe(tmdbDetails);
     expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
+    expect(enqueuePersist).toHaveBeenCalledWith(tmdbDetails, lang);
     expect(repository.upsert).not.toHaveBeenCalled();
   });
 
@@ -186,6 +255,7 @@ describe("MovieCatalogDetailsResolver", () => {
       expect.objectContaining({ tmdbId }),
     );
     expect(cache.set).not.toHaveBeenCalled();
+    expect(enqueuePersist).not.toHaveBeenCalled();
   });
 
   it("prisma throw: loga, pula banco e busca no TMDB", async () => {
@@ -205,9 +275,10 @@ describe("MovieCatalogDetailsResolver", () => {
     );
     expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
+    expect(enqueuePersist).toHaveBeenCalledWith(tmdbDetails, lang);
   });
 
-  it("sem registro local + TMDB ok: grava Redis e devolve ficha", async () => {
+  it("REQ-1: sem registro local + TMDB ok enfileira persistência após gravar Redis", async () => {
     const tmdbDetails = MovieCatalogDetailsResolverFixtures.details();
 
     vi.mocked(cache.get).mockResolvedValue(null);
@@ -219,6 +290,7 @@ describe("MovieCatalogDetailsResolver", () => {
     expect(result).toBe(tmdbDetails);
     expect(catalog.getMovieDetails).toHaveBeenCalledWith(tmdbId, lang);
     expect(cache.set).toHaveBeenCalledWith(tmdbId, tmdbDetails, lang);
+    expect(enqueuePersist).toHaveBeenCalledWith(tmdbDetails, lang);
   });
 
   it("sem registro local + TMDB fail: relança o erro", async () => {
@@ -230,5 +302,15 @@ describe("MovieCatalogDetailsResolver", () => {
 
     await expect(resolver.resolveByTmdbId(tmdbId)).rejects.toThrow(tmdbError);
     expect(cache.set).not.toHaveBeenCalled();
+    expect(enqueuePersist).not.toHaveBeenCalled();
+  });
+
+  it("REQ-4: redis hit não enfileira persistência", async () => {
+    const cachedDetails = MovieCatalogDetailsResolverFixtures.details();
+    vi.mocked(cache.get).mockResolvedValue(cachedDetails);
+
+    await resolver.resolveByTmdbId(tmdbId);
+
+    expect(enqueuePersist).not.toHaveBeenCalled();
   });
 });

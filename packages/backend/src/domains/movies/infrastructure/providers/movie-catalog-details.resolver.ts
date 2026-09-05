@@ -6,15 +6,22 @@ import {
   IMovieCatalogRepository,
   MovieCatalogStoredRecord,
 } from "@/domains/movies/domain/repositories/movie-catalog.repository";
+import { CatalogPersistEnqueuer } from "@/domains/movies/infrastructure/workers/catalog-persist.enqueuer";
 import { Logger } from "@/lib/logger/logger";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
 import { ErrorUtils } from "@/shared/utils/error.utils";
+
+export type CatalogPersistEnqueueFn = (
+  details: MovieCatalogDetails,
+  language: string,
+) => Promise<void>;
 
 export class MovieCatalogDetailsResolver {
   constructor(
     private readonly cache: TmdbMovieDetailsCache,
     private readonly repository: IMovieCatalogRepository,
     private readonly catalog: IMovieCatalogProvider,
+    private readonly enqueuePersist: CatalogPersistEnqueueFn = CatalogPersistEnqueuer.enqueue,
   ) {}
 
   async resolveByTmdbId(
@@ -67,6 +74,7 @@ export class MovieCatalogDetailsResolver {
     try {
       const tmdbDetails = await this.catalog.getMovieDetails(tmdbId, lang);
       await this.cache.set(tmdbId, tmdbDetails, lang);
+      await this.enqueuePersist(tmdbDetails, lang);
       return tmdbDetails;
     } catch (error) {
       MovieCatalogDetailsResolver.logStaleFallback(tmdbId, error);
@@ -80,6 +88,7 @@ export class MovieCatalogDetailsResolver {
   ): Promise<MovieCatalogDetails> {
     const tmdbDetails = await this.catalog.getMovieDetails(tmdbId, lang);
     await this.cache.set(tmdbId, tmdbDetails, lang);
+    await this.enqueuePersist(tmdbDetails, lang);
     return tmdbDetails;
   }
 
