@@ -90,7 +90,7 @@ describe("AiMovieRecommendationProvider", () => {
       const validEntity = MovieRecommendationFixtures.validEntity();
       callStructuredOutput.mockResolvedValue({ response: validEntity });
       const expectedHumanMessage = AIMessages.human(userMessage);
-      const expectedSystemPrompt = MovieRecommendationPrompts.structured();
+      const expectedSystemPrompt = MovieRecommendationPrompts.unified();
 
       const result = await provider.getStructuredMoviesRecommendation(
         userMessage,
@@ -162,8 +162,7 @@ describe("AiMovieRecommendationProvider", () => {
       const movies = MovieRecommendationFixtures.validEntity();
       const expectedText = "sugestão em texto";
       call.mockResolvedValue({ text: expectedText });
-      const moviesJson = JSON.stringify(movies);
-      const expectedSystemPrompt = MovieRecommendationPrompts.chat(moviesJson);
+      const expectedSystemPrompt = MovieRecommendationPrompts.unified();
       const expectedHumanMessage = AIMessages.human(userMessage);
 
       const text = await provider.getChatResponse(

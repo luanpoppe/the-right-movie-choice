@@ -20,7 +20,7 @@ export class AiMovieRecommendationProvider
   ) {
     const humanMessage = AIMessages.human(userMessage);
     const messages = [humanMessage];
-    const systemPrompt = MovieRecommendationPrompts.structured();
+    const systemPrompt = MovieRecommendationPrompts.unified();
     const startedAtMs = Date.now();
 
     try {
@@ -51,8 +51,7 @@ export class AiMovieRecommendationProvider
     userMessage: string,
     chatId: string,
   ) {
-    const moviesJson = JSON.stringify(movies);
-    const systemPrompt = MovieRecommendationPrompts.chat(moviesJson);
+    const systemPrompt = MovieRecommendationPrompts.unified();
     const humanMessage = AIMessages.human(userMessage);
     const messages = [humanMessage];
     const startedAtMs = Date.now();
@@ -64,6 +63,7 @@ export class AiMovieRecommendationProvider
         messages,
         threadId: chatId,
       });
+
       const durationMs = Date.now() - startedAtMs;
       this.logSuccess("Movie chat recommendation completed", durationMs);
       return result.text;
