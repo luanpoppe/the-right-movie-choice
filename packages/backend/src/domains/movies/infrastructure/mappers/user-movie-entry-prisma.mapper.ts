@@ -1,5 +1,9 @@
 import type { UserMovieEntry as PrismaUserMovieEntry } from "../../../../../generated/prisma/client.js";
-import type { UserMovieEntryEntity } from "../../domain/entities/user-movie-entry.entity";
+import type {
+  UserMovieEntryEntity,
+  UserMovieEntryListItemEntity,
+  UserMovieEntryMovieSummary,
+} from "../../domain/entities/user-movie-entry.entity";
 
 export class UserMovieEntryPrismaMapper {
   static toEntity(row: PrismaUserMovieEntry): UserMovieEntryEntity {
@@ -15,5 +19,16 @@ export class UserMovieEntryPrismaMapper {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  static toListItemEntity(
+    entity: UserMovieEntryEntity,
+    movie: UserMovieEntryMovieSummary | null,
+  ): UserMovieEntryListItemEntity {
+    const listItem: UserMovieEntryListItemEntity = {
+      ...entity,
+      movie,
+    };
+    return listItem;
   }
 }

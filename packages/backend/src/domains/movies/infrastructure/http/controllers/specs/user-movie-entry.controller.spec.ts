@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FastifyReply, FastifyRequest } from "fastify";
-import type { UserMovieEntryEntity } from "@/domains/movies/domain/entities/user-movie-entry.entity";
+import type {
+  UserMovieEntryEntity,
+  UserMovieEntryListItemEntity,
+  UserMovieEntryMovieSummary,
+} from "@/domains/movies/domain/entities/user-movie-entry.entity";
 import { UserMovieEntryValidationException } from "@/domains/movies/domain/exceptions/user-movie-entry-validation.exception";
 import { GetUserMovieEntryUseCase } from "@/domains/movies/application/use-cases/get-user-movie-entry.use-case";
 import { ListUserMovieEntriesUseCase } from "@/domains/movies/application/use-cases/list-user-movie-entries.use-case";
@@ -11,6 +15,7 @@ import type {
   UserMovieEntryTmdbIdParams,
 } from "../../dto/user-movie-entry.dto";
 import { UserMovieEntryController } from "../user-movie-entry.controller";
+import { TmdbPosterUtils } from "@/modules/tmdb/domain/tmdb-poster.utils";
 
 class UserMovieEntryControllerFixtures {
   static entry(overrides: Partial<UserMovieEntryEntity> = {}): UserMovieEntryEntity {
@@ -26,6 +31,33 @@ class UserMovieEntryControllerFixtures {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-02T00:00:00.000Z"),
       ...overrides,
+    };
+  }
+
+  static movieSummary(
+    overrides: Partial<UserMovieEntryMovieSummary> = {},
+  ): UserMovieEntryMovieSummary {
+    return {
+      title: "Interestelar",
+      year: 2014,
+      posterPath: "/poster.jpg",
+      ...overrides,
+    };
+  }
+
+  static listItem(
+    overrides: Partial<UserMovieEntryListItemEntity> = {},
+  ): UserMovieEntryListItemEntity {
+    const baseEntry = UserMovieEntryControllerFixtures.entry();
+    const movie =
+      overrides.movie === undefined
+        ? UserMovieEntryControllerFixtures.movieSummary()
+        : overrides.movie;
+
+    return {
+      ...baseEntry,
+      ...overrides,
+      movie,
     };
   }
 }
@@ -73,7 +105,7 @@ describe("UserMovieEntryController", () => {
   });
 
   it("list happy path uses userId from auth context", async () => {
-    const entry = UserMovieEntryControllerFixtures.entry();
+    const entry = UserMovieEntryControllerFixtures.listItem();
     vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
     const request = createAuthRequest({
       query: { watched: "true" },
@@ -98,13 +130,18 @@ describe("UserMovieEntryController", () => {
           watchedAt: "2024-06-15T20:00:00.000Z",
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-02T00:00:00.000Z",
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
         },
       ],
     });
   });
 
   it("list accepts query booleans already coerced by Fastify validator", async () => {
-    const entry = UserMovieEntryControllerFixtures.entry();
+    const entry = UserMovieEntryControllerFixtures.listItem();
     vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
     const request = createAuthRequest({
       query: { watched: true },
@@ -129,7 +166,32 @@ describe("UserMovieEntryController", () => {
           watchedAt: "2024-06-15T20:00:00.000Z",
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-02T00:00:00.000Z",
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
         },
+      ],
+    });
+  });
+
+  it("list returns movie null when catalog summary is absent", async () => {
+    const entry = UserMovieEntryControllerFixtures.listItem({ movie: null });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: "true" },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: [
+        expect.objectContaining({
+          tmdbId: 157336,
+          movie: null,
+        }),
       ],
     });
   });
@@ -157,6 +219,7 @@ describe("UserMovieEntryController", () => {
         watchedAt: "2024-06-15T20:00:00.000Z",
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
+        movie: null,
       },
     });
   });
@@ -207,6 +270,7 @@ describe("UserMovieEntryController", () => {
         watchedAt: "2024-06-15T20:00:00.000Z",
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
+        movie: null,
       },
     });
   });
@@ -277,8 +341,11 @@ describe("UserMovieEntryController", () => {
   });
 
   it("list without query passes empty filter to use case", async () => {
-    const entryA = UserMovieEntryControllerFixtures.entry({ tmdbId: 1 });
-    const entryB = UserMovieEntryControllerFixtures.entry({ tmdbId: 2 });
+    const entryA = UserMovieEntryControllerFixtures.listItem({ tmdbId: 1 });
+    const entryB = UserMovieEntryControllerFixtures.listItem({
+      tmdbId: 2,
+      movie: null,
+    });
     vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([
       entryA,
       entryB,
@@ -294,14 +361,21 @@ describe("UserMovieEntryController", () => {
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith({
       entries: expect.arrayContaining([
-        expect.objectContaining({ tmdbId: 1 }),
-        expect.objectContaining({ tmdbId: 2 }),
+        expect.objectContaining({
+          tmdbId: 1,
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
+        }),
+        expect.objectContaining({ tmdbId: 2, movie: null }),
       ]),
     });
   });
 
   it("list passes AND filter when multiple query flags are present", async () => {
-    const entry = UserMovieEntryControllerFixtures.entry({
+    const entry = UserMovieEntryControllerFixtures.listItem({
       watched: true,
       favorite: true,
       inWatchlist: false,
@@ -370,6 +444,7 @@ describe("UserMovieEntryController", () => {
         watched: true,
         favorite: true,
         inWatchlist: true,
+        movie: null,
       }),
     });
   });

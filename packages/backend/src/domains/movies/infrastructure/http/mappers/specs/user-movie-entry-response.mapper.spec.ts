@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { UserMovieEntryEntity } from "@/domains/movies/domain/entities/user-movie-entry.entity";
+import type {
+  UserMovieEntryEntity,
+  UserMovieEntryListItemEntity,
+} from "@/domains/movies/domain/entities/user-movie-entry.entity";
 import { UserMovieEntryResponseMapper } from "../user-movie-entry-response.mapper";
+import { TmdbPosterUtils } from "@/modules/tmdb/domain/tmdb-poster.utils";
 
 class UserMovieEntryResponseMapperFixtures {
   static entity(overrides: Partial<UserMovieEntryEntity> = {}): UserMovieEntryEntity {
@@ -36,6 +40,7 @@ describe("UserMovieEntryResponseMapper", () => {
       watchedAt: "2024-06-15T20:00:00.000Z",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-02T00:00:00.000Z",
+      movie: null,
     });
   });
 
@@ -99,5 +104,39 @@ describe("UserMovieEntryResponseMapper", () => {
     expect(response).toEqual({
       entry: UserMovieEntryResponseMapper.toResponse(entity),
     });
+  });
+
+  it("converte posterPath relativo do catálogo em URL TMDB na listagem", () => {
+    const listItem: UserMovieEntryListItemEntity = {
+      ...UserMovieEntryResponseMapperFixtures.entity(),
+      movie: {
+        title: "Interestelar",
+        year: 2014,
+        posterPath: "/poster.jpg",
+      },
+    };
+
+    const response = UserMovieEntryResponseMapper.toResponse(listItem);
+
+    expect(response.movie).toEqual({
+      title: "Interestelar",
+      year: 2014,
+      posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+    });
+  });
+
+  it("retorna movie.posterPath null quando catálogo não tem poster", () => {
+    const listItem: UserMovieEntryListItemEntity = {
+      ...UserMovieEntryResponseMapperFixtures.entity(),
+      movie: {
+        title: "Interestelar",
+        year: 2014,
+        posterPath: null,
+      },
+    };
+
+    const response = UserMovieEntryResponseMapper.toResponse(listItem);
+
+    expect(response.movie?.posterPath).toBeNull();
   });
 });

@@ -53,6 +53,16 @@ export type UserMovieEntryTmdbIdParams = z.infer<
   typeof UserMovieEntryTmdbIdParamsSchema
 >;
 
+export const UserMovieEntryMovieSummarySchema = z.object({
+  title: z.string(),
+  year: z.int().nullable(),
+  posterPath: z.union([z.null(), z.string().url()]),
+});
+
+export type UserMovieEntryMovieSummaryResponse = z.infer<
+  typeof UserMovieEntryMovieSummarySchema
+>;
+
 export const UserMovieEntryResponseSchema = z.object({
   tmdbId: z.int().positive(),
   movieId: z.int().positive().nullable(),
@@ -63,6 +73,7 @@ export const UserMovieEntryResponseSchema = z.object({
   watchedAt: z.union([z.null(), z.string()]),
   createdAt: z.string(),
   updatedAt: z.string(),
+  movie: UserMovieEntryMovieSummarySchema.nullable().optional(),
 });
 
 export type UserMovieEntryResponse = z.infer<
