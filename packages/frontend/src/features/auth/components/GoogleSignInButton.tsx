@@ -17,7 +17,7 @@ export function GoogleSignInButton({
 
   async function handleSuccess(credentialResponse: CredentialResponse) {
     if (!credentialResponse.credential) {
-      toast.error("Não foi possível obter o token do Google.");
+      toast.error("Could not obtain the Google token.");
       return;
     }
 
@@ -26,7 +26,7 @@ export function GoogleSignInButton({
         idToken: credentialResponse.credential,
       });
       setAccessToken(tokens.accessToken);
-      toast.success("Autenticação com Google realizada!");
+      toast.success("Google sign-in successful!");
       navigate(redirectPath);
     } catch (error) {
       toast.error(getAuthErrorMessage(error));
@@ -34,7 +34,7 @@ export function GoogleSignInButton({
   }
 
   function handleError() {
-    toast.error("Falha ao autenticar com o Google.");
+    toast.error("Failed to sign in with Google.");
   }
 
   return (

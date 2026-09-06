@@ -10,7 +10,7 @@ export function useIsLoading<T = any>(callback: () => Promise<T>) {
       await callback();
       setIsLoading(false);
     } catch (error: any) {
-      toast.error("Algo não ocorreu como deveria!");
+      toast.error("Something didn't go as expected!");
       console.log(
         "error: ",
         error.status?.toString() ?? error,

@@ -110,22 +110,22 @@ export function MovieCardWatchedModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Marcar como assistido</DialogTitle>
+          <DialogTitle>Mark as watched</DialogTitle>
           <DialogDescription>
-            Nota e data são opcionais. Confirme para salvar.
+            Rating and date are optional. Confirm to save.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label htmlFor={`watched-rating-${tmdbId}`}>Nota (1–10)</Label>
+            <Label htmlFor={`watched-rating-${tmdbId}`}>Rating (1–10)</Label>
             <Input
               id={`watched-rating-${tmdbId}`}
               type="number"
               min={1}
               max={10}
               step={1}
-              placeholder="Opcional"
+              placeholder="Optional"
               value={ratingInput}
               onChange={(event) => setRatingInput(event.target.value)}
               disabled={isCurrentlyPatching}
@@ -133,7 +133,7 @@ export function MovieCardWatchedModal({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor={`watched-date-${tmdbId}`}>Data assistida</Label>
+            <Label htmlFor={`watched-date-${tmdbId}`}>Date watched</Label>
             <Input
               id={`watched-date-${tmdbId}`}
               type="date"
@@ -151,14 +151,14 @@ export function MovieCardWatchedModal({
             onClick={() => handleOpenChange(false)}
             disabled={isCurrentlyPatching}
           >
-            Cancelar
+            Cancel
           </Button>
           <Button
             type="button"
             onClick={handleConfirm}
             disabled={isCurrentlyPatching}
           >
-            Confirmar
+            Confirm
           </Button>
         </DialogFooter>
       </DialogContent>

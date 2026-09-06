@@ -27,7 +27,7 @@ export class LibraryMovieCardUtils {
   static resolveTitle(entry: UserMovieEntryEntity): string {
     const movie = entry.movie;
     if (movie == null) {
-      return `Filme #${entry.tmdbId}`;
+      return `Movie #${entry.tmdbId}`;
     }
 
     return movie.title;
@@ -111,7 +111,7 @@ function LibraryMovieCardPoster({
   return (
     <img
       src={posterUrl}
-      alt={`Poster de ${title}`}
+      alt={`Poster for ${title}`}
       className="aspect-[2/3] w-full object-cover"
       onError={handleImageError}
     />

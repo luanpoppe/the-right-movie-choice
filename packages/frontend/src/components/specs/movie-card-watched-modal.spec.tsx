@@ -15,13 +15,16 @@ const mockedUseUserMovieEntries = jest.mocked(useUserMovieEntries);
 
 describe("MovieCardWatchedModal", () => {
   const patchEntry = jest.fn();
+  const hasEntry = jest.fn();
   const onOpenChange = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    hasEntry.mockReturnValue(false);
     patchEntry.mockResolvedValue(true);
     mockedUseUserMovieEntries.mockReturnValue({
       getFlags: jest.fn(),
+      hasEntry,
       patchEntry,
       isLoading: false,
       isPatching: () => false,
@@ -42,7 +45,7 @@ describe("MovieCardWatchedModal", () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {
       expect(patchEntry).toHaveBeenCalledWith(157336, { watched: true });
@@ -55,14 +58,14 @@ describe("MovieCardWatchedModal", () => {
     renderModal();
 
     await user.type(
-      screen.getByLabelText("Nota (1–10)"),
+      screen.getByLabelText("Rating (1–10)"),
       "8",
     );
     await user.type(
-      screen.getByLabelText("Data assistida"),
+      screen.getByLabelText("Date watched"),
       "2026-03-15",
     );
-    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {
       expect(patchEntry).toHaveBeenCalledWith(157336, {
@@ -77,8 +80,8 @@ describe("MovieCardWatchedModal", () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText("Nota (1–10)"), "7");
-    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+    await user.type(screen.getByLabelText("Rating (1–10)"), "7");
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {
       expect(patchEntry).toHaveBeenCalledWith(157336, {
@@ -94,7 +97,7 @@ describe("MovieCardWatchedModal", () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(patchEntry).not.toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);

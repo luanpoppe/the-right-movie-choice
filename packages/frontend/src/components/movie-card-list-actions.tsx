@@ -51,12 +51,12 @@ function ListToggleButton({
 function GuestListActionsCta() {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      <span>Salve suas listas criando uma conta:</span>
+      <span>Save your lists by creating an account:</span>
       <Button variant="ghost" size="sm" asChild>
-        <Link to="/login">Entrar</Link>
+        <Link to="/login">Sign in</Link>
       </Button>
       <Button size="sm" asChild>
-        <Link to="/register">Criar conta</Link>
+        <Link to="/register">Create account</Link>
       </Button>
     </div>
   );
@@ -82,7 +82,7 @@ function ListActionsLoadingState() {
       aria-busy="true"
     >
       <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-      <span>Carregando suas listas...</span>
+      <span>Loading your lists...</span>
     </div>
   );
 }
@@ -134,7 +134,7 @@ function AuthenticatedMovieCardListActions({
     <>
       <div className="flex flex-wrap items-center gap-1">
         <ListToggleButton
-          label="Assistido"
+          label="Watched"
           isActive={flags.watched}
           isDisabled={areTogglesDisabled}
           onClick={handleWatchedToggle}
@@ -143,7 +143,7 @@ function AuthenticatedMovieCardListActions({
         </ListToggleButton>
 
         <ListToggleButton
-          label="Favorito"
+          label="Favorite"
           isActive={flags.favorite}
           isDisabled={areTogglesDisabled}
           onClick={handleFavoriteToggle}

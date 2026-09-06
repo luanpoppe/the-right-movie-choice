@@ -9,5 +9,5 @@ export function getAuthErrorMessage(error: unknown): string {
     }
   }
 
-  return "Não foi possível concluir a autenticação. Tente novamente.";
+  return "Could not complete authentication. Please try again.";
 }

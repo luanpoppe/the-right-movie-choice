@@ -67,13 +67,13 @@ describe("MovieCardListActions", () => {
     renderActions();
 
     expect(
-      screen.getByText("Salve suas listas criando uma conta:"),
+      screen.getByText("Save your lists by creating an account:"),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
       "href",
       "/login",
     );
-    expect(screen.getByRole("link", { name: "Criar conta" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
       "href",
       "/register",
     );
@@ -93,7 +93,7 @@ describe("MovieCardListActions", () => {
       const user = userEvent.setup();
       renderActions(27205);
 
-      await user.click(screen.getByRole("button", { name: "Favorito" }));
+      await user.click(screen.getByRole("button", { name: "Favorite" }));
 
       expect(patchEntry).toHaveBeenCalledWith(27205, { favorite: true });
     });
@@ -111,10 +111,10 @@ describe("MovieCardListActions", () => {
       const user = userEvent.setup();
       renderActions(157336);
 
-      await user.click(screen.getByRole("button", { name: "Assistido" }));
+      await user.click(screen.getByRole("button", { name: "Watched" }));
 
       expect(
-        screen.getByRole("heading", { name: "Marcar como assistido" }),
+        screen.getByRole("heading", { name: "Mark as watched" }),
       ).toBeInTheDocument();
       expect(patchEntry).not.toHaveBeenCalled();
     });
@@ -131,11 +131,11 @@ describe("MovieCardListActions", () => {
       const user = userEvent.setup();
       renderActions(157336);
 
-      await user.click(screen.getByRole("button", { name: "Assistido" }));
+      await user.click(screen.getByRole("button", { name: "Watched" }));
 
       expect(patchEntry).toHaveBeenCalledWith(157336, { watched: false });
       expect(
-        screen.queryByRole("heading", { name: "Marcar como assistido" }),
+        screen.queryByRole("heading", { name: "Mark as watched" }),
       ).not.toBeInTheDocument();
     });
 
@@ -150,7 +150,7 @@ describe("MovieCardListActions", () => {
 
       renderActions(27205);
 
-      const favoriteButton = screen.getByRole("button", { name: "Favorito" });
+      const favoriteButton = screen.getByRole("button", { name: "Favorite" });
       expect(favoriteButton).toHaveAttribute("aria-pressed", "true");
     });
 
@@ -166,10 +166,10 @@ describe("MovieCardListActions", () => {
       renderActions(27205);
 
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Carregando suas listas...",
+        "Loading your lists...",
       );
       expect(
-        screen.queryByRole("button", { name: "Favorito" }),
+        screen.queryByRole("button", { name: "Favorite" }),
       ).not.toBeInTheDocument();
       expect(getFlags).not.toHaveBeenCalled();
     });

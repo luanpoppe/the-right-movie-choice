@@ -78,6 +78,7 @@ describe("LibraryMovieCard", () => {
         rating: 9,
         watchedAt: "2026-03-15T03:00:00.000Z",
       }),
+      hasEntry: jest.fn().mockReturnValue(true),
       patchEntry: jest.fn(),
       isLoading: false,
       isPatching: () => false,
@@ -93,7 +94,7 @@ describe("LibraryMovieCard", () => {
     expect(screen.getByText("2014")).toBeInTheDocument();
     expect(screen.getByText("9")).toBeInTheDocument();
     expect(screen.getByText("15/03/2026")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Poster de Interestelar" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "Poster for Interestelar" })).toHaveAttribute(
       "src",
       "https://image.tmdb.org/t/p/w500/poster.jpg",
     );
@@ -109,7 +110,7 @@ describe("LibraryMovieCard", () => {
 
     renderCard(entry, true);
 
-    expect(screen.getByText("Filme #999001")).toBeInTheDocument();
+    expect(screen.getByText("Movie #999001")).toBeInTheDocument();
     expect(screen.getByTestId("icon-film")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
@@ -158,8 +159,8 @@ describe("LibraryMovieCard", () => {
 
     renderCard(entry, false);
 
-    expect(screen.getByRole("button", { name: "Favorito" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Favorite" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Watchlist" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assistido" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Watched" })).toBeInTheDocument();
   });
 });

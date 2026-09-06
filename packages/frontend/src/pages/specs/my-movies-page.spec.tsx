@@ -205,14 +205,14 @@ describe("MyMoviesPage", () => {
       renderMyMoviesPage();
 
       await waitFor(() => {
-        expect(screen.getByRole("tab", { name: "Assistidos" })).toHaveAttribute(
+        expect(screen.getByRole("tab", { name: "Watched" })).toHaveAttribute(
           "data-state",
           "active",
         );
       });
 
-      expect(screen.getByRole("tab", { name: "Quero ver" })).toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: "Favoritos" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Want to watch" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Favorites" })).toBeInTheDocument();
     });
 
     it("REQ-3: aba Assistidos chama GET watched=true e exibe card", async () => {
@@ -250,7 +250,7 @@ describe("MyMoviesPage", () => {
         expect(mockedListEntries).toHaveBeenCalledWith({ watched: true });
       });
 
-      await user.click(screen.getByRole("tab", { name: "Quero ver" }));
+      await user.click(screen.getByRole("tab", { name: "Want to watch" }));
 
       await waitFor(() => {
         expect(mockedListEntries).toHaveBeenCalledWith({ inWatchlist: true });
@@ -273,7 +273,7 @@ describe("MyMoviesPage", () => {
         expect(mockedListEntries).toHaveBeenCalledWith({ watched: true });
       });
 
-      await user.click(screen.getByRole("tab", { name: "Favoritos" }));
+      await user.click(screen.getByRole("tab", { name: "Favorites" }));
 
       await waitFor(() => {
         expect(mockedListEntries).toHaveBeenCalledWith({ favorite: true });
@@ -288,12 +288,12 @@ describe("MyMoviesPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/ainda não marcou nenhum filme como assistido/i),
+          screen.getByText(/haven't marked any movie as watched yet/i),
         ).toBeInTheDocument();
       });
 
       expect(
-        screen.getByRole("link", { name: "Pedir recomendações no chat" }),
+        screen.getByRole("link", { name: "Get recommendations in chat" }),
       ).toHaveAttribute("href", "/");
     });
 
@@ -321,13 +321,13 @@ describe("MyMoviesPage", () => {
       });
 
       expect(
-        screen.getByText("Não foi possível carregar seus filmes."),
+        screen.getByText("Could not load your movies."),
       ).toBeInTheDocument();
 
       shouldFailTabFetch = false;
       const callsBeforeRetry = mockedListEntries.mock.calls.length;
 
-      await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+      await user.click(screen.getByRole("button", { name: "Try again" }));
 
       await waitFor(() => {
         expect(mockedListEntries.mock.calls.length).toBeGreaterThan(
@@ -336,7 +336,7 @@ describe("MyMoviesPage", () => {
       });
 
       expect(
-        screen.queryByText("Não foi possível carregar seus filmes."),
+        screen.queryByText("Could not load your movies."),
       ).not.toBeInTheDocument();
     });
 
@@ -363,13 +363,13 @@ describe("MyMoviesPage", () => {
       const user = userEvent.setup();
       renderMyMoviesPage();
 
-      await user.click(screen.getByRole("tab", { name: "Favoritos" }));
+      await user.click(screen.getByRole("tab", { name: "Favorites" }));
 
       await waitFor(() => {
         expect(screen.getByText("A Origem")).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("button", { name: "Favorito" }));
+      await user.click(screen.getByRole("button", { name: "Favorite" }));
 
       await waitFor(() => {
         expect(mockedPatchEntry).toHaveBeenCalledWith(27205, {
@@ -409,12 +409,12 @@ describe("MyMoviesPage", () => {
         expect(screen.getByText("Interestelar")).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("tab", { name: "Quero ver" }));
+      await user.click(screen.getByRole("tab", { name: "Want to watch" }));
       await waitFor(() => {
         expect(screen.getByText("Interestelar")).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("tab", { name: "Favoritos" }));
+      await user.click(screen.getByRole("tab", { name: "Favorites" }));
       await waitFor(() => {
         expect(screen.getByText("Interestelar")).toBeInTheDocument();
       });

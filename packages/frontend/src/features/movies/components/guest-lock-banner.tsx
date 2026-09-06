@@ -8,18 +8,18 @@ export function GuestLockBanner() {
       className="rounded-2xl border border-border/50 bg-card/80 p-4 shadow-lg space-y-3"
     >
       <p className="text-sm text-foreground">
-        Você chegou ao limite de recomendações sem conta. Crie uma conta para
-        continuar usando o chat.
+        You&apos;ve reached the recommendation limit without an account. Create
+        an account to keep using the chat.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" asChild>
-          <Link to="/register">Criar conta</Link>
+          <Link to="/register">Create account</Link>
         </Button>
         <Link
           to="/login"
           className="text-sm text-primary hover:underline underline-offset-4"
         >
-          Já tem conta? Entrar
+          Already have an account? Sign in
         </Link>
       </div>
     </div>

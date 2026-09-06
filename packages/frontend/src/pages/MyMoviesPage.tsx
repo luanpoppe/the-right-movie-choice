@@ -54,13 +54,13 @@ export class MyMoviesPageUtils {
 
   static getEmptyStateMessage(tab: MyMoviesTab): string {
     if (tab === "watched") {
-      return "Você ainda não marcou nenhum filme como assistido.";
+      return "You haven't marked any movie as watched yet.";
     }
     if (tab === "watchlist") {
-      return "Sua lista \"Quero ver\" está vazia.";
+      return 'Your "Want to watch" list is empty.';
     }
 
-    return "Você ainda não favoritou nenhum filme.";
+    return "You haven't favorited any movies yet.";
   }
 
   static resolveFlagsWithFallback(
@@ -174,31 +174,31 @@ function MyMoviesPageContent() {
   return (
     <div className="container mx-auto px-6 py-8">
       <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Meus filmes</h1>
+        <h1 className="text-3xl font-bold">My movies</h1>
         <p className="text-muted-foreground">
-          Gerencie seus assistidos, lista de desejos e favoritos.
+          Manage your watched movies, watchlist, and favorites.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-6">
-          <TabsTrigger value="watched">Assistidos</TabsTrigger>
-          <TabsTrigger value="watchlist">Quero ver</TabsTrigger>
-          <TabsTrigger value="favorites">Favoritos</TabsTrigger>
+          <TabsTrigger value="watched">Watched</TabsTrigger>
+          <TabsTrigger value="watchlist">Want to watch</TabsTrigger>
+          <TabsTrigger value="favorites">Favorites</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab}>
           {isPageLoading && (
-            <p className="text-center text-muted-foreground">Carregando...</p>
+            <p className="text-center text-muted-foreground">Loading...</p>
           )}
 
           {hasLoadError && !isPageLoading && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <p className="text-muted-foreground">
-                Não foi possível carregar seus filmes.
+                Could not load your movies.
               </p>
               <Button type="button" variant="outline" onClick={handleRetry}>
-                Tentar novamente
+                Try again
               </Button>
             </div>
           )}
@@ -210,7 +210,7 @@ function MyMoviesPageContent() {
                 to="/"
                 className="text-primary hover:underline"
               >
-                Pedir recomendações no chat
+                Get recommendations in chat
               </Link>
             </div>
           )}
