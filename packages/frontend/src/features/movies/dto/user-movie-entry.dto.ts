@@ -21,6 +21,12 @@ export type UserMovieEntryPatchDTO = z.infer<
   typeof UserMovieEntryPatchDTOSchema
 >;
 
+export type UserMovieEntryListFilter = {
+  watched?: boolean;
+  favorite?: boolean;
+  inWatchlist?: boolean;
+};
+
 export const UserMovieEntryListResponseDTOSchema = z.object({
   entries: z.array(UserMovieEntrySchema),
 });
