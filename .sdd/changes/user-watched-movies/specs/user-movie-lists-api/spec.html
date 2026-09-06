@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: user-movie-lists-api — user-watched-movies</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-watched-movies</a> / specs / <strong>user-movie-lists-api</strong> / spec</p>
+    <h1>Spec: user-movie-lists-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-watched-movies</code></a> · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Expõe endpoints HTTP autenticados (JWT) para consultar e atualizar o status de um filme por <code>tmdbId</code> — assistido (com nota e data opcionais), favorito e watchlist — e listar as entradas do usuário. Delega persistência a <code>IUserMovieEntryRepository</code>; não enriquece com dados TMDB nesta feature.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Marcar filme como assistido com nota</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 42</code> envia <code>Authorization: Bearer</code> válido</li>
+        <li><strong>Quando</strong> faz <code>PATCH /movie/user-entries/157336</code> com body <code>{ &quot;watched&quot;: true, &quot;rating&quot;: 9 }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>entry</code> contendo <code>tmdbId = 157336</code>, <code>watched = true</code>, <code>rating = 9</code></li>
+        <li><strong>E</strong> <code>entry.watchedAt</code> permanece <code>null</code> se o cliente não enviou <code>watchedAt</code></li>
+      </ul>
+      <h3>REQ-2: Alternar favorito</h3>
+      <ul>
+        <li><strong>Dado que</strong> já existe entrada para <code>tmdbId = 550</code> com <code>favorite = false</code></li>
+        <li><strong>Quando</strong> o usuário autenticado faz <code>PATCH /movie/user-entries/550</code> com <code>{ &quot;favorite&quot;: true }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>entry.favorite = true</code></li>
+        <li><strong>E</strong> os demais campos da entrada permanecem como estavam</li>
+      </ul>
+      <h3>REQ-3: Alternar watchlist</h3>
+      <ul>
+        <li><strong>Dado que</strong> não há entrada para <code>tmdbId = 27205</code></li>
+        <li><strong>Quando</strong> o usuário autenticado faz <code>PATCH /movie/user-entries/27205</code> com <code>{ &quot;inWatchlist&quot;: true }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> criando entrada com <code>inWatchlist = true</code> e flags ausentes como <code>false</code></li>
+      </ul>
+      <h3>REQ-4: Listar entradas por flag</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 42</code> tem entradas A (<code>watched = true</code>), B (<code>favorite = true</code>), C (<code>inWatchlist = true</code>)</li>
+        <li><strong>Quando</strong> faz <code>GET /movie/user-entries?watched=true</code> com JWT válido</li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>entries</code> contendo somente A</li>
+        <li><strong>E</strong> <code>GET /movie/user-entries</code> sem query retorna todas as entradas do usuário</li>
+      </ul>
+      <h3>REQ-5: Consultar uma entrada</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe entrada para <code>(userId = 42, tmdbId = 157336)</code></li>
+        <li><strong>Quando</strong> o usuário autenticado faz <code>GET /movie/user-entries/157336</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>entry</code> completo</li>
+        <li><strong>E</strong> se não existir entrada, retorna <code>404</code></li>
+      </ul>
+      <h3>REQ-6: Remover entrada ao desmarcar tudo</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe entrada com os três flags <code>false</code> após merge do patch</li>
+        <li><strong>Quando</strong> o usuário autenticado faz <code>PATCH</code> que zera <code>watched</code>, <code>favorite</code> e <code>inWatchlist</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>{ &quot;entry&quot;: null }</code></li>
+        <li><strong>E</strong> leitura posterior por <code>GET /movie/user-entries/:tmdbId</code> retorna <code>404</code></li>
+      </ul>
+      <h3>REQ-7: Rejeitar acesso sem autenticação</h3>
+      <ul>
+        <li><strong>Dado que</strong> a requisição não envia <code>Authorization: Bearer</code></li>
+        <li><strong>Quando</strong> chama qualquer rota de <code>/movie/user-entries</code></li>
+        <li><strong>Então</strong> retorna <code>401</code></li>
+        <li><strong>E</strong> não consulta o repositório</li>
+      </ul>
+      <h3>REQ-8: Rejeitar token inválido</h3>
+      <ul>
+        <li><strong>Dado que</strong> o header <code>Authorization</code> traz Bearer expirado ou inválido</li>
+        <li><strong>Quando</strong> chama <code>PATCH /movie/user-entries/157336</code></li>
+        <li><strong>Então</strong> retorna <code>401</code></li>
+        <li><strong>E</strong> não altera persistência</li>
+      </ul>
+      <h3>REQ-9: Preservar flags não enviados no PATCH</h3>
+      <ul>
+        <li><strong>Entrada</strong> entrada existente com <code>watched = true</code>, <code>favorite = true</code>  ||  body <code>{ &quot;inWatchlist&quot;: true }</code></li>
+        <li><strong>Saída</strong> <code>200</code> com <code>watched</code> e <code>favorite</code> ainda <code>true</code></li>
+        <li><strong>E</strong> <code>inWatchlist = true</code></li>
+      </ul>
+      <h3>REQ-10: Validar path e body antes do repositório</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>PATCH /movie/user-entries/0</code> com body válido</li>
+        <li><strong>Erro</strong> <code>400</code> — <code>tmdbId</code> inválido no path</li>
+        <li><strong>Erro</strong> <code>PATCH</code> com <code>{ &quot;rating&quot;: 11 }</code> → <code>400</code> antes de persistir</li>
+        <li><strong>Erro</strong> body <code>{}</code> sem nenhuma chave de patch → <code>400</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Várias query flags (<code>watched=true&amp;favorite=true</code>) → filtro AND no repositório  ||  retorna entradas que satisfazem todas</li>
+        <li><code>watchedAt</code> explícito <code>null</code> no body → limpa o campo na entrada persistida</li>
+        <li>Concorrência: dois PATCH no mesmo <code>tmdbId</code> → última escrita vence  ||  unique <code>(userId, tmdbId)</code> no banco</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>PATCH /movie/user-entries/:tmdbId</code> — body parcial: <code>watched?</code>, <code>favorite?</code>, <code>inWatchlist?</code>, <code>rating?</code> (1–10 ou <code>null</code>), <code>watchedAt?</code> (ISO 8601 ou <code>null</code>). Resposta <code>200</code>: <code>{ entry: UserMovieEntryResponse | null }</code>.</li>
+        <li><code>GET /movie/user-entries/:tmdbId</code> — resposta <code>200</code>: <code>{ entry: UserMovieEntryResponse }</code> ou <code>404</code> se ausente.</li>
+        <li><code>GET /movie/user-entries</code> — query opcional <code>watched</code>, <code>favorite</code>, <code>inWatchlist</code> (boolean). Resposta <code>200</code>: <code>{ entries: UserMovieEntryResponse[] }</code>.</li>
+        <li><code>UserMovieEntryResponse</code> (provisório): <code>tmdbId</code>, <code>movieId</code>, <code>watched</code>, <code>favorite</code>, <code>inWatchlist</code>, <code>rating</code>, <code>watchedAt</code>, <code>createdAt</code>, <code>updatedAt</code> — datas em ISO string; sem <code>userId</code> no payload público.</li>
+        <li>Autenticação: <code>Authorization: Bearer</code> obrigatório em todas as rotas  ||  <code>401</code> se ausente ou inválido.</li>
+        <li>Erros de validação de domínio: <code>400</code> com mensagem  ||  mesma família de <code>UserMovieEntryValidationException</code>.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
