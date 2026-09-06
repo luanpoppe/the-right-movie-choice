@@ -47,6 +47,7 @@ describe("MovieCatalogTitleSearchSql", () => {
     expect(query!.sql).toContain("PARTITION BY q.idx");
     expect(query!.sql).toContain("ranked.rn = 1");
     expect(query!.sql).not.toContain("DISTINCT ON");
+    expect(query!.sql).not.toContain("UNION ALL");
     expect(query!.sql).toContain("VALUES");
     expect(query!.sql).toContain("unaccent(m.title) ILIKE unaccent(");
     expect(query!.sql).toContain('ORDER BY m."updatedAt" DESC');

@@ -9,6 +9,7 @@ import {
   MovieCatalogStoredRecord,
 } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { Logger } from "@/lib/logger/logger";
+import { Redis } from "@/lib/redis/redis";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
 import { MovieCatalogDetailsResolver } from "../movie-catalog-details.resolver";
@@ -715,6 +716,191 @@ describe("MovieCatalogLookupService", () => {
       expect(findDetailsByTitleSpy).toHaveBeenCalledTimes(1);
       expect(cache.setMany).not.toHaveBeenCalled();
       expect(catalog.searchMovies).toHaveBeenCalledTimes(1);
+    });
+
+    it("REQ-1 batch: 8 hits locais frescos sem TMDB e com setMany para todos", async () => {
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      const inputs = Array.from({ length: 8 }, (_, index) => ({
+        query: `Filme ${index + 1}`,
+      }));
+      const localRecords = inputs.map((input, index) => {
+        const details = MovieCatalogLookupFixtures.details({
+          tmdbId: 1000 + index,
+          title: input.query,
+        });
+        return MovieCatalogLookupFixtures.storedRecord(details, freshUpdatedAt);
+      });
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue(localRecords);
+
+      const results = await service.findDetailsByTitlesBatch(inputs);
+
+      expect(results).toHaveLength(8);
+      expect(results.every((result) => result.found === true)).toBe(true);
+      expect(repository.findByTitlesAndYears).toHaveBeenCalledTimes(1);
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
+      expect(cache.setMany).toHaveBeenCalledTimes(1);
+      const setManyArg = vi.mocked(cache.setMany).mock.calls[0]?.[0];
+      expect(setManyArg).toHaveLength(8);
+    });
+
+    it("REQ-2 batch misto: 5 hits locais + 3 misses vão para findDetailsByTitle em paralelo", async () => {
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      const hitQueries = Array.from({ length: 5 }, (_, index) => ({
+        query: `Hit ${index + 1}`,
+      }));
+      const missQueries = [
+        { query: "Miss A" },
+        { query: "Miss B", year: 2020 },
+        { query: "Miss C", language: "en-US" },
+      ];
+      const allInputs = [...hitQueries, ...missQueries];
+      const localRecords = allInputs.map((input, index) => {
+        const isHit = index < 5;
+        if (!isHit) return null;
+
+        const details = MovieCatalogLookupFixtures.details({
+          tmdbId: 2000 + index,
+          title: input.query,
+        });
+        return MovieCatalogLookupFixtures.storedRecord(details, freshUpdatedAt);
+      });
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue(localRecords);
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies).mockImplementation(async (query) => {
+        const hit = MovieCatalogLookupFixtures.searchHit({
+          id: 9000,
+          title: String(query),
+        });
+        return MovieCatalogLookupFixtures.searchPage([hit]);
+      });
+      vi.mocked(resolver.resolveByTmdbId).mockImplementation(async () =>
+        MovieCatalogLookupFixtures.details({ tmdbId: 9000, title: "TMDB" }),
+      );
+      const findDetailsByTitleSpy = vi.spyOn(service, "findDetailsByTitle");
+
+      const results = await service.findDetailsByTitlesBatch(allInputs);
+
+      expect(results).toHaveLength(8);
+      expect(results.slice(0, 5).every((result) => result.found === true)).toBe(
+        true,
+      );
+      expect(results.slice(5).every((result) => result.found === true)).toBe(
+        true,
+      );
+      expect(findDetailsByTitleSpy).toHaveBeenCalledTimes(3);
+      expect(catalog.searchMovies).toHaveBeenCalledTimes(3);
+    });
+
+    it("REQ-3 batch só misses: findByTitlesAndYears retorna nulls e todas as queries vão ao TMDB", async () => {
+      const queries = [
+        { query: "Alpha" },
+        { query: "Beta", year: 2010 },
+        { query: "Gamma", language: "en-US" },
+      ];
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        null,
+        null,
+        null,
+      ]);
+      vi.mocked(repository.findByTitleAndYear).mockResolvedValue(null);
+      vi.mocked(catalog.searchMovies).mockImplementation(async (query) => {
+        const hit = MovieCatalogLookupFixtures.searchHit({
+          id: 5000,
+          title: String(query),
+        });
+        return MovieCatalogLookupFixtures.searchPage([hit]);
+      });
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(
+        MovieCatalogLookupFixtures.details({ tmdbId: 5000 }),
+      );
+
+      const results = await service.findDetailsByTitlesBatch(queries);
+
+      expect(results).toHaveLength(3);
+      expect(results.every((result) => result.found === true)).toBe(true);
+      expect(repository.findByTitlesAndYears).toHaveBeenCalledTimes(1);
+      expect(cache.setMany).not.toHaveBeenCalled();
+      expect(catalog.searchMovies).toHaveBeenCalledTimes(3);
+    });
+
+    it("REQ-5: falha no cache.setMany não impede retorno dos hits locais", async () => {
+      const details = MovieCatalogLookupFixtures.details();
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(details, freshUpdatedAt),
+      ]);
+
+      const redis = {
+        setManyWithExpiration: vi.fn().mockRejectedValue(new Error("redis down")),
+      } as unknown as Redis;
+      const realCache = new TmdbMovieDetailsCache(redis);
+      const serviceWithRealCache = new MovieCatalogLookupService(
+        catalog,
+        repository,
+        realCache,
+        resolver,
+      );
+
+      const results = await serviceWithRealCache.findDetailsByTitlesBatch([
+        { query: "Interestelar" },
+      ]);
+
+      expect(results).toEqual([{ found: true, details }]);
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "TMDB movie details cache failed",
+        expect.objectContaining({
+          operation: "setMany",
+          reason: "redis down",
+        }),
+      );
+    });
+
+    it("edge idioma por item no batch repassa language distinto ao setMany", async () => {
+      const detailsPt = MovieCatalogLookupFixtures.details({
+        tmdbId: 157336,
+        title: "Interestelar",
+      });
+      const detailsEn = MovieCatalogLookupFixtures.details({
+        tmdbId: 157336,
+        title: "Interstellar",
+      });
+      const freshUpdatedAt = MovieCatalogLookupFixtures.freshUpdatedAt(now);
+      vi.mocked(repository.findByTitlesAndYears).mockResolvedValue([
+        MovieCatalogLookupFixtures.storedRecord(detailsPt, freshUpdatedAt),
+        MovieCatalogLookupFixtures.storedRecord(detailsEn, freshUpdatedAt),
+      ]);
+
+      await service.findDetailsByTitlesBatch([
+        { query: "Interestelar", language: "pt-BR" },
+        { query: "Interstellar", language: "en-US" },
+      ]);
+
+      expect(cache.setMany).toHaveBeenCalledWith([
+        { movieId: 157336, details: detailsPt, lang: "pt-BR" },
+        { movieId: 157336, details: detailsEn, lang: "en-US" },
+      ]);
+    });
+
+    it("todas queries vazias não chama findByTitlesAndYears", async () => {
+      const results = await service.findDetailsByTitlesBatch([
+        { query: "" },
+        { query: "" },
+      ]);
+
+      expect(results).toEqual([
+        {
+          found: false,
+          message: "Informe o nome de um filme para buscar no catálogo.",
+        },
+        {
+          found: false,
+          message: "Informe o nome de um filme para buscar no catálogo.",
+        },
+      ]);
+      expect(repository.findByTitlesAndYears).not.toHaveBeenCalled();
+      expect(catalog.searchMovies).not.toHaveBeenCalled();
     });
 
     it("order preserved with 3 items", async () => {

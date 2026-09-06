@@ -218,6 +218,7 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 | `pnpm db:generate` | Gera o Prisma Client |
 | `pnpm db:migrate` | Aplica migrations em desenvolvimento |
 | `pnpm db:studio` | Abre o Prisma Studio |
+| `pnpm test:catalog-lookup-bench` | Benchmark opt-in: batch vs unitário com Postgres + Redis reais |
 
 ### Postman
 
@@ -359,3 +360,31 @@ pnpm test
 ```
 
 Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit` em `packages/backend/vite.config.mts`). Cobertura atual: casos de uso de filmes, auth e users; providers `@luanpoppe/ai`; mapper de erros Prisma.
+
+### Lookup em lote no catálogo (`lookupMovies`)
+
+A tool do agente `lookupMovies` resolve até 8 títulos por turno em **duas fases**:
+
+1. **Batch local** — no máximo 1 SQL de ids (`VALUES` + `ROW_NUMBER` por posição, `rn = 1`) + 1 `findMany` com filhas no Postgres; aquecimento Redis via `MGET`/`pipeline SET` em lote nos hits frescos (< 30 dias).
+2. **TMDB paralelo** — só nos misses/stale: `findDetailsByTitle` em `Promise.all` (comportamento equivalente ao fluxo anterior).
+
+Com 8 filmes já no banco, isso reduz de ~16 round-trips Postgres + ~8 Redis para ~2 Postgres + 1 Redis (leitura/escrita em lote), sem chamar a TMDB.
+
+**Benchmark de integração (opt-in, Postgres + Redis reais):**
+
+```bash
+cd packages/backend
+pnpm test:catalog-lookup-bench
+```
+
+Requer `DATABASE_URL` e `REDIS_URL` no `.env`. O teste seeda 8 filmes `Bench …`, compara `findDetailsByTitlesBatch` vs 8× `findDetailsByTitle` (25 iterações) e imprime média/mediana no stdout. TMDB é mockado — mede só I/O local.
+
+**Baseline medido em desenvolvimento local (2026-09-05, PG + Redis via Docker):**
+
+| Caminho | Média (ms) | Mediana (ms) |
+|---------|------------|--------------|
+| unitário (8× `findDetailsByTitle`) | 11,03 | — |
+| batch (`findDetailsByTitlesBatch`) | 4,81 | — |
+| **Speedup** | **~2,29×** | |
+
+Números variam por hardware e tamanho do catálogo; re-rode o comando acima para atualizar. A query batch evoluiu de `UNION ALL` (N seq scans) para `ROW_NUMBER` sobre um único `VALUES` — ganho observado no ambiente local.

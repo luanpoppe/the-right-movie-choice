@@ -131,6 +131,15 @@ describe("TmdbMovieDetailsCache", () => {
   });
 
   describe("getMany", () => {
+    it("retorna array vazio sem chamar Redis quando items está vazio", async () => {
+      const { cache, redis } = createCache();
+
+      const result = await cache.getMany([]);
+
+      expect(result).toEqual([]);
+      expect(redis.mgetStrings).not.toHaveBeenCalled();
+    });
+
     it("returns hits aligned by index with mixed hit/miss via single MGET", async () => {
       const { cache, redis } = createCache();
       const items = [{ movieId: 11 }, { movieId: 22 }];
@@ -169,6 +178,14 @@ describe("TmdbMovieDetailsCache", () => {
   });
 
   describe("setMany", () => {
+    it("não chama Redis quando items está vazio", async () => {
+      const { cache, redis } = createCache();
+
+      await cache.setMany([]);
+
+      expect(redis.setManyWithExpiration).not.toHaveBeenCalled();
+    });
+
     it("writes all entries with TTL 86400 via pipeline", async () => {
       const { cache, redis } = createCache();
       redis.setManyWithExpiration.mockResolvedValue(undefined);

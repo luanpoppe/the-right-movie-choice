@@ -93,9 +93,9 @@
   - **Exemplo**: lookup TMDB captura `TmdbHttpException` e devolve `{ found: false }`
   - **Registrado em**: 2026-09-05
 
-- Várias buscas de catálogo no mesmo turno da IA: Zod de **array** + `Promise.all` no adapter da tool; o domínio continua `lookup` unitário.
+- Várias buscas de catálogo no mesmo turno da IA: Zod de **array**; a tool chama `findDetailsByTitlesBatch` (Postgres+Redis em lote, TMDB só nos misses em `Promise.all`). API unitária `findDetailsByTitle` permanece.
   - **Quando**: o modelo precisa enriquecer vários candidatos de uma vez
-  - **Por quê**: uma function call, paralelismo no Node, contrato de F1 intacto
+  - **Por quê**: uma function call, menos round-trips locais, contrato da tool intacto
   - **Exemplo**: `{ queries: [{ query, year? }] }` → array de `MovieCatalogLookupResult` na mesma ordem
   - **Registrado em**: 2026-09-05
 
@@ -106,14 +106,20 @@
   - **Registrado em**: 2026-09-05
 
 - Teste que chama API real não entra no job unitário da CI; opt-in só local.
-  - **Quando**: client de serviço externo
-  - **Exemplo**: live TMDB fora do `pnpm test` da CI
-  - **Registrado em**: 2026-08-31
+  - **Quando**: client de serviço externo ou bench de I/O real
+  - **Exemplo**: live TMDB e `pnpm test:catalog-lookup-bench` fora do `pnpm test` da CI
+  - **Registrado em**: 2026-09-05
 
 - Ficha no Postgres é “fresca” por 30 dias (`updatedAt`); depois o lookup pode ir ao TMDB. Redis (24h) ainda vence enquanto o TTL não acaba. Persistência no banco no miss é fila (não upsert síncrono no lookup).
   - **Quando**: lookup local-first do catálogo
   - **Por quê**: dado local sem refetch contínuo; o agente não espera o save no Postgres
   - **Exemplo**: Interestelar gravado há 3 dias não chama TMDB; há 31 dias refetch; miss TMDB só `TmdbMovieDetailsCache.set` até o worker
+  - **Registrado em**: 2026-09-05
+
+- Lookup batch no Postgres: um `VALUES` + `ROW_NUMBER() PARTITION BY idx` (`rn = 1`), não `UNION ALL` nem `DISTINCT ON`. Um resultado por query. Números de bench não ficam no `.ts`.
+  - **Quando**: `findByTitlesAndYears` / `buildBatchFindIdsQuery`
+  - **Por quê**: `UNION ALL` gerou N seq scans no PG local; `ROW_NUMBER` é portável; baseline no git envelhece
+  - **Exemplo**: 8 títulos Bench seedados, stdout ~2,3× vs 8× unitário; README depois
   - **Registrado em**: 2026-09-05
 
 - Adapter Prisma com várias classes `MovieCatalog*` vai para subpasta `repositories/movie-catalog/`, um arquivo por classe.
