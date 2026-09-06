@@ -69,6 +69,7 @@ describe("MovieCard", () => {
         rating: null,
         watchedAt: null,
       }),
+      hasEntry: jest.fn().mockReturnValue(false),
       patchEntry: jest.fn(),
       isLoading: false,
       isPatching: () => false,
@@ -79,17 +80,17 @@ describe("MovieCard", () => {
     const movie = MovieCardFixtures.movie();
     renderCard(movie);
 
-    expect(screen.queryByRole("button", { name: "Favorito" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Favorite" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Watchlist" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Assistido" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Watched" })).not.toBeInTheDocument();
   });
 
   it("exibe ações de lista quando tmdbId está presente", () => {
     const movie = MovieCardFixtures.movie({ tmdbId: 27205 });
     renderCard(movie);
 
-    expect(screen.getByRole("button", { name: "Favorito" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Favorite" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Watchlist" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assistido" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Watched" })).toBeInTheDocument();
   });
 });

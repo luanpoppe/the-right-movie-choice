@@ -92,13 +92,13 @@ describe("MyMoviesPageUtils", () => {
 
   it("edge empty state: mensagens específicas por aba", () => {
     expect(MyMoviesPageUtils.getEmptyStateMessage("watched")).toContain(
-      "assistido",
+      "watched",
     );
     expect(MyMoviesPageUtils.getEmptyStateMessage("watchlist")).toContain(
-      "Quero ver",
+      "Want to watch",
     );
     expect(MyMoviesPageUtils.getEmptyStateMessage("favorites")).toContain(
-      "favoritou",
+      "favorited",
     );
   });
 });

@@ -41,10 +41,10 @@ function AuthActions() {
     try {
       await AuthService.logout();
       clearSession();
-      toast.success("Sessão encerrada.");
+      toast.success("Signed out.");
     } catch {
       clearSession();
-      toast.error("Não foi possível encerrar a sessão no servidor.");
+      toast.error("Could not sign out on the server.");
     }
   }
 
@@ -52,10 +52,10 @@ function AuthActions() {
     return (
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/my-movies">Meus filmes</Link>
+          <Link to="/my-movies">My movies</Link>
         </Button>
         <Button variant="outline" size="sm" onClick={handleLogout}>
-          Sair
+          Sign out
         </Button>
       </div>
     );
@@ -64,10 +64,10 @@ function AuthActions() {
   return (
     <div className="flex items-center gap-2">
       <Button variant="ghost" size="sm" asChild>
-        <Link to="/login">Entrar</Link>
+        <Link to="/login">Sign in</Link>
       </Button>
       <Button size="sm" asChild>
-        <Link to="/register">Criar conta</Link>
+        <Link to="/register">Create account</Link>
       </Button>
     </div>
   );

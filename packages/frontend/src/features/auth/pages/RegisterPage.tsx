@@ -27,7 +27,7 @@ export function RegisterPage() {
       await AuthService.register({ email, name, password });
       const tokens = await AuthService.login({ email, password });
       setAccessToken(tokens.accessToken);
-      toast.success("Conta criada com sucesso!");
+      toast.success("Account created successfully!");
       navigate("/");
     } catch (error) {
       toast.error(getAuthErrorMessage(error));
@@ -40,15 +40,15 @@ export function RegisterPage() {
     <div className="container mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col justify-center px-6 py-12">
       <div className="space-y-6 rounded-2xl border border-border/50 bg-card/80 p-8 shadow-lg">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">Criar conta</h1>
+          <h1 className="text-2xl font-bold">Create account</h1>
           <p className="text-sm text-muted-foreground">
-            Cadastre-se com senha ou use o Google na mesma conta.
+            Sign up with a password or use Google on the same account.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome</Label>
+            <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               name="name"
@@ -60,7 +60,7 @@ export function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               name="email"
@@ -72,7 +72,7 @@ export function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               name="password"
@@ -85,7 +85,7 @@ export function RegisterPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Criando..." : "Criar conta"}
+            {isLoading ? "Creating..." : "Create account"}
           </Button>
         </form>
 
@@ -94,16 +94,16 @@ export function RegisterPage() {
             <span className="w-full border-t border-border/50" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">ou</span>
+            <span className="bg-card px-2 text-muted-foreground">or</span>
           </div>
         </div>
 
         <GoogleSignInButton />
 
         <p className="text-center text-sm text-muted-foreground">
-          Já tem conta?{" "}
+          Already have an account?{" "}
           <Link to="/login" className="text-primary hover:underline">
-            Entrar
+            Sign in
           </Link>
         </p>
       </div>

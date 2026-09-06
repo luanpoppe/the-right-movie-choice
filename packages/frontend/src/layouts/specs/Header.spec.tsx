@@ -49,9 +49,9 @@ describe("Header", () => {
 
     renderHeader();
 
-    const myMoviesLink = screen.getByRole("link", { name: "Meus filmes" });
+    const myMoviesLink = screen.getByRole("link", { name: "My movies" });
     expect(myMoviesLink).toHaveAttribute("href", "/my-movies");
-    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
   it("REQ-7: visitante não vê link Meus filmes", () => {
@@ -64,8 +64,8 @@ describe("Header", () => {
     renderHeader();
 
     expect(
-      screen.queryByRole("link", { name: "Meus filmes" }),
+      screen.queryByRole("link", { name: "My movies" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
   });
 });
