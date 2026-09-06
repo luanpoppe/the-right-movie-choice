@@ -87,6 +87,6 @@ Expõe endpoints HTTP autenticados (JWT) para consultar e atualizar o status de 
 - `PATCH /movie/user-entries/:tmdbId` — body parcial: `watched?`, `favorite?`, `inWatchlist?`, `rating?` (1–10 ou `null`), `watchedAt?` (ISO 8601 ou `null`). Resposta `200`: `{ entry: UserMovieEntryResponse | null }`.
 - `GET /movie/user-entries/:tmdbId` — resposta `200`: `{ entry: UserMovieEntryResponse }` ou `404` se ausente.
 - `GET /movie/user-entries` — query opcional `watched`, `favorite`, `inWatchlist` (boolean). Resposta `200`: `{ entries: UserMovieEntryResponse[] }`.
-- `UserMovieEntryResponse` (provisório): `tmdbId`, `movieId`, `watched`, `favorite`, `inWatchlist`, `rating`, `watchedAt`, `createdAt`, `updatedAt` — datas em ISO string; sem `userId` no payload público.
+- `UserMovieEntryResponse`: `packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryResponseSchema`
 - Autenticação: `Authorization: Bearer` obrigatório em todas as rotas  ||  `401` se ausente ou inválido.
 - Erros de validação de domínio: `400` com mensagem  ||  mesma família de `UserMovieEntryValidationException`.
