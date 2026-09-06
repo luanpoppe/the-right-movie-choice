@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma/prisma", () => ({
       delete: vi.fn(),
       findMany: vi.fn(),
     },
+    movie: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -57,6 +60,26 @@ class UserMovieEntryRepositoryFixtures {
       updatedAt: row.updatedAt,
     };
   }
+
+  static listItemFromRow(
+    row: ReturnType<typeof UserMovieEntryRepositoryFixtures.prismaRow>,
+    movie: { title: string; year: number | null; posterPath: string | null } | null = null,
+  ) {
+    return {
+      ...UserMovieEntryRepositoryFixtures.entityFromRow(row),
+      movie,
+    };
+  }
+
+  static catalogRow(overrides: Record<string, unknown> = {}) {
+    return {
+      tmdbId: 157336,
+      title: "Interestelar",
+      year: 2014,
+      posterPath: "/poster.jpg",
+      ...overrides,
+    };
+  }
 }
 
 describe("PrismaUserMovieEntryRepository", () => {
@@ -64,6 +87,7 @@ describe("PrismaUserMovieEntryRepository", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.movie.findMany).mockResolvedValue([]);
     repository = new PrismaUserMovieEntryRepository();
   });
 
@@ -358,10 +382,11 @@ describe("PrismaUserMovieEntryRepository", () => {
 
       expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
         where: { userId: 42, watched: true },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { watchedAt: { sort: "desc", nulls: "last" } },
       });
       expect(result).toHaveLength(1);
       expect(result[0]?.tmdbId).toBe(1);
+      expect(result[0]?.movie).toBeNull();
     });
 
     it("REQ-6 filtra por favorite quando presente no filtro", async () => {
@@ -412,7 +437,7 @@ describe("PrismaUserMovieEntryRepository", () => {
 
       expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
         where: { userId: 42, watched: true, favorite: true },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { watchedAt: { sort: "desc", nulls: "last" } },
       });
     });
 
@@ -432,7 +457,7 @@ describe("PrismaUserMovieEntryRepository", () => {
           favorite: true,
           inWatchlist: true,
         },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { watchedAt: { sort: "desc", nulls: "last" } },
       });
     });
 
@@ -458,21 +483,95 @@ describe("PrismaUserMovieEntryRepository", () => {
 
       const result = await repository.listByUser(42, {});
 
-      expect(result[0]).toEqual({
-        userId: 42,
-        tmdbId: 99,
-        movieId: null,
-        watched: true,
-        favorite: false,
-        inWatchlist: false,
-        rating: null,
-        watchedAt: null,
-        createdAt: new Date("2025-03-01T12:00:00.000Z"),
-        updatedAt: new Date("2025-03-02T12:00:00.000Z"),
-      });
+      expect(result[0]).toEqual(
+        UserMovieEntryRepositoryFixtures.listItemFromRow(row, null),
+      );
       expect(Logger.debug).toHaveBeenCalledWith("User movie entry list", {
         userId: 42,
         count: 1,
+        catalogHits: 0,
+        orderByWatchedAt: false,
+      });
+    });
+
+    it("REQ-8 retorna movie summary quando Movie existe para tmdbId+pt-BR", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 157336,
+        watched: true,
+        movieId: null,
+      });
+      const catalogRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 157336,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([catalogRow] as never);
+
+      const result = await repository.listByUser(42, { watched: true });
+
+      expect(prisma.movie.findMany).toHaveBeenCalledWith({
+        where: {
+          tmdbId: { in: [157336] },
+          language: "pt-BR",
+        },
+        select: {
+          tmdbId: true,
+          title: true,
+          year: true,
+          posterPath: true,
+        },
+      });
+      expect(result[0]?.movie).toEqual({
+        title: "Interestelar",
+        year: 2014,
+        posterPath: "/poster.jpg",
+      });
+    });
+
+    it("REQ-8 retorna movie null quando não há catálogo para o tmdbId", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 999001,
+        watched: true,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([]);
+
+      const result = await repository.listByUser(42, { watched: true });
+
+      expect(result[0]?.movie).toBeNull();
+    });
+
+    it("REQ-9 filtro watched=true ordena por watchedAt desc com nulls por último", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, { watched: true });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: { userId: 42, watched: true },
+        orderBy: { watchedAt: { sort: "desc", nulls: "last" } },
+      });
+    });
+
+    it("REQ-9 filtro favorite ordena por updatedAt desc", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, { favorite: true });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: { userId: 42, favorite: true },
+        orderBy: { updatedAt: "desc" },
+      });
+    });
+
+    it("REQ-9 filtro inWatchlist ordena por updatedAt desc", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, { inWatchlist: true });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: { userId: 42, inWatchlist: true },
+        orderBy: { updatedAt: "desc" },
       });
     });
   });

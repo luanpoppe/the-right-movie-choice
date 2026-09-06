@@ -3,12 +3,16 @@ import { Logger } from "@/lib/logger/logger";
 import type {
   UserMovieEntryEntity,
   UserMovieEntryListFilter,
+  UserMovieEntryListItemEntity,
+  UserMovieEntryMovieSummary,
   UserMovieEntryPatch,
 } from "../../../domain/entities/user-movie-entry.entity";
+import { DEFAULT_MOVIE_CATALOG_LANGUAGE } from "../../../domain/repositories/movie-catalog.repository";
 import { IUserMovieEntryRepository } from "../../../domain/repositories/user-movie-entry.repository";
 import { UserMovieEntryValidationUtils } from "../../../domain/user-movie-entry-validation.utils";
 import { UserMovieEntryPrismaMapper } from "../../mappers/user-movie-entry-prisma.mapper";
 import { UserMovieEntryListFilterUtils } from "./user-movie-entry-list-filter.utils";
+import { UserMovieEntryListOrderUtils } from "./user-movie-entry-list-order.utils";
 import { UserMovieEntryMergeUtils } from "./user-movie-entry-merge.utils";
 
 export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository {
@@ -114,15 +118,20 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
     filter: UserMovieEntryListFilter,
   ): Promise<UserMovieEntryEntity[]> {
     const where = UserMovieEntryListFilterUtils.buildWhere(userId, filter);
+    const orderBy = UserMovieEntryListOrderUtils.buildOrderBy(filter);
 
     const rows = await prisma.userMovieEntry.findMany({
       where,
-      orderBy: { updatedAt: "desc" },
+      orderBy,
     });
+
+    const tmdbIds = rows.map((row) => row.tmdbId);
+    const catalogByTmdbId = await this.loadMovieSummariesByTmdbIds(tmdbIds);
 
     const logContext: Record<string, string | number | boolean | undefined> = {
       userId,
       count: rows.length,
+      catalogHits: catalogByTmdbId.size,
     };
 
     if (Object.hasOwn(filter, "watched")) {
@@ -146,9 +155,74 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
       }
     }
 
+    const hasWatchedTrueFilter =
+      Object.hasOwn(filter, "watched") && filter.watched === true;
+    logContext.orderByWatchedAt = hasWatchedTrueFilter;
+
     Logger.debug("User movie entry list", logContext);
 
-    const entities = rows.map((row) => UserMovieEntryPrismaMapper.toEntity(row));
+    const entities = rows.map((row) => {
+      const baseEntity = UserMovieEntryPrismaMapper.toEntity(row);
+      const catalogSummary = catalogByTmdbId.get(row.tmdbId) ?? null;
+      const listItem: UserMovieEntryListItemEntity = {
+        ...baseEntity,
+        movie: catalogSummary,
+      };
+      return listItem;
+    });
+
     return entities;
+  }
+
+  private async loadMovieSummariesByTmdbIds(
+    tmdbIds: number[],
+  ): Promise<Map<number, UserMovieEntryMovieSummary>> {
+    const uniqueTmdbIds = [...new Set(tmdbIds)];
+
+    if (uniqueTmdbIds.length === 0) {
+      return new Map();
+    }
+
+    Logger.debug("🔍 Carregando catálogo para listagem de entradas", {
+      tmdbIdCount: uniqueTmdbIds.length,
+      language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+    });
+
+    const catalogRows = await prisma.movie.findMany({
+      where: {
+        tmdbId: { in: uniqueTmdbIds },
+        language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      },
+      select: {
+        tmdbId: true,
+        title: true,
+        year: true,
+        posterPath: true,
+      },
+    });
+
+    const catalogByTmdbId = new Map<number, UserMovieEntryMovieSummary>();
+
+    for (const catalogRow of catalogRows) {
+      const summary: UserMovieEntryMovieSummary = {
+        title: catalogRow.title,
+        year: catalogRow.year,
+        posterPath: catalogRow.posterPath,
+      };
+      catalogByTmdbId.set(catalogRow.tmdbId, summary);
+    }
+
+    const missCount = uniqueTmdbIds.length - catalogByTmdbId.size;
+    const hasCatalogMisses = missCount > 0;
+
+    if (hasCatalogMisses) {
+      Logger.debug("⚠️ Catálogo incompleto para alguns tmdbIds da listagem", {
+        requestedCount: uniqueTmdbIds.length,
+        hitCount: catalogByTmdbId.size,
+        missCount,
+      });
+    }
+
+    return catalogByTmdbId;
   }
 }

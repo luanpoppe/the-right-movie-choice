@@ -1,3 +1,9 @@
+export type UserMovieEntryMovieSummary = {
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+};
+
 export type UserMovieEntryEntity = {
   userId: number;
   tmdbId: number;
@@ -9,6 +15,10 @@ export type UserMovieEntryEntity = {
   watchedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type UserMovieEntryListItemEntity = UserMovieEntryEntity & {
+  movie: UserMovieEntryMovieSummary | null;
 };
 
 export type UserMovieEntryPatch = {
