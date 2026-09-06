@@ -2,13 +2,13 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (ambiente Local usa porta **3010**, que é o `PORT` deste checkout em `packages/backend/.env`; o padrão do clone no repositório é **3333** se você seguir `.env.example`/README)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação de filmes)\n- `accessToken` / `refreshToken` — preenchidos automaticamente após Login, Google Auth e Refresh (test script). O refresh vem do cookie httpOnly `refreshToken` (nome padrão de `REFRESH_COOKIE_NAME`). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}` além do Cookie Jar.\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId` — usadas nas rotas TMDB debug (somente dev)\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth; usado em Refresh e Logout\n- `guest-id` — httpOnly, definido na recomendação como convidado; o Postman persiste via Cookie Jar\n\n**Auth**\nExecute Login ou Google Auth primeiro; o test script salva `json.accessToken` em `accessToken`. Use \"Movie recommendation (Bearer)\" com `Authorization: Bearer {{accessToken}}` para pular a cota de convidado.\n\n**TMDB debug**\nPasta disponível apenas com `NODE_ENV !== prod`. `TmdbLoopbackGuard` exige origem loopback (127.0.0.1 / ::1) — em produção as rotas nem são registradas; chamadas remotas retornariam 403.",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro; use \"Movie recommendation (Bearer)\" com `Authorization: Bearer {{accessToken}}` para pular cota de convidado.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3010"
+      "value": "http://localhost:3333"
     },
     {
       "key": "chatId",
@@ -33,6 +33,10 @@
     {
       "key": "tmdbMovieId",
       "value": "603"
+    },
+    {
+      "key": "tmdbLanguage",
+      "value": "pt-BR"
     }
   ],
   "item": [
@@ -337,8 +341,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/debug/tmdb/search?query={{tmdbQuery}}&page={{tmdbPage}}",
-            "description": "Busca filmes no TMDB (somente dev, loopback).\n\n**Query params**\n- `query` (obrigatório, string não vazia) — ex.: {{tmdbQuery}}\n- `page` (opcional, inteiro) — ex.: {{tmdbPage}}"
+            "url": "{{baseUrl}}/debug/tmdb/search?query={{tmdbQuery}}&page={{tmdbPage}}&language={{tmdbLanguage}}",
+            "description": "Busca filmes no TMDB (somente dev, loopback). Chama a API TMDB diretamente — não passa pelo catálogo local.\n\n**Query params**\n- `query` (obrigatório) — {{tmdbQuery}}\n- `page` (opcional) — {{tmdbPage}}\n- `language` (opcional) — {{tmdbLanguage}} (ex. pt-BR; vazio = default TMDB)"
           },
           "response": []
         },
@@ -347,8 +351,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/debug/tmdb/movies/{{tmdbMovieId}}",
-            "description": "Detalhes de um filme no TMDB por ID (somente dev, loopback).\n\n**Path param**\n- `id` (inteiro) — ex.: {{tmdbMovieId}} (603 = Matrix)"
+            "url": "{{baseUrl}}/debug/tmdb/movies/{{tmdbMovieId}}?language={{tmdbLanguage}}",
+            "description": "Detalhes de um filme por `tmdbId` (somente dev, loopback).\n\n**Lookup local-first:** Redis (TTL 24h) → Postgres (fresco < 30 dias) → TMDB. Miss TMDB grava no Redis e enfileira persistência no Postgres (BullMQ).\n\n**Path**\n- `id` — {{tmdbMovieId}} (603 = Matrix)\n\n**Query**\n- `language` (opcional) — {{tmdbLanguage}}; omitido no resolver → pt-BR"
           },
           "response": []
         }
