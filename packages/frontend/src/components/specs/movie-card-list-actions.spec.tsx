@@ -35,6 +35,7 @@ function renderActions(tmdbId = 27205) {
 describe("MovieCardListActions", () => {
   const patchEntry = jest.fn();
   const getFlags = jest.fn();
+  const hasEntry = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,9 +46,11 @@ describe("MovieCardListActions", () => {
       rating: null,
       watchedAt: null,
     });
+    hasEntry.mockReturnValue(false);
     patchEntry.mockResolvedValue(true);
     mockedUseUserMovieEntries.mockReturnValue({
       getFlags,
+      hasEntry,
       patchEntry,
       isLoading: false,
       isPatching: () => false,
@@ -154,6 +157,7 @@ describe("MovieCardListActions", () => {
     it("exibe loading enquanto hidrata as listas do usuário", () => {
       mockedUseUserMovieEntries.mockReturnValue({
         getFlags,
+        hasEntry,
         patchEntry,
         isLoading: true,
         isPatching: () => false,
