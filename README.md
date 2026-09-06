@@ -29,15 +29,16 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ### Backend
 
-- **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão.
+- **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão. O agente enriquece candidatos com a tool interna **`lookupMovies`** (até 8 títulos por turno, lookup em lote no Postgres/Redis).
+- **Catálogo local (Postgres):** Fichas `Movie` + filhas persistidas via Prisma; lookup **local-first** (Redis → banco → TMDB) no agente e no `GET /debug/tmdb/movies/:id`; persistência assíncrona no miss TMDB via fila **BullMQ** (`catalog-movie-persist`).
 - **Sugestões de busca via IA:** `GET /movie/queries` gera exemplos criativos de prompts para iniciar uma conversa.
 - **Histórico de conversa:** Contexto por sessão no Redis, identificado pelo header `chatid`.
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
-- **Rotas públicas de filmes:** Recomendações e sugestões de busca **não exigem autenticação** (middleware protegido ainda não implementado).
+- **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
 - **Logging estruturado:** **Pino** (`lib/logger`) nos fluxos de auth e cadastro.
-- **CORS:** `@fastify/cors` com `credentials: true` para `localhost` e deploys `*.vercel.app`.
+- **CORS:** `@fastify/cors` com `credentials: true` para `localhost` e deploys `*.vercel.app`; expõe `X-Guest-Remaining`.
 - **Arquitetura desacoplada:** Clean Architecture no pacote `packages/backend`.
 - **Testes:** **Vitest** para casos de uso, providers e mappers.
 - **Documentação:** Swagger gerado a partir dos schemas Zod via `fastify-type-provider-zod`.
@@ -51,9 +52,8 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ## Próximos Passos
 
-- **Middleware de rotas protegidas** (`Authorization: Bearer`)
+- **Middleware de rotas protegidas** em outros endpoints (`Authorization: Bearer` obrigatório)
 - **Histórico e Listas Pessoais** por usuário
-- **Conexão com TMDB via IA** (orquestração MCP)
 
 ## 🏛️ Análise Arquitetural do Backend
 
@@ -102,7 +102,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Testes:** Vitest
 - **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
-- **Banco de dados:** PostgreSQL (usuários) + Redis (histórico de chat e refresh tokens, `ioredis`)
+- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
 - **HTTP:** `@fastify/cors`
@@ -169,6 +169,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    | `REFRESH_COOKIE_NAME` | Nome do cookie httpOnly (padrão: `refreshToken`) |
    | `COOKIE_SECRET` | Segredo para assinar cookies |
    | `GOOGLE_CLIENT_ID` | Client ID OAuth 2.0 do Google |
+   | `TMDB_ACCESS_TOKEN` | Bearer token da API TMDB v3 (obrigatório fora de `test`) |
 
    **Google Cloud Console (OAuth):**
    1. Crie credenciais **OAuth 2.0** do tipo **Aplicativo da Web**.
@@ -189,7 +190,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (modelo `User`: `email`, `name`, `passwordHash?`, `googleId?`).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `Movie` e filhas do catálogo).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -219,11 +220,13 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 | `pnpm db:migrate` | Aplica migrations em desenvolvimento |
 | `pnpm db:studio` | Abre o Prisma Studio |
 | `pnpm test:catalog-lookup-bench` | Benchmark opt-in: batch vs unitário com Postgres + Redis reais |
+| `pnpm test:tmdb-live` | Teste live opt-in contra a API TMDB (fora do `pnpm test` da CI) |
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local**; o Postman guarda o cookie `refreshToken` após o login para usar em **Refresh** e **Logout**.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar.
 
+Pastas: **Movies** (recomendação convidado/Bearer), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
 ## Referência da API
 
 Rotas sob `/movie/*` são **públicas**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem `Authorization`. Refresh e logout dependem do cookie httpOnly `refreshToken`.
@@ -233,6 +236,8 @@ Rotas sob `/movie/*` são **públicas**. Cadastro e login (`/users/register`, `/
 ### `POST /movie/recommendation`
 
 - **Header obrigatório:** `chatid` (string) — ID da sessão de conversa no Redis.
+- **Header opcional:** `Authorization: Bearer <accessToken>` — usuário logado; pula a cota de convidado.
+- **Convidado (sem Bearer):** cookie `guest-id` (httpOnly) + header de resposta `X-Guest-Remaining` com tentativas restantes.
 - **Body:**
   ```json
   {
@@ -353,13 +358,33 @@ curl -X POST http://localhost:3333/auth/refresh -b cookies.txt -c cookies.txt
 curl -X POST http://localhost:3333/auth/logout -b cookies.txt
 ```
 
+### `GET /debug/tmdb/search` (somente dev, loopback)
+
+- **Autenticação:** não requerida; rota registrada apenas com `NODE_ENV !== prod`. Origem deve ser loopback (`127.0.0.1` / `::1`).
+- **Query:** `query` (obrigatório), `page` (opcional), `language` (opcional, ex. `pt-BR`).
+
+```bash
+curl "http://localhost:3333/debug/tmdb/search?query=matrix&page=1"
+```
+
+### `GET /debug/tmdb/movies/:id` (somente dev, loopback)
+
+- **Autenticação:** não requerida; mesmas restrições de ambiente e loopback acima.
+- **Path:** `id` — `tmdbId` inteiro.
+- **Query:** `language` (opcional; omitido → `pt-BR` no resolver).
+- **Comportamento:** lookup local-first (Redis → Postgres fresco → TMDB); miss TMDB enfileira persistência no Postgres.
+
+```bash
+curl "http://localhost:3333/debug/tmdb/movies/603?language=pt-BR"
+```
+
 ## Testes
 
 ```bash
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit` em `packages/backend/vite.config.mts`). Cobertura atual: casos de uso de filmes, auth e users; providers `@luanpoppe/ai`; mapper de erros Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **321** testes cobrindo filmes (recomendação, catálogo, lookup em lote), auth, users, TMDB e mappers Prisma.
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 
