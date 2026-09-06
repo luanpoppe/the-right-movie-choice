@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro; use \"Movie recommendation (Bearer)\" com `Authorization: Bearer {{accessToken}}` para pular cota de convidado.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `userEntryTmdbId` — TMDB id usado em GET/PATCH `/movie/user-entries/:tmdbId` (ex.: 27205 = Inception)\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro para rotas com Bearer. Use \"Movie recommendation (Bearer)\" ou a pasta **User movie entries** com `Authorization: Bearer {{accessToken}}`.\n\n**Resposta da recomendação**\nCada filme pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo via `lookupMovies`.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -37,6 +37,10 @@
     {
       "key": "tmdbLanguage",
       "value": "pt-BR"
+    },
+    {
+      "key": "userEntryTmdbId",
+      "value": "27205"
     }
   ],
   "item": [
@@ -77,7 +81,7 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Gera recomendações de filmes com base na mensagem do usuário.\n\n**Headers obrigatórios**\n- `chatid`: {{chatId}} (campo Zod `chatid`; HTTP é case-insensitive)\n\n**Convidado (sem Authorization)**\n- Aplica cota de uso anônimo\n- Define cookie `guest-id` (httpOnly) — o Postman persiste via Cookie Jar\n- Resposta inclui header `X-Guest-Remaining` com tentativas restantes\n\n**Body**\n- `userMessage` (string, não vazia)"
+            "description": "Gera recomendações de filmes com base na mensagem do usuário.\n\n**Headers obrigatórios**\n- `chatid`: {{chatId}} (campo Zod `chatid`; HTTP é case-insensitive)\n\n**Convidado (sem Authorization)**\n- Aplica cota de uso anônimo\n- Define cookie `guest-id` (httpOnly) — o Postman persiste via Cookie Jar\n- Resposta inclui header `X-Guest-Remaining` com tentativas restantes\n\n**Body**\n- `userMessage` (string, não vazia)\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
           },
           "response": []
         },
@@ -109,7 +113,114 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)"
+            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User movie entries",
+      "description": "Listas pessoais do usuário autenticado (assistido, favorito, watchlist). **Bearer obrigatório** — execute Login ou Google Auth antes.",
+      "item": [
+        {
+          "name": "List entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/user-entries",
+            "description": "Lista entradas do usuário autenticado.\n\n**Query opcional** (adicione na URL conforme necessário)\n- `watched=true|false`\n- `favorite=true|false`\n- `inWatchlist=true|false`\n\n**Resposta**\n- `entries[]` com flags, `rating`, `watchedAt` e `movie` opcional (`title`, `year`, `posterPath` URL TMDB ou null)\n\nRespostas: 200, 400, 401."
+          },
+          "response": []
+        },
+        {
+          "name": "List watched entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/user-entries?watched=true",
+            "description": "Atalho: lista apenas entradas com `watched=true` (aba Assistidos no SPA)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get entry by TMDB id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/user-entries/{{userEntryTmdbId}}",
+            "description": "Busca uma entrada pelo `tmdbId` (path {{userEntryTmdbId}}, padrão 27205).\n\nRespostas: 200 (`{ entry }`), 400, 401, 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Patch entry (mark favorite)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"favorite\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/user-entries/{{userEntryTmdbId}}",
+            "description": "Atualização parcial de uma entrada.\n\n**Body** (pelo menos um campo)\n- `watched`, `favorite`, `inWatchlist` (boolean)\n- `rating` (1–10 ou null)\n- `watchedAt` (ISO datetime ou null)\n\n**Resposta**\n- `{ entry }` atualizado, ou `{ entry: null }` quando todas as flags ficam falsas (linha removida)\n\nRespostas: 200, 400, 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Patch entry (mark watched)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"watched\": true,\n  \"rating\": 9,\n  \"watchedAt\": \"2026-09-01T00:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/user-entries/{{userEntryTmdbId}}",
+            "description": "Marca como assistido com nota e data opcionais (mesmo fluxo do modal no SPA)."
           },
           "response": []
         }

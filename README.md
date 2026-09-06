@@ -29,13 +29,14 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 ### Backend
 
-- **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão. O agente enriquece candidatos com a tool interna **`lookupMovies`** (até 8 títulos por turno, lookup em lote no Postgres/Redis).
+- **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão. Quando o agente resolve o catálogo via **`lookupMovies`**, cada filme pode incluir **`tmdbId`** e **`imdbId`** opcionais para o SPA marcar listas.
 - **Catálogo local (Postgres):** Fichas `Movie` + filhas persistidas via Prisma; lookup **local-first** (Redis → banco → TMDB) no agente e no `GET /debug/tmdb/movies/:id`; persistência assíncrona no miss TMDB via fila **BullMQ** (`catalog-movie-persist`).
 - **Sugestões de busca via IA:** `GET /movie/queries` gera exemplos criativos de prompts para iniciar uma conversa.
 - **Histórico de conversa:** Contexto por sessão no Redis, identificado pelo header `chatid`.
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
 - **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
+- **Listas do usuário:** `GET`/`PATCH /movie/user-entries` exigem **JWT** (`Authorization: Bearer`). Uma linha por `(userId, tmdbId)` com flags `watched`, `favorite`, `inWatchlist` e metadados opcionais de assistido (`rating` 1–10, `watchedAt`). Listagens aceitam filtros por flag e podem enriquecer com resumo do catálogo (`title`, `year`, `posterPath` como URL TMDB).
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
 - **Logging estruturado:** **Pino** (`lib/logger`) nos fluxos de auth e cadastro.
 - **CORS:** `@fastify/cors` com `credentials: true` para `localhost` e deploys `*.vercel.app`; expõe `X-Guest-Remaining`.
@@ -46,14 +47,16 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 ### Frontend
 
 - **Interface de chat** para pedir recomendações e ver filmes sugeridos.
+- **Ações nos cards:** marcar assistido (nota/data opcionais), favorito e watchlist com PATCH otimista.
+- **Biblioteca `/my-movies`:** abas Assistidos, Quero ver e Favoritos; link no header quando autenticado.
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
 - **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
 - **Autenticação:** telas `/login` e `/register` com senha ou botão Google (`@react-oauth/google`).
 
 ## Próximos Passos
 
-- **Middleware de rotas protegidas** em outros endpoints (`Authorization: Bearer` obrigatório)
-- **Histórico e Listas Pessoais** por usuário
+- **Listas personalizadas** (nomeadas pelo usuário, novas tabelas)
+- **Filtrar recomendações** por filmes já assistidos
 
 ## 🏛️ Análise Arquitetural do Backend
 
@@ -190,7 +193,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `Movie` e filhas do catálogo).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `Movie` e filhas do catálogo).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -224,12 +227,12 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variável `userEntryTmdbId` (padrão `27205`) alimenta as rotas `/movie/user-entries/:tmdbId`.
 
-Pastas: **Movies** (recomendação convidado/Bearer), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+Pastas: **Movies** (recomendação convidado/Bearer), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
 ## Referência da API
 
-Rotas sob `/movie/*` são **públicas**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem `Authorization`. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries` exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
 
 > Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
 
@@ -258,11 +261,14 @@ Rotas sob `/movie/*` são **públicas**. Cadastro e login (`/users/register`, `/
         "imdbRating": 8.5,
         "synopsis": "string",
         "whySuggestion": "string",
-        "durationInMinutes": 120
+        "durationInMinutes": 120,
+        "tmdbId": 27205,
+        "imdbId": "tt1375666"
       }
     ]
   }
   ```
+  `tmdbId` e `imdbId` são **opcionais** — presentes quando o agente resolve o filme no catálogo via `lookupMovies`; omitidos quando o título não foi encontrado.
 
 **Exemplo (produção):**
 ```bash
@@ -292,6 +298,77 @@ curl http://localhost:3333/movie/queries
 ```
 
 **Respostas:** `200`, `500` (erro interno / schema da IA).
+
+### `GET /movie/user-entries`
+
+- **Autenticação:** `Authorization: Bearer <accessToken>` (obrigatório).
+- **Query opcional:** `watched`, `favorite`, `inWatchlist` — boolean (`true`/`false` ou string `"true"`/`"false"`).
+- **Resposta `200`:**
+  ```json
+  {
+    "entries": [
+      {
+        "tmdbId": 27205,
+        "movieId": 1,
+        "watched": true,
+        "favorite": false,
+        "inWatchlist": false,
+        "rating": 9,
+        "watchedAt": "2026-09-01T00:00:00.000Z",
+        "createdAt": "2026-09-01T12:00:00.000Z",
+        "updatedAt": "2026-09-01T12:00:00.000Z",
+        "movie": {
+          "title": "A Origem",
+          "year": 2010,
+          "posterPath": "https://image.tmdb.org/t/p/w500/..."
+        }
+      }
+    ]
+  }
+  ```
+  `movie` é `null` quando o filme ainda não está no catálogo local; `posterPath` é URL completa TMDB quando disponível.
+
+**Exemplo (local):**
+```bash
+curl "http://localhost:3333/movie/user-entries?watched=true" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+**Respostas:** `200`, `400`, `401`.
+
+### `GET /movie/user-entries/:tmdbId`
+
+- **Autenticação:** Bearer obrigatório.
+- **Path:** `tmdbId` — inteiro positivo.
+- **Resposta `200`:** `{ "entry": { ... } }` (mesmo formato de um item da listagem).
+- **Respostas:** `200`, `400`, `401`, `404` (entrada inexistente para o usuário).
+
+### `PATCH /movie/user-entries/:tmdbId`
+
+- **Autenticação:** Bearer obrigatório.
+- **Path:** `tmdbId` — inteiro positivo.
+- **Body** (pelo menos um campo; `strict`):
+  ```json
+  {
+    "watched": true,
+    "favorite": true,
+    "inWatchlist": false,
+    "rating": 8,
+    "watchedAt": "2026-09-01T00:00:00.000Z"
+  }
+  ```
+  `rating` aceita `null` para limpar; `watchedAt` aceita `null` ou ISO datetime.
+- **Resposta `200`:** `{ "entry": { ... } | null }` — `entry` é `null` quando todas as flags ficam falsas (linha removida).
+
+**Exemplo (local):**
+```bash
+curl -X PATCH "http://localhost:3333/movie/user-entries/27205" \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"favorite\": true}"
+```
+
+**Respostas:** `200`, `400`, `401`.
 
 ### `POST /users/register`
 
@@ -384,7 +461,7 @@ curl "http://localhost:3333/debug/tmdb/movies/603?language=pt-BR"
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **321** testes cobrindo filmes (recomendação, catálogo, lookup em lote), auth, users, TMDB e mappers Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **442** testes cobrindo filmes (recomendação, catálogo, lookup em lote, listas do usuário), auth, users, TMDB e mappers Prisma.
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 
