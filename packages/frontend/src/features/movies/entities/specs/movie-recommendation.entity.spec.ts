@@ -77,6 +77,26 @@ describe("SingleMovieReccomendationSchema", () => {
     expect(parsed).not.toHaveProperty("imdbId");
   });
 
+  it("aceita posterPath como URL TMDB completa", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
+    };
+    const parsed = SingleMovieReccomendationSchema.parse(movie);
+
+    expect(parsed.posterPath).toBe("https://image.tmdb.org/t/p/w500/poster.jpg");
+  });
+
+  it("aceita posterPath null", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      posterPath: null,
+    };
+    const parsed = SingleMovieReccomendationSchema.parse(movie);
+
+    expect(parsed.posterPath).toBeNull();
+  });
+
   it("REQ-5: rejeita tmdbId zero", () => {
     const movie = {
       ...MovieRecommendationEntityFixtures.singleMovie(),

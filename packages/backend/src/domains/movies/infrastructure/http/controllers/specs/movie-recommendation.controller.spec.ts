@@ -3,6 +3,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
 import { SingleMovieReccomendationInternalEntity } from "@/domains/movies/domain/entities/movie-recommendation.entity";
+import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { MovieRecommendationRequest } from "../../dto/movie-recommendation.dto";
 import { MovieRecommendationController } from "../movie-recommendation.controller";
 
@@ -62,6 +63,7 @@ function createRequest(overrides?: {
 
 describe("MovieRecommendationController", () => {
   let guestQuotaService: GuestQuotaService;
+  let catalogRepository: IMovieCatalogRepository;
   let handler: ReturnType<typeof MovieRecommendationController.create>;
 
   beforeEach(() => {
@@ -69,7 +71,33 @@ describe("MovieRecommendationController", () => {
     guestQuotaService = {
       incrementAfterSuccess: vi.fn(),
     } as unknown as GuestQuotaService;
-    handler = MovieRecommendationController.create(guestQuotaService);
+    catalogRepository = {
+      upsert: vi.fn(),
+      findByTmdbId: vi.fn().mockResolvedValue({
+        details: {
+          tmdbId: INTERNAL_MOVIE.tmdbId,
+          title: INTERNAL_MOVIE.title,
+          year: INTERNAL_MOVIE.releaseYear,
+          posterPath: "/poster.jpg",
+          overview: INTERNAL_MOVIE.synopsis,
+          runtimeMinutes: INTERNAL_MOVIE.durationInMinutes,
+          genres: [],
+          tmdbVoteAverage: INTERNAL_MOVIE.imdbRating,
+          originCountries: [],
+          directors: [INTERNAL_MOVIE.director],
+          cast: INTERNAL_MOVIE.actors,
+          watchProviders: { flatrate: [], rent: [], buy: [] },
+          imdbId: INTERNAL_MOVIE.imdbId,
+        },
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+      findByTitleAndYear: vi.fn(),
+      findByTitlesAndYears: vi.fn(),
+    };
+    handler = MovieRecommendationController.create({
+      guestQuotaService,
+      catalogRepository,
+    });
   });
 
   it("REQ-1: expõe tmdbId e imdbId na resposta autenticada quando presentes", async () => {
@@ -95,6 +123,7 @@ describe("MovieRecommendationController", () => {
     expect(sentBody.movies[0]).toMatchObject({
       tmdbId: INTERNAL_MOVIE.tmdbId,
       imdbId: INTERNAL_MOVIE.imdbId,
+      posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
     });
     expect(
       guestQuotaService.incrementAfterSuccess,
@@ -131,6 +160,7 @@ describe("MovieRecommendationController", () => {
     expect(sentBody.movies[0]).toMatchObject({
       tmdbId: INTERNAL_MOVIE.tmdbId,
       imdbId: INTERNAL_MOVIE.imdbId,
+      posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
     });
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith(sentBody);
@@ -189,6 +219,7 @@ describe("MovieRecommendationController", () => {
 
     expect(sentBody.movies[0]).not.toHaveProperty("tmdbId");
     expect(sentBody.movies[0]).not.toHaveProperty("imdbId");
+    expect(sentBody.movies[0]?.posterPath).toBeNull();
     expect(reply.status).toHaveBeenCalledWith(200);
   });
 

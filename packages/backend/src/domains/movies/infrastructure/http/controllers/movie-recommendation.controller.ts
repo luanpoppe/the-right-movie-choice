@@ -1,9 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CookieSerializeOptions } from "@fastify/cookie";
-import {
-  MovieRecommendationRequest,
-  MovieRecommendationResponseDTO,
-} from "../dto/movie-recommendation.dto";
+import { MovieRecommendationRequest } from "../dto/movie-recommendation.dto";
 
 import { MissingHeaderException } from "@/core/exceptions/missing-header.exception";
 import {
@@ -13,14 +10,22 @@ import {
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
-import {
-  SingleMovieReccomendationInternalEntity,
-  SingleMovieReccomendationSchema,
-} from "@/domains/movies/domain/entities/movie-recommendation.entity";
+import { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { env } from "@/env";
+import { MovieRecommendationResponseMapper } from "../mappers/movie-recommendation-response.mapper";
+
+type MovieRecommendationControllerDeps = {
+  guestQuotaService: GuestQuotaService;
+  catalogRepository: IMovieCatalogRepository;
+};
 
 export class MovieRecommendationController {
-  static create(guestQuotaService: GuestQuotaService) {
+  static create(deps: MovieRecommendationControllerDeps) {
+    const { guestQuotaService, catalogRepository } = deps;
+    const responseMapper = new MovieRecommendationResponseMapper(
+      catalogRepository,
+    );
+
     return async (
       request: FastifyRequest<{
         Body: MovieRecommendationRequest;
@@ -37,10 +42,7 @@ export class MovieRecommendationController {
       const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
 
       const { movies, response } = await useCase.execute(userMessage, chatid);
-      const responseBody = MovieRecommendationController.toPublicResponseBody(
-        movies,
-        response,
-      );
+      const responseBody = await responseMapper.toResponse(movies, response);
 
       const movieAuth = request.movieAuth;
       const isAnonymous =
@@ -67,22 +69,6 @@ export class MovieRecommendationController {
 
       return reply.status(200).send(responseBody);
     };
-  }
-
-  private static toPublicResponseBody(
-    movies: SingleMovieReccomendationInternalEntity[],
-    response: string,
-  ): MovieRecommendationResponseDTO {
-    const publicMovies = movies.map((movie) => {
-      const publicMovie = SingleMovieReccomendationSchema.parse(movie);
-      return publicMovie;
-    });
-
-    const responseBody: MovieRecommendationResponseDTO = {
-      response,
-      movies: publicMovies,
-    };
-    return responseBody;
   }
 
   private static guestIdCookieOptions(): CookieSerializeOptions {
