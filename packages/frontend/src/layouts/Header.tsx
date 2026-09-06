@@ -50,9 +50,14 @@ function AuthActions() {
 
   if (accessToken) {
     return (
-      <Button variant="outline" size="sm" onClick={handleLogout}>
-        Sair
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/my-movies">Meus filmes</Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleLogout}>
+          Sair
+        </Button>
+      </div>
     );
   }
 

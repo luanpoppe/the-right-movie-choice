@@ -6,6 +6,11 @@
 
 <!-- Como o agente deve trabalhar. Carrega SEMPRE. Não pré-supõe nada sobre features. -->
 
+- Com `code_review: on` no SDD, usar subagente `code-reviewer` + `code-review-guide.md` no passo c-bis/f-ter — não o Bugbot do Cursor (`subagent_type: bugbot`).
+  - **Quando**: `/lp-continue` com code review habilitado
+  - **Por quê**: formatos, severidades (`grave`/`medio`/`menor`), integração com `sdd_record_chunk` e g-quater são do pipeline lp, não do Bugbot
+  - **Registrado em**: 2026-09-06
+
 - Chaves de persistência no cliente usam nome de produto/domínio, não de bundler.
   - **Quando**: localStorage / sessionStorage
   - **Por quê**: o nome da ferramenta (Vite, etc.) não diz o que o usuário está salvando
@@ -127,6 +132,12 @@
   - **Por quê**: prefixo repetido no nome já é o nome da pasta; o arquivo único vira god object
   - **Exemplo**: `PrismaMovieCatalogRepository` + builders/writer separados
   - **Registrado em**: 2026-09-05
+
+- Mapper Prisma (`*PrismaMapper`) e utils de merge/transformação do adapter ficam em arquivo próprio — mapper em `infrastructure/mappers/`, utils na subpasta do repositório — não como classe interna no `.repository.ts`.
+  - **Quando**: implementar adapter Prisma com mapeamento row→entity ou merge de patch parcial
+  - **Por quê**: o repositório fica só orquestração de I/O; mapper e merge são conceitos distintos e reutilizáveis em teste
+  - **Exemplo**: `UserMovieEntryPrismaMapper` em `mappers/` + `UserMovieEntryMergeUtils` em `repositories/user-movie-entry/`
+  - **Registrado em**: 2026-09-06
 
 - Mensagem de erro para log (`unknown` → string) vai para `ErrorUtils.message` em `shared/utils`, não copiada em cada classe.
   - **Quando**: extrair `reason`/`errorMessage` de `catch (error: unknown)`

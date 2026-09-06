@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: recommendation-expose-ids — user-watched-movies</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-watched-movies</a> / specs / <strong>recommendation-expose-ids</strong> / spec</p>
+    <h1>Spec: recommendation-expose-ids</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-watched-movies</code></a> · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Inclui <code>tmdbId</code> e <code>imdbId</code> opcionais em cada filme da resposta pública de <code>POST /movie/recommendation</code>, no backend e no schema do SPA, para o cliente chamar a API de listas sem lookup por título.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Filme com hit no catálogo expõe os dois IDs</h3>
+      <ul>
+        <li><strong>Dado que</strong> o agente recomendou &quot;Inception&quot; com <code>tmdbId = 27205</code> e <code>imdbId = &quot;tt1375666&quot;</code> no fluxo interno</li>
+        <li><strong>Quando</strong> o cliente recebe <code>POST /movie/recommendation</code> com sucesso</li>
+        <li><strong>Então</strong> o objeto do filme na resposta contém <code>tmdbId = 27205</code></li>
+        <li><strong>E</strong> contém <code>imdbId = &quot;tt1375666&quot;</code></li>
+      </ul>
+      <h3>REQ-2: Filme sem match no catálogo não expõe IDs</h3>
+      <ul>
+        <li><strong>Dado que</strong> o agente recomendou um filme sem <code>tmdbId</code> nem <code>imdbId</code> no fluxo interno (miss no catálogo)</li>
+        <li><strong>Quando</strong> o cliente recebe <code>POST /movie/recommendation</code> com sucesso</li>
+        <li><strong>Então</strong> o objeto do filme não inclui <code>tmdbId</code></li>
+        <li><strong>E</strong> não inclui <code>imdbId</code></li>
+      </ul>
+      <h3>REQ-3: Visitante anônimo recebe os mesmos IDs</h3>
+      <ul>
+        <li><strong>Dado que</strong> a requisição é de guest com cookie de quota válido</li>
+        <li><strong>Quando</strong> a recommendation retorna filme com IDs no fluxo interno</li>
+        <li><strong>Então</strong> a resposta pública inclui <code>tmdbId</code> e <code>imdbId</code> da mesma forma que para usuário autenticado</li>
+      </ul>
+      <h3>REQ-4: Schema público aceita IDs opcionais</h3>
+      <ul>
+        <li><strong>Entrada</strong> filme interno com <code>tmdbId = 603</code> e sem <code>imdbId</code></li>
+        <li><strong>Saída</strong> objeto público válido com <code>tmdbId = 603</code></li>
+        <li><strong>E</strong> sem propriedade <code>imdbId</code></li>
+      </ul>
+      <h3>REQ-5: DTO HTTP do backend valida IDs na resposta</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>MovieRecommendationResponseDTO</code> com <code>movies[0].tmdbId = 157336</code></li>
+        <li><strong>Saída</strong> parse Zod aceita o payload</li>
+        <li><strong>Erro</strong> <code>tmdbId = 0</code> → validação falha antes de serializar</li>
+      </ul>
+      <h3>REQ-6: Schema do SPA espelha o contrato público</h3>
+      <ul>
+        <li><strong>Entrada</strong> JSON de recommendation com <code>movies[0].tmdbId = 550</code> e <code>imdbId = &quot;tt0137523&quot;</code></li>
+        <li><strong>Saída</strong> <code>SingleMovieReccomendationSchema</code> do frontend aceita o payload</li>
+        <li><strong>E</strong> o tipo inferido expõe <code>tmdbId</code> e <code>imdbId</code> como opcionais</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Só <code>tmdbId</code> sem <code>imdbId</code> quando o catálogo tem TMDB mas não IMDb  ||  resposta expõe apenas <code>tmdbId</code></li>
+        <li>Filme com IDs inválidos no fluxo interno (ex.: <code>tmdbId</code> negativo)  ||  validação do schema público rejeita antes da resposta HTTP</li>
+        <li>Resposta com até 3 filmes  ||  cada item segue REQ-1 ou REQ-2 independentemente</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>POST /movie/recommendation</code> — cada item de <code>movies[]</code> ganha <code>tmdbId?</code> (inteiro positivo) e <code>imdbId?</code> (string não vazia). Demais campos inalterados.</li>
+        <li><code>packages/backend/src/domains/movies/domain/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema</code></li>
+        <li><code>packages/frontend/src/features/movies/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

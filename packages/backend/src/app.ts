@@ -31,7 +31,7 @@ app.register(fastifyCookie, {
 
 app.register(fastifyCors, {
   origin: [/^http:\/\/localhost(:\d+)?$/, /\.vercel\.app$/],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "chatId"],
   exposedHeaders: [GuestQuotaConstants.RESPONSE_HEADER_REMAINING],
   credentials: true,

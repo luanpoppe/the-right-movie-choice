@@ -1,0 +1,476 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { FastifyReply, FastifyRequest } from "fastify";
+import type {
+  UserMovieEntryEntity,
+  UserMovieEntryListItemEntity,
+  UserMovieEntryMovieSummary,
+} from "@/domains/movies/domain/entities/user-movie-entry.entity";
+import { UserMovieEntryValidationException } from "@/domains/movies/domain/exceptions/user-movie-entry-validation.exception";
+import { GetUserMovieEntryUseCase } from "@/domains/movies/application/use-cases/get-user-movie-entry.use-case";
+import { ListUserMovieEntriesUseCase } from "@/domains/movies/application/use-cases/list-user-movie-entries.use-case";
+import { UpsertUserMovieEntryUseCase } from "@/domains/movies/application/use-cases/upsert-user-movie-entry.use-case";
+import type {
+  UserMovieEntryListQueryDTO,
+  UserMovieEntryPatchDTO,
+  UserMovieEntryTmdbIdParams,
+} from "../../dto/user-movie-entry.dto";
+import { UserMovieEntryController } from "../user-movie-entry.controller";
+import { TmdbPosterUtils } from "@/modules/tmdb/domain/tmdb-poster.utils";
+
+class UserMovieEntryControllerFixtures {
+  static entry(overrides: Partial<UserMovieEntryEntity> = {}): UserMovieEntryEntity {
+    return {
+      userId: 42,
+      tmdbId: 157336,
+      movieId: 17,
+      watched: true,
+      favorite: false,
+      inWatchlist: true,
+      rating: 9,
+      watchedAt: new Date("2024-06-15T20:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      ...overrides,
+    };
+  }
+
+  static movieSummary(
+    overrides: Partial<UserMovieEntryMovieSummary> = {},
+  ): UserMovieEntryMovieSummary {
+    return {
+      title: "Interestelar",
+      year: 2014,
+      posterPath: "/poster.jpg",
+      ...overrides,
+    };
+  }
+
+  static listItem(
+    overrides: Partial<UserMovieEntryListItemEntity> = {},
+  ): UserMovieEntryListItemEntity {
+    const baseEntry = UserMovieEntryControllerFixtures.entry();
+    const movie =
+      overrides.movie === undefined
+        ? UserMovieEntryControllerFixtures.movieSummary()
+        : overrides.movie;
+
+    return {
+      ...baseEntry,
+      ...overrides,
+      movie,
+    };
+  }
+}
+
+function createReply(): FastifyReply {
+  return {
+    status: vi.fn().mockReturnThis(),
+    send: vi.fn().mockReturnThis(),
+  } as unknown as FastifyReply;
+}
+
+function createAuthRequest<T extends Record<string, unknown>>(
+  request: T,
+): T & { userMovieEntryAuth: { userId: number } } {
+  return {
+    ...request,
+    userMovieEntryAuth: { userId: 42 },
+  };
+}
+
+describe("UserMovieEntryController", () => {
+  let listUserMovieEntriesUseCase: ListUserMovieEntriesUseCase;
+  let getUserMovieEntryUseCase: GetUserMovieEntryUseCase;
+  let upsertUserMovieEntryUseCase: UpsertUserMovieEntryUseCase;
+  let handlers: ReturnType<typeof UserMovieEntryController.create>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    listUserMovieEntriesUseCase = {
+      execute: vi.fn(),
+    } as unknown as ListUserMovieEntriesUseCase;
+    getUserMovieEntryUseCase = {
+      execute: vi.fn(),
+    } as unknown as GetUserMovieEntryUseCase;
+    upsertUserMovieEntryUseCase = {
+      execute: vi.fn(),
+    } as unknown as UpsertUserMovieEntryUseCase;
+
+    handlers = UserMovieEntryController.create({
+      listUserMovieEntriesUseCase,
+      getUserMovieEntryUseCase,
+      upsertUserMovieEntryUseCase,
+    });
+  });
+
+  it("list happy path uses userId from auth context", async () => {
+    const entry = UserMovieEntryControllerFixtures.listItem();
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: "true" },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+    });
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: [
+        {
+          tmdbId: 157336,
+          movieId: 17,
+          watched: true,
+          favorite: false,
+          inWatchlist: true,
+          rating: 9,
+          watchedAt: "2024-06-15T20:00:00.000Z",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
+        },
+      ],
+    });
+  });
+
+  it("list accepts query booleans already coerced by Fastify validator", async () => {
+    const entry = UserMovieEntryControllerFixtures.listItem();
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: true },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+    });
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: [
+        {
+          tmdbId: 157336,
+          movieId: 17,
+          watched: true,
+          favorite: false,
+          inWatchlist: true,
+          rating: 9,
+          watchedAt: "2024-06-15T20:00:00.000Z",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
+        },
+      ],
+    });
+  });
+
+  it("list returns movie null when catalog summary is absent", async () => {
+    const entry = UserMovieEntryControllerFixtures.listItem({ movie: null });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: "true" },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: [
+        expect.objectContaining({
+          tmdbId: 157336,
+          movie: null,
+        }),
+      ],
+    });
+  });
+
+  it("get returns 200 with entry when found", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry();
+    vi.mocked(getUserMovieEntryUseCase.execute).mockResolvedValue(entry);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+    }) as unknown as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
+    const reply = createReply();
+
+    await handlers.getByTmdbId(request, reply);
+
+    expect(getUserMovieEntryUseCase.execute).toHaveBeenCalledWith(42, 157336);
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entry: {
+        tmdbId: 157336,
+        movieId: 17,
+        watched: true,
+        favorite: false,
+        inWatchlist: true,
+        rating: 9,
+        watchedAt: "2024-06-15T20:00:00.000Z",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        movie: null,
+      },
+    });
+  });
+
+  it("get returns 404 when entry is absent", async () => {
+    vi.mocked(getUserMovieEntryUseCase.execute).mockResolvedValue(null);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+    }) as unknown as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
+    const reply = createReply();
+
+    await handlers.getByTmdbId(request, reply);
+
+    expect(reply.status).toHaveBeenCalledWith(404);
+    expect(reply.send).toHaveBeenCalledWith({
+      error: "User movie entry not found",
+    });
+  });
+
+  it("patch returns 200 with entry when upsert succeeds", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry({ favorite: true });
+    vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(entry);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { favorite: true },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await handlers.patch(request, reply);
+
+    expect(upsertUserMovieEntryUseCase.execute).toHaveBeenCalledWith(
+      42,
+      157336,
+      { favorite: true },
+    );
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entry: {
+        tmdbId: 157336,
+        movieId: 17,
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+        rating: 9,
+        watchedAt: "2024-06-15T20:00:00.000Z",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        movie: null,
+      },
+    });
+  });
+
+  it("patch returns 200 with entry null when all flags are cleared", async () => {
+    vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(null);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { watched: false, favorite: false, inWatchlist: false },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await handlers.patch(request, reply);
+
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({ entry: null });
+  });
+
+  it("rejects invalid tmdbId in path before calling use case", async () => {
+    const request = createAuthRequest({
+      params: { tmdbId: "0" },
+      body: { watched: true },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await expect(handlers.patch(request, reply)).rejects.toBeInstanceOf(
+      UserMovieEntryValidationException,
+    );
+    expect(upsertUserMovieEntryUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid rating before calling use case", async () => {
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { rating: 11 },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await expect(handlers.patch(request, reply)).rejects.toBeInstanceOf(
+      UserMovieEntryValidationException,
+    );
+    expect(upsertUserMovieEntryUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty patch body before calling use case", async () => {
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: {},
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await expect(handlers.patch(request, reply)).rejects.toBeInstanceOf(
+      UserMovieEntryValidationException,
+    );
+    expect(upsertUserMovieEntryUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it("list without query passes empty filter to use case", async () => {
+    const entryA = UserMovieEntryControllerFixtures.listItem({ tmdbId: 1 });
+    const entryB = UserMovieEntryControllerFixtures.listItem({
+      tmdbId: 2,
+      movie: null,
+    });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([
+      entryA,
+      entryB,
+    ]);
+    const request = createAuthRequest({
+      query: {},
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {});
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: expect.arrayContaining([
+        expect.objectContaining({
+          tmdbId: 1,
+          movie: {
+            title: "Interestelar",
+            year: 2014,
+            posterPath: TmdbPosterUtils.buildPosterUrl("/poster.jpg"),
+          },
+        }),
+        expect.objectContaining({ tmdbId: 2, movie: null }),
+      ]),
+    });
+  });
+
+  it("list passes AND filter when multiple query flags are present", async () => {
+    const entry = UserMovieEntryControllerFixtures.listItem({
+      watched: true,
+      favorite: true,
+      inWatchlist: false,
+    });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: "true", favorite: "true" },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+      favorite: true,
+    });
+    expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("list passes all three query flags as AND filter", async () => {
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([]);
+    const request = createAuthRequest({
+      query: {
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+      },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+      favorite: true,
+      inWatchlist: true,
+    });
+  });
+
+  it("patch REQ-9 forwards partial body and returns entry with preserved flags", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry({
+      watched: true,
+      favorite: true,
+      inWatchlist: true,
+    });
+    vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(entry);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { inWatchlist: true },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await handlers.patch(request, reply);
+
+    expect(upsertUserMovieEntryUseCase.execute).toHaveBeenCalledWith(
+      42,
+      157336,
+      { inWatchlist: true },
+    );
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entry: expect.objectContaining({
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+        movie: null,
+      }),
+    });
+  });
+
+  it("uses userId from auth context instead of any client input", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry();
+    vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(entry);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { watched: true },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await handlers.patch(request, reply);
+
+    const [calledUserId] = vi.mocked(upsertUserMovieEntryUseCase.execute).mock
+      .calls[0]!;
+
+    expect(calledUserId).toBe(42);
+    expect(upsertUserMovieEntryUseCase.execute).toHaveBeenCalledWith(
+      42,
+      157336,
+      { watched: true },
+    );
+  });
+});

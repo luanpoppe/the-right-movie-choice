@@ -1,6 +1,9 @@
 id: tmdb-agent-tool
 title: Tool TMDB no agente de recomendação
 created: 2026-09-05
+updated: 2026-09-05
+state: archived
+archived: 2026-09-05
 format: both
 lang: pt-BR
 chunk_size: small
@@ -8,6 +11,11 @@ features:
   - slug: tmdb-lookup-tool
     title: Tool de lookup TMDB
     summary: Tool de busca no catálogo TMDB já existente, devolvendo informações incluindo ids TMDB e IMDb.
+    status: done
   - slug: agent-tmdb-tool-call
     title: Agente chama a tool TMDB
     summary: O agente de recomendação chama essa tool, o prompt ensina o uso, e os ids ficam no schema interno sem alterar a API pública.
+    status: done
+current_feature: null
+current_chunk: null
+in_review: null

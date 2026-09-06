@@ -43,22 +43,94 @@ describe("MovieRecommendationResponseDTO", () => {
 
   it("usa apenas schema público nos filmes da resposta", () => {
     const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
-    const movieWithInternalIds = {
+    const movieWithCatalogIds = {
       ...publicMovie,
       tmdbId: 27205,
       imdbId: "tt1375666",
     };
 
     const parsed = MovieRecommendationResponseDTOSchema.parse({
-      movies: [movieWithInternalIds],
+      movies: [movieWithCatalogIds],
       response: "Sugestão.",
+    });
+
+    expect(parsed.movies[0]).toEqual(movieWithCatalogIds);
+    expect(SingleMovieReccomendationSchema).toBe(
+      MovieRecommendationResponseDTOSchema.shape.movies.element,
+    );
+  });
+
+  it("REQ-2: omite tmdbId e imdbId quando ausentes no payload", () => {
+    const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
+
+    const parsed = MovieRecommendationResponseDTOSchema.parse({
+      movies: [publicMovie],
+      response: "Sugestão sem catálogo.",
     });
 
     expect(parsed.movies[0]).toEqual(publicMovie);
     expect(parsed.movies[0]).not.toHaveProperty("tmdbId");
     expect(parsed.movies[0]).not.toHaveProperty("imdbId");
-    expect(SingleMovieReccomendationSchema).toBe(
-      MovieRecommendationResponseDTOSchema.shape.movies.element,
-    );
+  });
+
+  it("REQ-4: aceita tmdbId sem imdbId no schema público", () => {
+    const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
+    const movieWithTmdbOnly = {
+      ...publicMovie,
+      tmdbId: 603,
+    };
+
+    const parsed = MovieRecommendationResponseDTOSchema.parse({
+      movies: [movieWithTmdbOnly],
+      response: "Só TMDB.",
+    });
+
+    expect(parsed.movies[0]).toMatchObject({ tmdbId: 603 });
+    expect(parsed.movies[0]).not.toHaveProperty("imdbId");
+  });
+
+  it("REQ-5: rejeita tmdbId zero no schema público", () => {
+    const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
+    const movieWithInvalidTmdbId = {
+      ...publicMovie,
+      tmdbId: 0,
+    };
+
+    const parseResult = MovieRecommendationResponseDTOSchema.safeParse({
+      movies: [movieWithInvalidTmdbId],
+      response: "TMDB inválido.",
+    });
+
+    expect(parseResult.success).toBe(false);
+  });
+
+  it("aceita tmdbId como string numerica via coerce", () => {
+    const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
+    const movieWithStringTmdbId = {
+      ...publicMovie,
+      tmdbId: "27205",
+    };
+
+    const parsed = MovieRecommendationResponseDTOSchema.parse({
+      movies: [movieWithStringTmdbId],
+      response: "TMDB como string.",
+    });
+
+    expect(parsed.movies[0]?.tmdbId).toBe(27205);
+  });
+
+  it("rejeita imdbId string vazia", () => {
+    const publicMovie = MovieRecommendationDtoFixtures.publicMovie();
+    const movieWithEmptyImdbId = {
+      ...publicMovie,
+      imdbId: "",
+    };
+
+    const parseResult = MovieRecommendationResponseDTOSchema.safeParse({
+      movies: [movieWithEmptyImdbId],
+      response: "IMDb vazio.",
+    });
+
+    expect(parseResult.success).toBe(false);
   });
 });

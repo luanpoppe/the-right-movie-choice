@@ -5,6 +5,7 @@ import { AiModels } from "@/lib/ai/ai-models";
 import { IMovieRecommendationProvider } from "../../application/providers/movie-recommendation.provider";
 import {
   MovieRecommendationEntity,
+  MovieRecommendationLlmSchema,
   MovieRecommendationSchema,
 } from "../../domain/entities/movie-recommendation.entity";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
@@ -40,7 +41,7 @@ export class AiMovieRecommendationProvider
         systemPrompt,
         messages,
         threadId: chatId,
-        outputSchema: MovieRecommendationSchema as never,
+        outputSchema: MovieRecommendationLlmSchema as never,
         agent: { tools: [lookupMoviesTool] },
       });
       const parseResult = MovieRecommendationSchema.safeParse(result.response);

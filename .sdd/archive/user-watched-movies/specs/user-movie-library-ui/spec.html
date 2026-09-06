@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: user-movie-library-ui — user-watched-movies</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-watched-movies</a> / specs / <strong>user-movie-library-ui</strong> / spec</p>
+    <h1>Spec: user-movie-library-ui</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-watched-movies</code></a> · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Página autenticada <code>/my-movies</code> com abas Assistidos, Quero ver e Favoritos. Cada aba lista os filmes do usuário com título, ano e poster vindos do catálogo local, permite os mesmos toggles dos cards do chat e trata visitante com redirect para login.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Visitante é redirecionado ao acessar a biblioteca</h3>
+      <ul>
+        <li><strong>Dado que</strong> o visitante não está autenticado</li>
+        <li><strong>Quando</strong> navega para <code>/my-movies</code></li>
+        <li><strong>Então</strong> o SPA redireciona para <code>/login</code></li>
+        <li><strong>E</strong> após login bem-sucedido retorna para <code>/my-movies</code></li>
+      </ul>
+      <h3>REQ-2: Usuário autenticado vê as três abas</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está logado</li>
+        <li><strong>Quando</strong> abre <code>/my-movies</code></li>
+        <li><strong>Então</strong> vê abas &quot;Assistidos&quot;, &quot;Quero ver&quot; e &quot;Favoritos&quot;</li>
+        <li><strong>E</strong> a aba &quot;Assistidos&quot; está selecionada por padrão</li>
+      </ul>
+      <h3>REQ-3: Aba Assistidos lista filmes marcados como assistidos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário tem entrada <code>tmdbId = 157336</code> com <code>watched = true</code>, nota <code>9</code> e <code>watchedAt = 2026-03-15</code></li>
+        <li><strong>Quando</strong> abre a aba Assistidos</li>
+        <li><strong>Então</strong> o SPA chama <code>GET /movie/user-entries?watched=true</code></li>
+        <li><strong>E</strong> exibe card com título &quot;Interestelar&quot;, ano <code>2014</code> e poster quando existir no catálogo</li>
+        <li><strong>E</strong> exibe nota <code>9</code> e data assistida <code>15/03/2026</code> no card</li>
+      </ul>
+      <h3>REQ-4: Aba Quero ver lista a watchlist</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário tem <code>tmdbId = 550</code> com <code>inWatchlist = true</code></li>
+        <li><strong>Quando</strong> seleciona a aba Quero ver</li>
+        <li><strong>Então</strong> o SPA chama <code>GET /movie/user-entries?inWatchlist=true</code></li>
+        <li><strong>E</strong> exibe card de &quot;Clube da Luta&quot; com os mesmos metadados de catálogo quando disponíveis</li>
+      </ul>
+      <h3>REQ-5: Aba Favoritos lista favoritos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário tem <code>tmdbId = 27205</code> com <code>favorite = true</code></li>
+        <li><strong>Quando</strong> seleciona a aba Favoritos</li>
+        <li><strong>Então</strong> o SPA chama <code>GET /movie/user-entries?favorite=true</code></li>
+        <li><strong>E</strong> exibe card de &quot;A Origem&quot; com metadados de catálogo quando disponíveis</li>
+      </ul>
+      <h3>REQ-6: Toggles nos cards da biblioteca</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está na aba Favoritos e o card de <code>tmdbId = 27205</code> está visível</li>
+        <li><strong>Quando</strong> desmarca o favorito pelo toggle do card</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH /movie/user-entries/27205</code> com <code>{ &quot;favorite&quot;: false }</code></li>
+        <li><strong>E</strong> o card some da aba Favoritos após confirmação do servidor</li>
+      </ul>
+      <h3>REQ-7: Link no header para usuários logados</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado</li>
+        <li><strong>Quando</strong> visualiza qualquer página com o header</li>
+        <li><strong>Então</strong> vê link &quot;Meus filmes&quot; apontando para <code>/my-movies</code></li>
+      </ul>
+      <h3>REQ-8: Lista enriquecida com catálogo local</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>GET /movie/user-entries?watched=true</code> com JWT válido</li>
+        <li><strong>Saída</strong> <code>200</code> com <code>entries[]</code> onde cada item inclui campos atuais de <code>UserMovieEntry</code></li>
+        <li><strong>E</strong> campo opcional <code>movie</code> com <code>{ title, year, posterPath }</code> quando existir <code>Movie</code> com mesmo <code>tmdbId</code> em <code>pt-BR</code></li>
+        <li><strong>Erro</strong> entrada sem <code>movie</code> no catálogo → item retorna <code>movie: null</code>  ||  demais campos da entrada permanecem</li>
+      </ul>
+      <h3>REQ-9: Ordenação por aba</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>GET /movie/user-entries?watched=true</code></li>
+        <li><strong>Saída</strong> entradas ordenadas por <code>watchedAt</code> descendente</li>
+        <li><strong>E</strong> entradas com <code>watchedAt</code> nulo aparecem após as datadas</li>
+        <li><strong>Entrada</strong> <code>GET /movie/user-entries?favorite=true</code> ou <code>?inWatchlist=true</code></li>
+        <li><strong>Saída</strong> entradas ordenadas por <code>updatedAt</code> descendente</li>
+      </ul>
+      <h3>REQ-10: Card sem catálogo usa placeholder</h3>
+      <ul>
+        <li><strong>Entrada</strong> entrada com <code>tmdbId = 999001</code> e <code>movie: null</code> na resposta enriquecida</li>
+        <li><strong>Saída</strong> card exibe texto &quot;Filme #999001&quot;</li>
+        <li><strong>E</strong> poster substituído por placeholder visual neutro</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Aba sem itens → mensagem de lista vazia com CTA para voltar ao chat e pedir recomendações</li>
+        <li>Falha no <code>GET</code> da aba → toast de erro genérico e botão &quot;Tentar novamente&quot;</li>
+        <li>Toggle que remove o filtro da aba atual → card some sem recarregar a página inteira</li>
+        <li>Filme em múltiplas listas → aparece em cada aba correspondente de forma independente</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>GET /movie/user-entries</code> — resposta enriquecida: <code>packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryResponseSchema</code> + <code>packages/backend/src/domains/movies/infrastructure/http/mappers/user-movie-entry-response.mapper.ts:UserMovieEntryResponseMapper</code></li>
+        <li>Ordenação: <code>watched=true</code> usa <code>watchedAt desc</code>; demais filtros usam <code>updatedAt desc</code> — <code>packages/backend/src/domains/movies/infrastructure/repositories/user-movie-entry/user-movie-entry-list-order.utils.ts:UserMovieEntryListOrderUtils</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

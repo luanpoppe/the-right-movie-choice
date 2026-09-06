@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: user-movie-card-actions — user-watched-movies</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-watched-movies</a> / specs / <strong>user-movie-card-actions</strong> / spec</p>
+    <h1>Spec: user-movie-card-actions</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-watched-movies</code></a> · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Adiciona toggles de assistido, favorito e watchlist nos cards de filme do chat, com feedback visual do estado atual, chamando a API autenticada de listas via <code>tmdbId</code>. Marcar como assistido abre um modal compacto para nota e data (ambos opcionais). Visitante anônimo não persiste — vê CTA para login em vez dos toggles ativos.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Usuário autenticado alterna favorito no card</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está logado e o card exibe &quot;Inception&quot; com <code>tmdbId = 27205</code></li>
+        <li><strong>Quando</strong> toca no controle de favorito</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH /movie/user-entries/27205</code> com <code>{ &quot;favorite&quot;: true }</code></li>
+        <li><strong>E</strong> o ícone do card passa a indicar favorito ativo</li>
+      </ul>
+      <h3>REQ-2: Usuário autenticado alterna watchlist no card</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está logado e o card tem <code>tmdbId = 550</code></li>
+        <li><strong>Quando</strong> toca no controle de watchlist estando desmarcado</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH /movie/user-entries/550</code> com <code>{ &quot;inWatchlist&quot;: true }</code></li>
+        <li><strong>E</strong> o ícone do card passa a indicar watchlist ativa</li>
+      </ul>
+      <h3>REQ-3: Marcar assistido abre modal de confirmação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está logado e o card tem <code>tmdbId = 157336</code> com assistido desmarcado</li>
+        <li><strong>Quando</strong> toca no controle de assistido</li>
+        <li><strong>Então</strong> abre um modal compacto com campos de nota (1–10) e data assistida</li>
+        <li><strong>E</strong> o modal exibe botão de confirmar</li>
+        <li><strong>E</strong> nenhum <code>PATCH</code> é enviado antes da confirmação</li>
+      </ul>
+      <h3>REQ-4: Confirmar assistido sem nota nem data</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modal de assistido está aberto para <code>tmdbId = 157336</code></li>
+        <li><strong>Quando</strong> o usuário confirma sem preencher nota nem data</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH /movie/user-entries/157336</code> com <code>{ &quot;watched&quot;: true }</code></li>
+        <li><strong>E</strong> o body não inclui <code>rating</code> nem <code>watchedAt</code></li>
+        <li><strong>E</strong> o ícone do card passa a indicar assistido ativo</li>
+      </ul>
+      <h3>REQ-5: Confirmar assistido com nota e data opcionais</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modal de assistido está aberto para <code>tmdbId = 157336</code></li>
+        <li><strong>Quando</strong> o usuário informa nota <code>8</code> e data <code>2026-03-15</code> e confirma</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH</code> com <code>{ &quot;watched&quot;: true, &quot;rating&quot;: 8, &quot;watchedAt&quot;: &quot;2026-03-15T00:00:00.000Z&quot; }</code></li>
+        <li><strong>E</strong> o ícone do card passa a indicar assistido ativo</li>
+      </ul>
+      <h3>REQ-6: Desmarcar assistido remove o estado no card</h3>
+      <ul>
+        <li><strong>Dado que</strong> a entrada de <code>tmdbId = 157336</code> está com <code>watched = true</code></li>
+        <li><strong>Quando</strong> o usuário toca novamente no controle de assistido</li>
+        <li><strong>Então</strong> o SPA envia <code>PATCH</code> com <code>{ &quot;watched&quot;: false }</code> sem abrir o modal</li>
+        <li><strong>E</strong> o ícone de assistido volta ao estado inativo</li>
+      </ul>
+      <h3>REQ-7: Visitante anônimo não chama a API de listas</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário não está logado</li>
+        <li><strong>Quando</strong> visualiza um card com <code>tmdbId</code> presente</li>
+        <li><strong>Então</strong> os toggles não disparam <code>PATCH /movie/user-entries</code></li>
+        <li><strong>E</strong> o card exibe convite para login/registro no lugar de ações persistidas</li>
+      </ul>
+      <h3>REQ-8: Card sem tmdbId não exibe ações de lista</h3>
+      <ul>
+        <li><strong>Dado que</strong> a recommendation retornou filme sem <code>tmdbId</code> (miss no catálogo)</li>
+        <li><strong>Quando</strong> o card é renderizado</li>
+        <li><strong>Então</strong> a barra de toggles de lista não aparece</li>
+      </ul>
+      <h3>REQ-9: Estado inicial reflete entradas existentes</h3>
+      <ul>
+        <li><strong>Entrada</strong> usuário autenticado abre o chat com cards <code>tmdbId</code> 27205 (favorito) e 550 (sem entrada)</li>
+        <li><strong>Saída</strong> card 27205 já mostra favorito ativo antes de qualquer clique</li>
+        <li><strong>E</strong> card 550 mostra os três toggles inativos</li>
+      </ul>
+      <h3>REQ-10: Falha de PATCH reverte feedback otimista</h3>
+      <ul>
+        <li><strong>Entrada</strong> toggle de favorito com rede retornando erro 500</li>
+        <li><strong>Saída</strong> ícone volta ao estado anterior</li>
+        <li><strong>Erro</strong> toast de erro genérico ao usuário (mesmo padrão do chat)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Fechar o modal de assistido sem confirmar  ||  nenhum <code>PATCH</code> é enviado e o card permanece desmarcado</li>
+        <li>Confirmar assistido só com nota, sem data  ||  <code>PATCH</code> envia <code>{ &quot;watched&quot;: true, &quot;rating&quot;: N }</code> sem <code>watchedAt</code></li>
+        <li>Dois cliques rápidos no mesmo toggle  ||  apenas o último estado persiste; UI não fica inconsistente após resposta da API</li>
+        <li>PATCH retorna <code>entry: null</code> ao desmarcar último flag  ||  card trata como todos os toggles inativos</li>
+        <li>Token expira durante PATCH  ||  fluxo de refresh silencioso do <code>movieClient</code> tenta uma vez; se falhar, sessão expira como hoje no chat</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Referência frontend: <code>packages/frontend/src/features/movies/services/user-movie-entry.service.ts:UserMovieEntryService</code> (<code>listEntries</code>, <code>patchEntry</code>).</li>
+        <li>Referência backend: <code>packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryPatchDTOSchema</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

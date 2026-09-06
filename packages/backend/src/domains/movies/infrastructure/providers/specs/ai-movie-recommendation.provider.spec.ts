@@ -5,7 +5,7 @@ import { AI, AIMessages } from "@luanpoppe/ai";
 import type { AICallParams } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
-import { MovieRecommendationEntity, MovieRecommendationSchema } from "../../../domain/entities/movie-recommendation.entity";
+import { MovieRecommendationEntity, MovieRecommendationLlmSchema, MovieRecommendationSchema } from "../../../domain/entities/movie-recommendation.entity";
 import { WrongMovieSchemaFromLlmException } from "../../../domain/exceptions/wrong-movie-schema-from-llm.exception";
 import { AiMovieRecommendationProvider } from "../ai-movie-recommendation.provider";
 import { MovieRecommendationPrompts } from "../movie-recommendation-prompts";
@@ -132,7 +132,7 @@ describe("AiMovieRecommendationProvider", () => {
         agent: { tools: AgentTool[] };
       }>(callStructuredOutput.mock.calls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
-      expect(structuredCallArgs.outputSchema).toBe(MovieRecommendationSchema);
+      expect(structuredCallArgs.outputSchema).toBe(MovieRecommendationLlmSchema);
       expect(structuredCallArgs.systemPrompt).toBe(expectedSystemPrompt);
       expect(structuredCallArgs.threadId).toBe(chatId);
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);

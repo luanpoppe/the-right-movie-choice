@@ -72,7 +72,7 @@ describe("MovieRecommendationController", () => {
     handler = MovieRecommendationController.create(guestQuotaService);
   });
 
-  it("strips tmdbId and imdbId from movies in the authenticated response", async () => {
+  it("REQ-1: expõe tmdbId e imdbId na resposta autenticada quando presentes", async () => {
     mockExecute.mockResolvedValue({
       movies: [INTERNAL_MOVIE],
       response: "Here is a great pick for you.",
@@ -92,16 +92,16 @@ describe("MovieRecommendationController", () => {
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(sentBody.response).toBe("Here is a great pick for you.");
     expect(sentBody.movies).toHaveLength(1);
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("tmdbId");
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("imdbId");
-    expect(JSON.stringify(sentBody.movies[0])).not.toContain("tmdbId");
-    expect(JSON.stringify(sentBody.movies[0])).not.toContain("imdbId");
+    expect(sentBody.movies[0]).toMatchObject({
+      tmdbId: INTERNAL_MOVIE.tmdbId,
+      imdbId: INTERNAL_MOVIE.imdbId,
+    });
     expect(
       guestQuotaService.incrementAfterSuccess,
     ).not.toHaveBeenCalled();
   });
 
-  it("strips internal ids on the anonymous guest path and keeps quota side effects", async () => {
+  it("REQ-3: expõe os mesmos ids para guest anônimo e mantém efeitos de quota", async () => {
     mockExecute.mockResolvedValue({
       movies: [INTERNAL_MOVIE],
       response: "Guest recommendation.",
@@ -128,8 +128,10 @@ describe("MovieRecommendationController", () => {
       GuestQuotaConstants.RESPONSE_HEADER_REMAINING,
       "1",
     );
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("tmdbId");
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("imdbId");
+    expect(sentBody.movies[0]).toMatchObject({
+      tmdbId: INTERNAL_MOVIE.tmdbId,
+      imdbId: INTERNAL_MOVIE.imdbId,
+    });
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith(sentBody);
   });
@@ -156,14 +158,14 @@ describe("MovieRecommendationController", () => {
       response: string;
     };
 
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("tmdbId");
-    expect(Object.keys(sentBody.movies[0]!)).not.toContain("imdbId");
     expect(Object.keys(sentBody.movies[0]!)).not.toContain("catalogLookupIndex");
     expect(Object.keys(sentBody.movies[0]!)).not.toContain("foundInCatalog");
     expect(sentBody.movies[0]).toMatchObject({
       title: INTERNAL_MOVIE.title,
       director: INTERNAL_MOVIE.director,
       releaseYear: INTERNAL_MOVIE.releaseYear,
+      tmdbId: INTERNAL_MOVIE.tmdbId,
+      imdbId: INTERNAL_MOVIE.imdbId,
     });
   });
 

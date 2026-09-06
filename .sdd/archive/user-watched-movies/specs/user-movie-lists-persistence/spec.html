@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: user-movie-lists-persistence — user-watched-movies</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-watched-movies</a> / specs / <strong>user-movie-lists-persistence</strong> / spec</p>
+    <h1>Spec: user-movie-lists-persistence</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-watched-movies</code></a> · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Cria a tabela <code>UserMovieEntry</code> no Postgres (uma linha por usuário + <code>tmdbId</code>), a entidade de domínio, a porta <code>IUserMovieEntryRepository</code> e o adapter Prisma. Esta feature não expõe HTTP — só o contrato interno que a API de listas vai consumir na feature seguinte.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Gravar e reler status de um filme</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado tem <code>id = 42</code> e ainda não há entrada para <code>tmdbId = 157336</code> (Interestelar)</li>
+        <li><strong>Quando</strong> o repositório persiste <code>{ watched: true, favorite: false, inWatchlist: true, rating: 9, watchedAt: &quot;2024-06-15T20:00:00.000Z&quot; }</code></li>
+        <li><strong>Então</strong> existe exatamente uma linha com <code>userId = 42</code>, <code>tmdbId = 157336</code> e os valores gravados</li>
+        <li><strong>E</strong> uma leitura por <code>(42, 157336)</code> devolve a mesma entrada com <code>createdAt</code> e <code>updatedAt</code> preenchidos</li>
+      </ul>
+      <h3>REQ-2: Upsert parcial preserva flags não enviados</h3>
+      <ul>
+        <li><strong>Dado que</strong> já existe entrada com <code>watched = true</code>, <code>favorite = true</code>, <code>inWatchlist = false</code></li>
+        <li><strong>Quando</strong> o repositório persiste apenas <code>{ inWatchlist: true }</code> para o mesmo par usuário + <code>tmdbId</code></li>
+        <li><strong>Então</strong> <code>watched</code> e <code>favorite</code> permanecem <code>true</code></li>
+        <li><strong>E</strong> <code>inWatchlist</code> passa a <code>true</code></li>
+      </ul>
+      <h3>REQ-3: Unicidade por usuário e filme</h3>
+      <ul>
+        <li><strong>Entrada</strong> duas gravações consecutivas para o mesmo <code>userId</code> e <code>tmdbId</code></li>
+        <li><strong>Saída</strong> uma única linha no banco  ||  a segunda operação atualiza a existente, não duplica</li>
+      </ul>
+      <h3>REQ-4: Remover linha quando nenhum flag está ativo</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe entrada com <code>watched = false</code>, <code>favorite = false</code>, <code>inWatchlist = false</code></li>
+        <li><strong>Quando</strong> o repositório conclui uma gravação que deixa os três flags em <code>false</code></li>
+        <li><strong>Então</strong> a linha é removida do banco</li>
+        <li><strong>E</strong> leitura por <code>(userId, tmdbId)</code> retorna ausência (<code>null</code>)</li>
+      </ul>
+      <h3>REQ-5: Metadados de assistido sobrevivem ao desmarcar</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe entrada com <code>watched = true</code>, <code>rating = 8</code>, <code>watchedAt</code> preenchido</li>
+        <li><strong>Quando</strong> o repositório persiste <code>{ watched: false }</code> sem enviar <code>rating</code> nem <code>watchedAt</code></li>
+        <li><strong>Então</strong> <code>rating</code> e <code>watchedAt</code> permanecem com os valores anteriores</li>
+        <li><strong>E</strong> se os três flags ficarem <code>false</code>, a linha é removida (REQ-4) — metadados somem junto</li>
+      </ul>
+      <h3>REQ-6: Listar entradas do usuário por flag</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 42</code> tem três entradas: A (<code>watched = true</code>), B (<code>favorite = true</code>), C (<code>inWatchlist = true</code>)</li>
+        <li><strong>Quando</strong> o repositório lista com filtro <code>{ watched: true }</code></li>
+        <li><strong>Então</strong> retorna somente A</li>
+        <li><strong>E</strong> filtros <code>{ favorite: true }</code> e <code>{ inWatchlist: true }</code> retornam B e C respectivamente</li>
+      </ul>
+      <h3>REQ-7: Chave opcional para o catálogo local</h3>
+      <ul>
+        <li><strong>Entrada</strong> gravação com <code>movieId = 17</code> apontando para linha existente em <code>Movie</code></li>
+        <li><strong>Saída</strong> FK válida na coluna <code>movieId</code></li>
+        <li><strong>Erro</strong> <code>movieId</code> omitido ou <code>null</code> → aceito  ||  entrada pode existir só com <code>tmdbId</code></li>
+        <li><strong>Erro</strong> filme <code>Movie</code> referenciado é apagado → <code>movieId</code> da entrada vira <code>null</code>  ||  demais colunas intactas</li>
+      </ul>
+      <h3>REQ-8: Validação de nota no domínio</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>rating = 7</code></li>
+        <li><strong>Saída</strong> aceito</li>
+        <li><strong>Erro</strong> <code>rating = 0</code> → rejeição no domínio antes de persistir</li>
+        <li><strong>Erro</strong> <code>rating = 11</code> → rejeição no domínio antes de persistir</li>
+        <li><strong>Erro</strong> <code>rating</code> omitido ou <code>null</code> → aceito</li>
+        <li><strong>E</strong> o Postgres rejeita <code>rating</code> fora de 1–10 via <code>CHECK</code> (<code>UserMovieEntry_rating_check</code>) mesmo se o domínio falhar</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Usuário apagado (<code>User</code> removido) → entradas do usuário removidas em cascata (<code>onDelete: Cascade</code>)</li>
+        <li>Dois upserts concorrentes no mesmo <code>(userId, tmdbId)</code> → unique <code>(userId, tmdbId)</code> garante uma linha  ||  última escrita vence</li>
+        <li><code>tmdbId</code> negativo ou zero na gravação → rejeição no domínio antes do Prisma</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
