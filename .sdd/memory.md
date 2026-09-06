@@ -128,6 +128,12 @@
   - **Exemplo**: `PrismaMovieCatalogRepository` + builders/writer separados
   - **Registrado em**: 2026-09-05
 
+- Mapper Prisma (`*PrismaMapper`) e utils de merge/transformação do adapter ficam em arquivo próprio — mapper em `infrastructure/mappers/`, utils na subpasta do repositório — não como classe interna no `.repository.ts`.
+  - **Quando**: implementar adapter Prisma com mapeamento row→entity ou merge de patch parcial
+  - **Por quê**: o repositório fica só orquestração de I/O; mapper e merge são conceitos distintos e reutilizáveis em teste
+  - **Exemplo**: `UserMovieEntryPrismaMapper` em `mappers/` + `UserMovieEntryMergeUtils` em `repositories/user-movie-entry/`
+  - **Registrado em**: 2026-09-06
+
 - Mensagem de erro para log (`unknown` → string) vai para `ErrorUtils.message` em `shared/utils`, não copiada em cada classe.
   - **Quando**: extrair `reason`/`errorMessage` de `catch (error: unknown)`
   - **Por quê**: o mesmo `instanceof Error` + `String(error)` aparecia em processor, resolver e lookup
