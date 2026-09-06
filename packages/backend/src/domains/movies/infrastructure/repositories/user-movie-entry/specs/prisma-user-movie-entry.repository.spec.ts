@@ -404,5 +404,82 @@ describe("PrismaUserMovieEntryRepository", () => {
         orderBy: { updatedAt: "desc" },
       });
     });
+
+    it("filtra watched: false quando enviado explicitamente no filtro", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, { watched: false });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: { userId: 42, watched: false },
+        orderBy: { updatedAt: "desc" },
+      });
+    });
+
+    it("mapeia rows retornadas para entidades de domínio", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 99,
+        watched: true,
+        createdAt: new Date("2025-03-01T12:00:00.000Z"),
+        updatedAt: new Date("2025-03-02T12:00:00.000Z"),
+      });
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+
+      const result = await repository.listByUser(42, {});
+
+      expect(result[0]).toEqual({
+        userId: 42,
+        tmdbId: 99,
+        movieId: null,
+        watched: true,
+        favorite: false,
+        inWatchlist: false,
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date("2025-03-01T12:00:00.000Z"),
+        updatedAt: new Date("2025-03-02T12:00:00.000Z"),
+      });
+      expect(Logger.debug).toHaveBeenCalledWith("User movie entry list", {
+        userId: 42,
+        count: 1,
+      });
+    });
+  });
+
+  describe("upsert — caminhos adicionais", () => {
+    it("cria entrada com defaults do merge quando patch é parcial", async () => {
+      const createdRow = UserMovieEntryRepositoryFixtures.prismaRow({
+        watched: true,
+        favorite: false,
+        inWatchlist: false,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.userMovieEntry.upsert).mockResolvedValue(createdRow as never);
+
+      await repository.upsert(42, 157336, { watched: true });
+
+      expect(prisma.userMovieEntry.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            watched: true,
+            favorite: false,
+            inWatchlist: false,
+            rating: null,
+            watchedAt: null,
+            movieId: null,
+          }),
+        }),
+      );
+    });
+
+    it("edge rejeita tmdbId negativo antes de consultar o banco", async () => {
+      await expect(
+        repository.upsert(42, -1, { watched: true }),
+      ).rejects.toThrow(UserMovieEntryValidationException);
+
+      expect(prisma.userMovieEntry.findUnique).not.toHaveBeenCalled();
+      expect(prisma.userMovieEntry.upsert).not.toHaveBeenCalled();
+    });
   });
 });

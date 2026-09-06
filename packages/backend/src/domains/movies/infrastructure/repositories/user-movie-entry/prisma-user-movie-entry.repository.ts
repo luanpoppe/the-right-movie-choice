@@ -8,44 +8,8 @@ import type {
 import { IUserMovieEntryRepository } from "../../../domain/repositories/user-movie-entry.repository";
 import { UserMovieEntryValidationUtils } from "../../../domain/user-movie-entry-validation.utils";
 import { UserMovieEntryPrismaMapper } from "../../mappers/user-movie-entry-prisma.mapper";
+import { UserMovieEntryListFilterUtils } from "./user-movie-entry-list-filter.utils";
 import { UserMovieEntryMergeUtils } from "./user-movie-entry-merge.utils";
-
-class UserMovieEntryListFilterUtils {
-  static buildWhere(
-    userId: number,
-    filter: UserMovieEntryListFilter,
-  ): { userId: number; watched?: boolean; favorite?: boolean; inWatchlist?: boolean } {
-    const where: {
-      userId: number;
-      watched?: boolean;
-      favorite?: boolean;
-      inWatchlist?: boolean;
-    } = { userId };
-
-    if (Object.hasOwn(filter, "watched")) {
-      const watched = filter.watched;
-      if (watched !== undefined) {
-        where.watched = watched;
-      }
-    }
-
-    if (Object.hasOwn(filter, "favorite")) {
-      const favorite = filter.favorite;
-      if (favorite !== undefined) {
-        where.favorite = favorite;
-      }
-    }
-
-    if (Object.hasOwn(filter, "inWatchlist")) {
-      const inWatchlist = filter.inWatchlist;
-      if (inWatchlist !== undefined) {
-        where.inWatchlist = inWatchlist;
-      }
-    }
-
-    return where;
-  }
-}
 
 export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository {
   async findByUserAndTmdbId(
