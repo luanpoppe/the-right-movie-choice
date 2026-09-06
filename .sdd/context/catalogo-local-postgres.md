@@ -20,9 +20,17 @@ Persistência da ficha `MovieCatalogDetails` no Postgres via Prisma. Uma linha `
 - Replace de filhas no upsert, não merge — a ficha nova é a fonte da verdade (spec REQ-2).
 - `Promise.all` dos `deleteMany` dentro de `$transaction` não paraleliza: uma conexão, uma query por vez.
 
+## Lookup em lote (`lookupMovies`)
+
+- Tool `lookupMovies` chama `MovieCatalogLookupService.findDetailsByTitlesBatch` (não N× `findDetailsByTitle` em `Promise.all`).
+- Fase 1: `findByTitlesAndYears` (1 SQL de ids + 1 `findMany`) e `TmdbMovieDetailsCache.setMany` nos hits frescos (`updatedAt` < 30 dias). Redis `getMany`/`setMany` (MGET / pipeline SET, TTL 24h). Falha Redis: warn, hits do Postgres ainda voltam.
+- SQL de ids: `VALUES` + `ROW_NUMBER() OVER (PARTITION BY idx ORDER BY updatedAt DESC)` com `rn = 1`. Mesma regra `unaccent` + `ILIKE` do unitário. Índice B-tree em `title` não ajuda `ILIKE '%x%'`.
+- Fase 2: só misses/stale/vazio — `findDetailsByTitle` em `Promise.all`. Query vazia: miss na posição, sem TMDB.
+- API unitária `findDetailsByTitle` intacta. Bench opt-in: `pnpm test:catalog-lookup-bench` (Postgres+Redis reais, TMDB mockado). Números só no stdout.
+
 ## Lookup local-first (agente + debug)
 
-- Agente: `MovieCatalogLookupService.findDetailsByTitle` — título fresco no banco (30 dias) aquece Redis e não chama search TMDB; miss/stale vai search + `MovieCatalogDetailsResolver`.
+- Agente: `MovieCatalogLookupService.findDetailsByTitle` — título fresco no banco (30 dias) aquece Redis e não chama search TMDB; miss/stale vai search + `MovieCatalogDetailsResolver`. Um item isolado continua neste caminho.
 - Details por id: Redis → banco fresco → TMDB. Redis hit ignora frescor até o TTL. Banco velho tenta TMDB; se TMDB falhar, devolve a ficha velha. Miss TMDB grava só Redis (TTL 24h). Sem upsert Postgres nesta frente.
 - Debug: `GET /debug/tmdb/movies/:id` usa o resolver. Search `/debug/tmdb/search` continua só TMDB. Query `language` opcional (vazio → `pt-BR`); `watch_region` TMDB continua `BR`.
 - Wiring: factory de recommendation e `tmdbDebugControllers` montam Redis + cache + `PrismaMovieCatalogRepository` + resolver com `CatalogPersistEnqueuer.enqueue` explícito.

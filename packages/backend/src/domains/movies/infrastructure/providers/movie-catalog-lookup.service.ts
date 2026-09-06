@@ -8,6 +8,7 @@ import {
   DEFAULT_MOVIE_CATALOG_LANGUAGE,
   IMovieCatalogRepository,
   MovieCatalogStoredRecord,
+  MovieCatalogTitleYearLookupInput,
 } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { Logger } from "@/lib/logger/logger";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
@@ -16,6 +17,7 @@ import { ErrorUtils } from "@/shared/utils/error.utils";
 import { StringUtils } from "@/shared/utils/string.utils";
 
 import { MovieCatalogDetailsResolver } from "./movie-catalog-details.resolver";
+import { MovieCatalogBatchLookup } from "./batch-catalog-lookup";
 
 export class MovieCatalogLookupService {
   constructor(
@@ -86,6 +88,53 @@ export class MovieCatalogLookupService {
     }
   }
 
+  async findDetailsByTitlesBatch(
+    inputs: MovieCatalogLookupInput[],
+  ): Promise<MovieCatalogLookupResult[]> {
+    const prepared = MovieCatalogBatchLookup.prepareBatchLookup(inputs);
+    const results = prepared.results;
+    const indicesPendingLocalLookup = prepared.indicesPendingLocalLookup;
+    const batchInputs = prepared.batchInputs;
+
+    const hasBatchInputs = batchInputs.length > 0;
+    if (!hasBatchInputs) {
+      return results as MovieCatalogLookupResult[];
+    }
+
+    const localRecords = await this.findLocalRecordsByTitlesSafely(batchInputs);
+    const now = new Date();
+    const { cacheWarmItems, indicesNeedingTmdbLookup } =
+      MovieCatalogBatchLookup.applyLocalFreshHits(
+        inputs,
+        indicesPendingLocalLookup,
+        localRecords,
+        results,
+        now,
+      );
+
+    const hasCacheWarmItems = cacheWarmItems.length > 0;
+    if (hasCacheWarmItems) {
+      await this.cache.setMany(cacheWarmItems);
+    }
+
+    await Promise.all(
+      indicesNeedingTmdbLookup.map(async (inputIndex) => {
+        const input = inputs[inputIndex];
+        if (input === undefined) {
+          results[inputIndex] = this.miss(
+            "Não foi possível consultar o catálogo de filmes no momento.",
+          );
+          return;
+        }
+
+        const result = await this.findDetailsByTitle(input);
+        results[inputIndex] = result;
+      }),
+    );
+
+    return results as MovieCatalogLookupResult[];
+  }
+
   private async tryFindFreshLocalRecord(
     title: string,
     year: number | undefined,
@@ -129,6 +178,19 @@ export class MovieCatalogLookupService {
     } catch (error) {
       MovieCatalogLookupService.logRepositorySkip(title, error);
       return null;
+    }
+  }
+
+  private async findLocalRecordsByTitlesSafely(
+    inputs: MovieCatalogTitleYearLookupInput[],
+  ): Promise<Array<MovieCatalogStoredRecord | null>> {
+    try {
+      const records = await this.repository.findByTitlesAndYears(inputs);
+      return records;
+    } catch (error) {
+      MovieCatalogLookupService.logRepositoryBatchSkip(inputs.length, error);
+      const nullResults = inputs.map(() => null);
+      return nullResults;
     }
   }
 
@@ -201,6 +263,17 @@ export class MovieCatalogLookupService {
     const reason = ErrorUtils.message(error);
     Logger.warn("Movie catalog findByTitleAndYear failed, skipping to TMDB", {
       title,
+      reason,
+    });
+  }
+
+  private static logRepositoryBatchSkip(
+    inputCount: number,
+    error: unknown,
+  ): void {
+    const reason = ErrorUtils.message(error);
+    Logger.warn("Movie catalog findByTitlesAndYears failed, skipping to TMDB", {
+      count: inputCount,
       reason,
     });
   }

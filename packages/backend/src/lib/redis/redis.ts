@@ -37,7 +37,36 @@ export class Redis {
     return this.client.get(key);
   }
 
+  async mgetStrings(keys: string[]): Promise<(string | null)[]> {
+    if (keys.length === 0) return [];
+
+    const values = await this.client.mget(...keys);
+    return values;
+  }
+
+  async setManyWithExpiration(
+    entries: Array<{ key: string; value: any }>,
+    expirationInSeconds: number,
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const pipeline = this.client.pipeline();
+
+    for (const entry of entries) {
+      const serializedValue = this.serializeValue(entry.value);
+      pipeline.set(entry.key, serializedValue, "EX", expirationInSeconds);
+    }
+
+    await pipeline.exec();
+  }
+
   async del(key: string): Promise<void> {
     await this.client.del(key);
+  }
+
+  private serializeValue(value: any): string {
+    if (typeof value === "string") return value;
+    if (typeof value === "object") return JSON.stringify(value);
+    throw new Error("Wrong value passed into redis");
   }
 }

@@ -71,14 +71,14 @@ vi.mock("@/lib/logger/logger", () => ({
 
 describe("MovieCatalogLookupAiTool", () => {
   let catalogLookup: MovieCatalogLookupService;
-  let findDetailsByTitle: ReturnType<typeof vi.fn>;
+  let findDetailsByTitlesBatch: ReturnType<typeof vi.fn>;
   let toolExecute: (input: LookupMoviesToolInput) => Promise<MovieCatalogLookupResult[]>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    findDetailsByTitle = vi.fn();
+    findDetailsByTitlesBatch = vi.fn();
     catalogLookup = {
-      findDetailsByTitle,
+      findDetailsByTitlesBatch,
     } as unknown as MovieCatalogLookupService;
 
     const aiTool = new MovieCatalogLookupAiTool(catalogLookup);
@@ -101,10 +101,7 @@ describe("MovieCatalogLookupAiTool", () => {
     const miss = MovieCatalogLookupAiToolFixtures.miss("Não encontrado");
     const hitThird = MovieCatalogLookupAiToolFixtures.hit("Gamma");
 
-    findDetailsByTitle
-      .mockResolvedValueOnce(hitFirst)
-      .mockResolvedValueOnce(miss)
-      .mockResolvedValueOnce(hitThird);
+    findDetailsByTitlesBatch.mockResolvedValue([hitFirst, miss, hitThird]);
 
     const results = await toolExecute({
       queries: [
@@ -115,51 +112,41 @@ describe("MovieCatalogLookupAiTool", () => {
     });
 
     expect(results).toEqual([hitFirst, miss, hitThird]);
-    expect(findDetailsByTitle).toHaveBeenCalledTimes(3);
-    expect(findDetailsByTitle).toHaveBeenNthCalledWith(1, {
-      query: "Alpha",
-      year: 2010,
-    });
-    expect(findDetailsByTitle).toHaveBeenNthCalledWith(2, { query: "Beta" });
-    expect(findDetailsByTitle).toHaveBeenNthCalledWith(3, { query: "Gamma" });
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledTimes(1);
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledWith([
+      { query: "Alpha", year: 2010 },
+      { query: "Beta" },
+      { query: "Gamma" },
+    ]);
   });
 
   it("repassa language da query para o lookup", async () => {
     const hit = MovieCatalogLookupAiToolFixtures.hit("Interstellar");
-    findDetailsByTitle.mockResolvedValue(hit);
+    findDetailsByTitlesBatch.mockResolvedValue([hit]);
 
     await toolExecute({
       queries: [{ query: "Interstellar", language: "en-US" }],
     });
 
-    expect(findDetailsByTitle).toHaveBeenCalledWith({
-      query: "Interstellar",
-      language: "en-US",
-    });
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledWith([
+      { query: "Interstellar", language: "en-US" },
+    ]);
   });
 
-  it("REQ-1: dispara lookups em paralelo via Promise.all", async () => {
-    const resolvers: Array<(value: MovieCatalogLookupResult) => void> = [];
-    findDetailsByTitle.mockImplementation(
-      () =>
-        new Promise<MovieCatalogLookupResult>((resolve) => {
-          resolvers.push(resolve);
-        }),
-    );
+  it("delega todas as queries em uma única chamada a findDetailsByTitlesBatch", async () => {
+    const hitA = MovieCatalogLookupAiToolFixtures.hit("A");
+    const hitB = MovieCatalogLookupAiToolFixtures.hit("B");
+    findDetailsByTitlesBatch.mockResolvedValue([hitA, hitB]);
 
-    const pending = toolExecute({
+    const results = await toolExecute({
       queries: [{ query: "A" }, { query: "B" }],
     });
 
-    expect(findDetailsByTitle).toHaveBeenCalledTimes(2);
-    expect(resolvers).toHaveLength(2);
-
-    const hitA = MovieCatalogLookupAiToolFixtures.hit("A");
-    const hitB = MovieCatalogLookupAiToolFixtures.hit("B");
-    resolvers[0]!(hitA);
-    resolvers[1]!(hitB);
-
-    const results = await pending;
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledTimes(1);
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledWith([
+      { query: "A" },
+      { query: "B" },
+    ]);
     expect(results).toEqual([hitA, hitB]);
   });
 
@@ -200,9 +187,7 @@ describe("MovieCatalogLookupAiTool", () => {
     );
     const hit = MovieCatalogLookupAiToolFixtures.hit("Inception");
 
-    findDetailsByTitle
-      .mockResolvedValueOnce(emptyQueryMiss)
-      .mockResolvedValueOnce(hit);
+    findDetailsByTitlesBatch.mockResolvedValue([emptyQueryMiss, hit]);
 
     const results = await toolExecute({
       queries: [{ query: "" }, { query: "Inception", year: 2010 }],
@@ -211,7 +196,10 @@ describe("MovieCatalogLookupAiTool", () => {
     expect(results).toHaveLength(2);
     expect(results[0]).toEqual(emptyQueryMiss);
     expect(results[1]).toEqual(hit);
-    expect(findDetailsByTitle).toHaveBeenNthCalledWith(1, { query: "" });
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledWith([
+      { query: "" },
+      { query: "Inception", year: 2010 },
+    ]);
   });
 
   it("miss em um lookup não impede os demais de completarem", async () => {
@@ -220,23 +208,20 @@ describe("MovieCatalogLookupAiTool", () => {
       "O catálogo de filmes está temporariamente indisponível. Tente novamente mais tarde.",
     );
 
-    findDetailsByTitle
-      .mockResolvedValueOnce(hit)
-      .mockResolvedValueOnce(tmdbDownMiss)
-      .mockResolvedValueOnce(hit);
+    findDetailsByTitlesBatch.mockResolvedValue([hit, tmdbDownMiss, hit]);
 
     const results = await toolExecute({
       queries: [{ query: "A" }, { query: "B" }, { query: "C" }],
     });
 
     expect(results).toEqual([hit, tmdbDownMiss, hit]);
-    expect(findDetailsByTitle).toHaveBeenCalledTimes(3);
+    expect(findDetailsByTitlesBatch).toHaveBeenCalledTimes(1);
   });
 
   it("loga sucesso do batch sem expor corpo de prompt", async () => {
-    findDetailsByTitle.mockResolvedValue(
+    findDetailsByTitlesBatch.mockResolvedValue([
       MovieCatalogLookupAiToolFixtures.hit("Inception"),
-    );
+    ]);
 
     await toolExecute({ queries: [{ query: "Inception" }] });
 

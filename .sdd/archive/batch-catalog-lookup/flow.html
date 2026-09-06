@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fluxo da implementação — Lookup em lote no catálogo</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --fg: #1a1d21; --muted: #6b7280; --card: #ffffff; --line: #cbd5e1;
+      --pending-bd: #cbd5e1; --pending-bg: #f1f5f9; --pending-fg: #64748b;
+      --current-bd: #d97706; --current-bg: #fef3c7; --current-fg: #92400e;
+      --done-bd: #16a34a; --done-bg: #dcfce7; --done-fg: #166534;
+      --accent: #2563eb;
+      --tok-com: #6a737d; --tok-str: #0a7d33; --tok-num: #b3261e; --tok-kw: #8250df;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1115; --fg: #e5e7eb; --muted: #9ca3af; --card: #1a1d23; --line: #374151;
+        --pending-bd: #374151; --pending-bg: #1f242c; --pending-fg: #9ca3af;
+        --current-bd: #f59e0b; --current-bg: #3a2e10; --current-fg: #fcd34d;
+        --done-bd: #22c55e; --done-bg: #14311f; --done-fg: #86efac;
+        --accent: #60a5fa;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2rem 1rem 4rem; background: var(--bg); color: var(--fg);
+      font: 15px/1.5 system-ui, sans-serif; }
+    header, main, footer, .progress, .legend { max-width: 900px; margin-left: auto; margin-right: auto; }
+    h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
+    .meta { color: var(--muted); font-size: .85rem; }
+    .bar { height: 8px; border-radius: 6px; background: var(--pending-bg); border: 1px solid var(--line); overflow: hidden; margin: 1rem 0 .4rem; }
+    .bar > span { display: block; height: 100%; background: var(--done-bd); width: 0%; }
+    .legend { display: flex; gap: .75rem; flex-wrap: wrap; font-size: .8rem; margin-bottom: 1.5rem; }
+    .dot { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
+    .dot.pending { background: var(--pending-bg); border-color: var(--pending-bd); }
+    .dot.current { background: var(--current-bg); border-color: var(--current-bd); }
+    .feature { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 0 1.25rem; margin-bottom: 1.5rem; }
+    .feature[open] { padding-bottom: 1.5rem; }
+    .feature > summary { font-weight: 600; cursor: pointer; padding: 1rem 0; list-style: none; display: flex; gap: .5rem; align-items: center; }
+    .feature > summary::-webkit-details-marker { display: none; }
+    .feature.current .tag { font-size: .7rem; padding: .1rem .5rem; border-radius: 20px; background: var(--current-bg); border: 1px solid var(--current-bd); color: var(--current-fg); }
+    .flow { display: flex; flex-direction: column; align-items: center; }
+    .stage { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .connector { width: 2px; height: 24px; background: var(--line); }
+    .node { min-width: 140px; max-width: 200px; border: 1.5px solid; border-radius: 8px; padding: .6rem .8rem; text-align: center; position: relative; }
+    .node .name { font-weight: 600; font-size: .85rem; }
+    .node .sub { font-size: .7rem; color: var(--muted); margin-top: .15rem; }
+    .node.pending { background: var(--pending-bg); border-color: var(--pending-bd); color: var(--pending-fg); }
+    .node.current { background: var(--current-bg); border-color: var(--current-bd); box-shadow: 0 0 0 3px color-mix(in srgb, var(--current-bd) 25%, transparent); }
+    .node .badge { position: absolute; top: -9px; right: -9px; }
+    .node.has-detail { cursor: pointer; }
+    .node.has-detail .hint { display: block; font-size: .62rem; color: var(--accent); margin-top: .3rem; }
+    .detail-panel { margin-top: 1.25rem; border-top: 1px dashed var(--line); padding-top: 1.25rem; }
+    .detail pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; font-size: 12px; overflow-x: auto; }
+    footer { margin-top: 2rem; font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fluxo da implementação — Lookup em lote no catálogo</h1>
+    <p class="meta">Mudança <code>batch-catalog-lookup</code> · atualizado em 2026-09-05</p>
+  </header>
+  <div class="progress">
+    <div class="bar"><span style="width:100%"></span></div>
+    <p class="meta">6 de 6 chunks concluídos</p>
+  </div>
+  <div class="legend">
+    <span><i class="dot pending"></i> A fazer</span>
+    <span><i class="dot current"></i> Em andamento</span>
+  </div>
+  <main>
+    <details class="feature current" open>
+      <summary>1. batch-catalog-lookup <span class="tag">concluída · 6/6</span></summary>
+      <div class="flow">
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C1" tabindex="0">
+            <div class="name">SQL batch</div>
+            <div class="sub">F1.C1 · TitleSearchSql</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C2" tabindex="0">
+            <div class="name">Repository</div>
+            <div class="sub">F1.C2 · PrismaMovieCatalog</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C3" tabindex="0">
+            <div class="name">Cache</div>
+            <div class="sub">F1.C3 · TmdbMovieDetailsCache</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C4" tabindex="0">
+            <div class="name">Service</div>
+            <div class="sub">F1.C4 · LookupService</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C5" tabindex="0">
+            <div class="name">AI Tool</div>
+            <div class="sub">F1.C5 · LookupAiTool</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <div class="stage">
+          <div class="node done has-detail" data-detail="F1.C6" tabindex="0">
+            <div class="name">Benchmark</div>
+            <div class="sub">F1.C6 · Vitest bench</div>
+            <span class="hint">detalhes ▼</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-panel" hidden>
+        <div class="detail" data-detail-for="F1.C1" hidden>
+          <h4>SQL batch <span class="chunk-id">F1.C1 · MovieCatalogTitleSearchSql</span></h4>
+          <p>Porta <code>findByTitlesAndYears</code> na interface e SQL <code>UNION ALL</code> para resolver vários títulos num único round-trip.</p>
+          <pre><code>static buildBatchFindIdsQuery(catalogLanguage, items) {
+  // cada item: SELECT idx, id ... LIMIT 1
+  return Prisma.join(subqueries, " UNION ALL ");
+}</code></pre>
+        </div>
+        <div class="detail" data-detail-for="F1.C2" hidden>
+          <h4>Repository batch <span class="chunk-id">F1.C2 · PrismaMovieCatalogRepository</span></h4>
+          <p>Implementa <code>findByTitlesAndYears</code>: filtra títulos vazios, um <code>$queryRaw</code> com UNION ALL e um <code>findMany</code> com IDs deduplicados.</p>
+          <pre><code>async findByTitlesAndYears(inputs) {
+  const searchableItems = inputs.filter(title não vazio)
+  const idRows = await prisma.$queryRaw(buildBatchFindIdsQuery(...))
+  const rows = await prisma.movie.findMany({ id: { in: uniqueIds } })
+  return results alinhados por idx
+}</code></pre>
+        </div>
+        <div class="detail" data-detail-for="F1.C3" hidden>
+          <h4>Cache batch <span class="chunk-id">F1.C3 · TmdbMovieDetailsCache</span></h4>
+          <p><code>getMany</code> com um MGET e <code>setMany</code> com pipeline SET+TTL 24h no wrapper Redis.</p>
+          <pre><code>async getMany(items) {
+  const rawValues = await redis.mgetStrings(keys)
+  return items.map((item, i) => parseCachedDetails(item.movieId, rawValues[i]))
+}</code></pre>
+        </div>
+        <div class="detail" data-detail-for="F1.C4" hidden>
+          <h4>Lookup em duas fases <span class="chunk-id">F1.C4 · MovieCatalogLookupService</span></h4>
+          <p><code>findDetailsByTitlesBatch</code>: lookup local em batch (Postgres + <code>cache.setMany</code> nos frescos)  ||  fallback TMDB via <code>findDetailsByTitle</code> só nos misses/stale.</p>
+          <pre><code>const prepared = MovieCatalogBatchLookup.prepareBatchLookup(inputs)
+const localRecords = await findByTitlesAndYears(batchInputs)
+// fresh -> hit + setMany nos indicesNeedingTmdbLookup -> Promise.all(findDetailsByTitle)</code></pre>
+        </div>
+        <div class="detail" data-detail-for="F1.C5" hidden>
+          <h4>Wiring da tool <span class="chunk-id">F1.C5 · MovieCatalogLookupAiTool</span></h4>
+          <p><code>lookupMovies</code> mapeia <code>queries</code> com <code>toLookupInput</code> e delega em uma única chamada a <code>findDetailsByTitlesBatch</code> — schema Zod e logs inalterados.</p>
+          <pre><code>const lookupInputs = input.queries.map(toLookupInput)
+return await catalogLookup.findDetailsByTitlesBatch(lookupInputs)</code></pre>
+        </div>
+        <div class="detail" data-detail-for="F1.C6" hidden>
+          <h4>Benchmark integração <span class="chunk-id">F1.C6 · catalog-lookup-bench</span></h4>
+          <p>Opt-in com Postgres + Redis reais: seed de 8 filmes, compara <code>findDetailsByTitlesBatch</code> vs 8× <code>findDetailsByTitle</code>. TMDB mockado (não chamado em hits locais). Números não vão no arquivo — só stdout.</p>
+          <pre><code>pnpm test:catalog-lookup-bench
+// stdout: média/mediana unitário vs batch (copie para o README)</code></pre>
+        </div>
+      </div>
+    </details>
+  </main>
+  <footer>Gerado pelo SDD lp:*</footer>
+  <script>
+    document.addEventListener('click', function(e) {
+      var node = e.target.closest('.node.has-detail');
+      if (!node) return;
+      var panel = document.querySelector('.detail-panel');
+      var detail = document.querySelector('.detail[data-detail-for="' + node.dataset.detail + '"]');
+      if (!panel || !detail) return;
+      panel.hidden = false;
+      detail.hidden = false;
+    });
+  </script>
+</body>
+</html>

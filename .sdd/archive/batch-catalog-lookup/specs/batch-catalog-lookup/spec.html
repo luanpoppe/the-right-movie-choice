@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: batch-catalog-lookup — batch-catalog-lookup</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">batch-catalog-lookup</a> / specs / <strong>batch-catalog-lookup</strong> / spec</p>
+    <h1>Spec: batch-catalog-lookup</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>batch-catalog-lookup</code></a> · atualizado em 2026-09-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>O <code>lookupMovies</code> deixa de disparar N× <code>findDetailsByTitle</code> em <code>Promise.all</code> para todos os itens. Passa a orquestrar em duas fases: (1) batch local (Postgres + Redis) para hits frescos; (2) <code>Promise.all</code> só nos misses, cada um pelo fluxo unitário atual (search TMDB + resolver). Novos métodos batch no repositório e no cache; API unitária preservada. Benchmark Vitest opt-in mede antes/depois.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Lote com 8 hits locais frescos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o agente chama <code>lookupMovies</code> com 8 queries cujos títulos existem no Postgres <code>pt-BR</code> com <code>updatedAt</code> há menos de 30 dias</li>
+        <li><strong>Quando</strong> a tool executa o lookup</li>
+        <li><strong>Então</strong> resolve os 8 no caminho batch (no máximo 2 round-trips Postgres + 1 round-trip Redis de leitura/escrita em lote)</li>
+        <li><strong>E</strong> não chama search TMDB</li>
+        <li><strong>E</strong> devolve 8 resultados <code>found: true</code> na <strong>mesma ordem</strong> das queries de entrada</li>
+        <li><strong>E</strong> aquece Redis para cada <code>tmdbId</code> retornado</li>
+      </ul>
+      <h3>REQ-2: Lote misto — batch local + TMDB paralelo nos misses</h3>
+      <ul>
+        <li><strong>Dado que</strong> o agente envia 8 queries: 5 com hit local fresco e 3 sem linha correspondente (ou stale &gt; 30 dias)</li>
+        <li><strong>Quando</strong> a tool executa o lookup</li>
+        <li><strong>Então</strong> as 5 com hit local resolvem na fase batch</li>
+        <li><strong>E</strong> as 3 restantes seguem <code>findDetailsByTitle</code> (search TMDB + <code>resolveByTmdbId</code>) em <strong><code>Promise.all</code> entre elas</strong></li>
+        <li><strong>E</strong> o array final tem 8 posições na ordem original, cada uma hit ou miss conforme o resultado individual</li>
+      </ul>
+      <h3>REQ-3: Lote só com misses</h3>
+      <ul>
+        <li><strong>Dado que</strong> nenhuma query tem hit local fresco</li>
+        <li><strong>Quando</strong> a tool executa o lookup</li>
+        <li><strong>Então</strong> pula a fase batch com resultado vazio</li>
+        <li><strong>E</strong> dispara <code>Promise.all</code> com <code>findDetailsByTitle</code> para cada query (comportamento equivalente ao atual)</li>
+        <li><strong>E</strong> não degrada latência nem semântica em relação ao fluxo pré-batch</li>
+      </ul>
+      <h3>REQ-4: Repositório batch por títulos</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>[{ query: &quot;Interestelar&quot;, year: 2014 }, { query: &quot;Duna&quot;, year: 2021 }]</code> em <code>pt-BR</code>, ambos existentes e frescos</li>
+        <li><strong>Saída</strong> mapa indexado pela posição de entrada com <code>MovieCatalogStoredRecord</code> (details + <code>updatedAt</code>) para cada hit</li>
+        <li><strong>E</strong> usa no máximo 1 query SQL para resolver ids (mesma regra <code>unaccent</code> + <code>ILIKE</code> + desempate <code>updatedAt</code> DESC de <code>findByTitleAndYear</code>)</li>
+        <li><strong>E</strong> 1 <code>findMany</code> com include das filhas para todos os ids encontrados</li>
+        <li><strong>Erro</strong> falha em uma query do lote não aborta as demais  ||  posição sem match retorna <code>null</code> no mapa</li>
+      </ul>
+      <h3>REQ-5: Cache Redis em lote</h3>
+      <ul>
+        <li><strong>Entrada</strong> lista de pares <code>(tmdbId, language)</code> para leitura ou escrita de details</li>
+        <li><strong>Saída</strong> leitura via <code>MGET</code> (ou equivalente no wrapper <code>Redis</code>); escrita via pipeline de <code>SET</code> com TTL 24h (<code>TmdbCacheConstants.DETAILS_TTL_SECONDS</code>)</li>
+        <li><strong>Erro</strong> falha no batch de cache loga warn e não impede o retorno dos hits locais já resolvidos no Postgres</li>
+      </ul>
+      <h3>REQ-6: API unitária preservada</h3>
+      <ul>
+        <li><strong>Entrada</strong> chamada isolada a <code>MovieCatalogLookupService.findDetailsByTitle({ query: &quot;Interestelar&quot; })</code></li>
+        <li><strong>Saída</strong> mesmo comportamento e contrato de antes desta feature (sem exigir passar pelo batch)</li>
+        <li><strong>Erro</strong> nenhum call site existente fora do <code>lookupMovies</code> precisa mudar</li>
+      </ul>
+      <h3>REQ-7: Benchmark Vitest antes/depois</h3>
+      <ul>
+        <li><strong>Entrada</strong> projeto Vitest separado (ex. <code>--project catalog-lookup-bench</code>), opt-in como <code>test:tmdb-live</code>, com fixture de 8 filmes seedados no Postgres</li>
+        <li><strong>Saída</strong> relatório no stdout com tempo médio/mediana do caminho batch vs unitário  ||  números de uma medição local podem ir para o README depois, não ficam commitados no arquivo de benchmark</li>
+        <li><strong>Erro</strong> benchmark não roda no <code>pnpm test</code> padrão da CI (projeto <code>unit</code>)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Query vazia num item do lote: miss na posição (“Informe o nome…”), sem TMDB; demais itens seguem normalmente.</li>
+        <li>Idioma por query (<code>language</code> opcional): batch agrupa/respeita idioma por item; default <code>pt-BR</code>.</li>
+        <li>Registro stale (&gt; 30 dias) ou ausente no Postgres: conta como miss da fase 1 e vai para fase 2 (<code>findDetailsByTitle</code>).</li>
+        <li>Falha Postgres no batch: log + trata posições afetadas como miss da fase 1 (fallback TMDB unitário), sem derrubar o lote inteiro.</li>
+        <li>Ordem do array de retorno sempre espelha a ordem de <code>queries</code> de entrada, independente de hit/miss.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Tool do agente (inalterada): <code>packages/backend/src/domains/movies/infrastructure/providers/movie-catalog-lookup.ai-tool.ts</code> (<code>lookupMovies</code> — schema Zod e array de <code>MovieCatalogLookupResult</code>).</li>
+        <li>Novo batch no serviço: <code>packages/backend/src/domains/movies/infrastructure/providers/movie-catalog-lookup.service.ts:MovieCatalogLookupService.findDetailsByTitlesBatch</code></li>
+        <li>Novo batch no repositório: <code>IMovieCatalogRepository.findByTitlesAndYears</code> (ou equivalente na implementação).</li>
+        <li>Novo batch no cache: métodos <code>getMany</code> / <code>setMany</code> em <code>TmdbMovieDetailsCache</code>.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

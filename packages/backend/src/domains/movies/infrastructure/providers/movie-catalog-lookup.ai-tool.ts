@@ -42,11 +42,12 @@ export class MovieCatalogLookupAiTool {
       const queryCount = input.queries.length;
 
       try {
-        const lookupPromises = input.queries.map((queryItem) => {
+        const lookupInputs = input.queries.map((queryItem) => {
           const lookupInput = MovieCatalogLookupAiTool.toLookupInput(queryItem);
-          return catalogLookup.findDetailsByTitle(lookupInput);
+          return lookupInput;
         });
-        const lookupResults = await Promise.all(lookupPromises);
+        const lookupResults =
+          await catalogLookup.findDetailsByTitlesBatch(lookupInputs);
 
         const durationMs = Date.now() - startedAtMs;
         MovieCatalogLookupAiTool.logSuccess(durationMs, queryCount);
