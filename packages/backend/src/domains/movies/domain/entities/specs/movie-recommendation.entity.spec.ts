@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MovieRecommendationSchema,
   SingleMovieReccomendationInternalSchema,
+  SingleMovieReccomendationSchema,
 } from "../movie-recommendation.entity";
 
 class MovieRecommendationEntityFixtures {
@@ -118,13 +119,60 @@ describe("MovieRecommendationSchema", () => {
     }
   });
 
-  it("REQ-2: aceita filme só com tmdbId sem imdbId", () => {
+  it("REQ-4: aceita filme só com tmdbId sem imdbId no schema público", () => {
     const movie = {
       ...MovieRecommendationEntityFixtures.singleMovie(),
       tmdbId: 603,
     };
-    const parseResult = SingleMovieReccomendationInternalSchema.safeParse(movie);
+    const parseResult = SingleMovieReccomendationSchema.safeParse(movie);
 
     expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.tmdbId).toBe(603);
+      expect(parseResult.data).not.toHaveProperty("imdbId");
+    }
+  });
+
+  it("REQ-5: rejeita tmdbId zero no schema público", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: 0,
+    };
+    const parseResult = SingleMovieReccomendationSchema.safeParse(movie);
+
+    expect(parseResult.success).toBe(false);
+  });
+
+  it("REQ-5: rejeita tmdbId zero no schema interno", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: 0,
+    };
+    const parseResult = SingleMovieReccomendationInternalSchema.safeParse(movie);
+
+    expect(parseResult.success).toBe(false);
+  });
+
+  it("aceita tmdbId como string numerica via coerce", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: "27205",
+    };
+    const parseResult = SingleMovieReccomendationSchema.safeParse(movie);
+
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.tmdbId).toBe(27205);
+    }
+  });
+
+  it("rejeita imdbId string vazia", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      imdbId: "",
+    };
+    const parseResult = SingleMovieReccomendationSchema.safeParse(movie);
+
+    expect(parseResult.success).toBe(false);
   });
 });

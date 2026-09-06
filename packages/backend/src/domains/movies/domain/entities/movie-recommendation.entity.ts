@@ -12,13 +12,12 @@ export const SingleMovieReccomendationSchema = z.object({
     .string()
     .describe("Breve motivo pelo qual o filme é uma boa sugestão"),
   durationInMinutes: z.coerce.number().describe("Duração do filme em minutos"),
+  tmdbId: z.coerce.number().int().positive().optional(),
+  imdbId: z.string().min(1).optional(),
 });
 
 export const SingleMovieReccomendationInternalSchema =
-  SingleMovieReccomendationSchema.extend({
-    tmdbId: z.number().optional(),
-    imdbId: z.string().optional(),
-  });
+  SingleMovieReccomendationSchema;
 
 export const MovieRecommendationSchema = z.object({
   movies: z.array(SingleMovieReccomendationInternalSchema).min(0).max(3),
