@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Bookmark, Eye, Heart } from "lucide-react";
+import { Bookmark, Eye, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
@@ -73,14 +73,33 @@ export function MovieCardListActions({ tmdbId }: MovieCardListActionsProps) {
   return <AuthenticatedMovieCardListActions tmdbId={tmdbId} />;
 }
 
+function ListActionsLoadingState() {
+  return (
+    <div
+      className="flex items-center gap-2 text-sm text-muted-foreground"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+      <span>Carregando suas listas...</span>
+    </div>
+  );
+}
+
 function AuthenticatedMovieCardListActions({
   tmdbId,
 }: MovieCardListActionsProps) {
   const { getFlags, patchEntry, isPatching, isLoading } = useUserMovieEntries();
+  const [watchedModalOpen, setWatchedModalOpen] = useState(false);
+
+  if (isLoading) {
+    return <ListActionsLoadingState />;
+  }
+
   const flags = getFlags(tmdbId);
   const isCurrentlyPatching = isPatching(tmdbId);
-  const areTogglesDisabled = isLoading || isCurrentlyPatching;
-  const [watchedModalOpen, setWatchedModalOpen] = useState(false);
+  const areTogglesDisabled = isCurrentlyPatching;
 
   async function handleFavoriteToggle() {
     const nextFavorite = !flags.favorite;

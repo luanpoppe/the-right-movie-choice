@@ -9,6 +9,7 @@ jest.mock("lucide-react", () => ({
   Bookmark: () => <span data-testid="icon-bookmark" />,
   Eye: () => <span data-testid="icon-eye" />,
   Heart: () => <span data-testid="icon-heart" />,
+  Loader2: () => <span data-testid="icon-loader" />,
   X: () => <span data-testid="icon-x" />,
 }));
 
@@ -148,6 +149,25 @@ describe("MovieCardListActions", () => {
 
       const favoriteButton = screen.getByRole("button", { name: "Favorito" });
       expect(favoriteButton).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("exibe loading enquanto hidrata as listas do usuário", () => {
+      mockedUseUserMovieEntries.mockReturnValue({
+        getFlags,
+        patchEntry,
+        isLoading: true,
+        isPatching: () => false,
+      });
+
+      renderActions(27205);
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Carregando suas listas...",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Favorito" }),
+      ).not.toBeInTheDocument();
+      expect(getFlags).not.toHaveBeenCalled();
     });
   });
 });
