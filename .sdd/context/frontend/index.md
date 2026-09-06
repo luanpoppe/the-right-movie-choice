@@ -3,6 +3,7 @@
 
 ## Áreas
 - [Chat e welcome](chat-ui.md) — landing, sugestões de prompt, conversa e cards de filme.
+- [Ações nos cards do chat](acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist com PATCH otimista.
 - [Lock do chat anônimo](lock-chat-anonimo.md) — trava input após cota; banner `/register` e `/login`.
 - [Login e register](login-register.md) — páginas nativas + Google, sessão no `AuthContext`.
 - [Refresh silencioso no SPA](refresh-silencioso-spa.md) — `movieClient`, 401 → `/auth/refresh`, ponte para `/login`.

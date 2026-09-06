@@ -11,3 +11,4 @@
 - [Catálogo local no Postgres](catalogo-local-postgres.md) — modelo `Movie` + filhas, upsert, finds, lookup em lote (`lookupMovies`: Postgres+Redis batch, TMDB só nos misses) e caminho unitário Redis → banco → TMDB.
 - [Listas do usuário](listas-usuario/persistencia-status-filme.md) — `UserMovieEntry`: flags watched/favorite/watchlist e repositório Prisma.
 - [API de listas do usuário](listas-usuario/api-listas-usuario.md) — endpoints JWT `/movie/user-entries` (GET list/get, PATCH parcial).
+- [Ações nos cards do chat](frontend/acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist nos `MovieCard` do chat via contexto otimista.
