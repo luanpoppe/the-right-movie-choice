@@ -12,8 +12,10 @@ const ratingSchema = z.union([
 const ratingValueSchema = ratingSchema.optional();
 
 const optionalQueryBooleanSchema = z
-  .enum(["true", "false"])
-  .transform((value) => value === "true")
+  .union([
+    z.boolean(),
+    z.enum(["true", "false"]).transform((value) => value === "true"),
+  ])
   .optional();
 
 export const UserMovieEntryPatchDTOSchema = z
