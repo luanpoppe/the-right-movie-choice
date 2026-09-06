@@ -97,7 +97,11 @@ export function MovieCardWatchedModal({
       dateInput,
     );
 
-    await patchEntry(tmdbId, patch);
+    const didSucceed = await patchEntry(tmdbId, patch);
+    if (!didSucceed) {
+      return;
+    }
+
     resetForm();
     onOpenChange(false);
   }

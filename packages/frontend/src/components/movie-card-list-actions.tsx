@@ -76,9 +76,10 @@ export function MovieCardListActions({ tmdbId }: MovieCardListActionsProps) {
 function AuthenticatedMovieCardListActions({
   tmdbId,
 }: MovieCardListActionsProps) {
-  const { getFlags, patchEntry, isPatching } = useUserMovieEntries();
+  const { getFlags, patchEntry, isPatching, isLoading } = useUserMovieEntries();
   const flags = getFlags(tmdbId);
   const isCurrentlyPatching = isPatching(tmdbId);
+  const areTogglesDisabled = isLoading || isCurrentlyPatching;
   const [watchedModalOpen, setWatchedModalOpen] = useState(false);
 
   async function handleFavoriteToggle() {
@@ -116,7 +117,7 @@ function AuthenticatedMovieCardListActions({
         <ListToggleButton
           label="Assistido"
           isActive={flags.watched}
-          isDisabled={isCurrentlyPatching}
+          isDisabled={areTogglesDisabled}
           onClick={handleWatchedToggle}
         >
           <Eye className={cn("h-4 w-4", watchedIconClassName)} />
@@ -125,7 +126,7 @@ function AuthenticatedMovieCardListActions({
         <ListToggleButton
           label="Favorito"
           isActive={flags.favorite}
-          isDisabled={isCurrentlyPatching}
+          isDisabled={areTogglesDisabled}
           onClick={handleFavoriteToggle}
         >
           <Heart className={cn("h-4 w-4", favoriteIconClassName)} />
@@ -134,7 +135,7 @@ function AuthenticatedMovieCardListActions({
         <ListToggleButton
           label="Watchlist"
           isActive={flags.inWatchlist}
-          isDisabled={isCurrentlyPatching}
+          isDisabled={areTogglesDisabled}
           onClick={handleWatchlistToggle}
         >
           <Bookmark className={cn("h-4 w-4", watchlistIconClassName)} />

@@ -35,10 +35,14 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
   );
 
   const patchSequenceByTmdbIdRef = useRef<Map<number, number>>(new Map());
+  const lastKnownGoodByTmdbIdRef = useRef<
+    Map<number, UserMovieEntryEntity | undefined>
+  >(new Map());
 
   useEffect(() => {
     if (!hasAccessToken) {
       setEntries(new Map());
+      lastKnownGoodByTmdbIdRef.current.clear();
       setIsLoading(false);
       return;
     }
@@ -57,10 +61,13 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
         }
 
         const entriesMap = new Map<number, UserMovieEntryEntity>();
+        const lastKnownGoodMap = new Map<number, UserMovieEntryEntity>();
         for (const entry of list) {
           entriesMap.set(entry.tmdbId, entry);
+          lastKnownGoodMap.set(entry.tmdbId, entry);
         }
 
+        lastKnownGoodByTmdbIdRef.current = lastKnownGoodMap;
         setEntries(entriesMap);
         console.info("[UserMovieEntries] ✅ Hidratação concluída", {
           entryCount: list.length,
@@ -71,10 +78,11 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        console.info(
+        console.error(
           "[UserMovieEntries] ❌ Falha na hidratação das entradas",
           { error },
         );
+        toast.error(GENERIC_ERROR_TOAST);
       })
       .finally(() => {
         if (!isCancelled) {
@@ -116,17 +124,18 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
   );
 
   const patchEntry = useCallback(
-    async (tmdbId: number, patch: UserMovieEntryPatchDTO): Promise<void> => {
+    async (
+      tmdbId: number,
+      patch: UserMovieEntryPatchDTO,
+    ): Promise<boolean> => {
       const currentSequence = patchSequenceByTmdbIdRef.current.get(tmdbId) ?? 0;
       const requestSequence = currentSequence + 1;
       patchSequenceByTmdbIdRef.current.set(tmdbId, requestSequence);
 
-      let snapshotEntry: UserMovieEntryEntity | undefined;
-
       setEntries((current) => {
-        snapshotEntry = current.get(tmdbId);
+        const currentEntry = current.get(tmdbId);
         const optimisticEntry = UserMovieEntryMergeUtils.applyOptimisticPatch(
-          snapshotEntry,
+          currentEntry,
           tmdbId,
           patch,
         );
@@ -147,7 +156,13 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
           patchSequenceByTmdbIdRef.current.get(tmdbId) ?? 0;
         const isStaleResponse = latestSequence !== requestSequence;
         if (isStaleResponse) {
-          return;
+          return true;
+        }
+
+        if (serverEntry === null) {
+          lastKnownGoodByTmdbIdRef.current.delete(tmdbId);
+        } else {
+          lastKnownGoodByTmdbIdRef.current.set(tmdbId, serverEntry);
         }
 
         setEntries((current) => {
@@ -159,30 +174,35 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
           }
           return next;
         });
+
+        return true;
       } catch (error) {
         const latestSequence =
           patchSequenceByTmdbIdRef.current.get(tmdbId) ?? 0;
         const isStaleResponse = latestSequence !== requestSequence;
         if (isStaleResponse) {
-          return;
+          return true;
         }
 
-        console.info(
+        const lastKnownGood = lastKnownGoodByTmdbIdRef.current.get(tmdbId);
+
+        console.error(
           "[UserMovieEntries] ⚠️ Revertendo PATCH otimista após falha",
           { tmdbId, error },
         );
 
         setEntries((current) => {
           const next = new Map(current);
-          if (snapshotEntry === undefined) {
+          if (lastKnownGood === undefined) {
             next.delete(tmdbId);
           } else {
-            next.set(tmdbId, snapshotEntry);
+            next.set(tmdbId, lastKnownGood);
           }
           return next;
         });
 
         toast.error(GENERIC_ERROR_TOAST);
+        return false;
       } finally {
         const latestSequence =
           patchSequenceByTmdbIdRef.current.get(tmdbId) ?? 0;

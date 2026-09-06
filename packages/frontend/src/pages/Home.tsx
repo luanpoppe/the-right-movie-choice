@@ -6,6 +6,7 @@ import { ChatEntity } from "@/features/chat/entities/chat.entity";
 import { MovieRecommendationService } from "@/features/movies/services/movie-recommendation.service";
 import { GuestChatLockUtils } from "@/features/movies/utils/guest-chat-lock.utils";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { UserMovieEntriesProvider } from "@/features/movies/context/user-movie-entries.context";
 import { StringUtils } from "@/utils/string.utils";
 
 const GENERIC_ERROR_TOAST =
@@ -100,7 +101,7 @@ export function Home() {
     );
   }
 
-  return (
+  const chatElement = (
     <Chat
       handleReset={handleReset}
       displayMessages={messages}
@@ -109,4 +110,12 @@ export function Home() {
       isGuestLocked={isGuestLocked}
     />
   );
+
+  if (hasAccessToken) {
+    return (
+      <UserMovieEntriesProvider>{chatElement}</UserMovieEntriesProvider>
+    );
+  }
+
+  return chatElement;
 }

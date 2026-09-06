@@ -31,9 +31,12 @@ export function Chat({
 
             {movies && (
               <div className="grid gap-5 md:grid-cols-3">
-                {movies.map((m) => (
-                  <MovieCard key={`${m.title} - ${m.releaseYear}`} movie={m} />
-                ))}
+                {movies.map((m) => {
+                  const movieCardKey =
+                    m.tmdbId ?? `${m.title}-${m.releaseYear}`;
+
+                  return <MovieCard key={movieCardKey} movie={m} />;
+                })}
               </div>
             )}
           </div>

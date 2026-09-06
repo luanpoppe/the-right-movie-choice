@@ -7,7 +7,7 @@ export type UserMovieEntriesContextValue = {
   patchEntry: (
     tmdbId: number,
     patch: UserMovieEntryPatchDTO,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   isLoading: boolean;
   isPatching: (tmdbId: number) => boolean;
 };
