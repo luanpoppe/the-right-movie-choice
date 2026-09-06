@@ -4,6 +4,7 @@ import { GuestQuotaService } from "@/domains/movies/application/guest-quota.serv
 import { RedisGuestQuotaRepository } from "../repositories/redis-guest-quota.repository";
 import { MovieRecommendationAuthHook } from "../http/hooks/movie-recommendation-auth.hook";
 import { MovieRecommendationController } from "../http/controllers/movie-recommendation.controller";
+import { PrismaMovieCatalogRepository } from "../repositories/movie-catalog/prisma-movie-catalog.repository";
 
 export class MakeMovieRecommendationHttpFactory {
   static create() {
@@ -11,12 +12,16 @@ export class MakeMovieRecommendationHttpFactory {
     const redis = new Redis();
     const guestQuotaRepository = new RedisGuestQuotaRepository(redis);
     const guestQuotaService = new GuestQuotaService(guestQuotaRepository);
+    const catalogRepository = new PrismaMovieCatalogRepository();
 
     const preHandler = MovieRecommendationAuthHook.createPreHandler({
       accessTokenProvider,
       guestQuotaService,
     });
-    const controller = MovieRecommendationController.create(guestQuotaService);
+    const controller = MovieRecommendationController.create({
+      guestQuotaService,
+      catalogRepository,
+    });
 
     return { preHandler, controller };
   }

@@ -20,6 +20,7 @@ export const SingleMovieReccomendationSchema = z.object({
     (value) => (value === null ? undefined : value),
     z.string().min(1).optional(),
   ),
+  posterPath: z.string().nullable().optional(),
 }).transform((movie) => {
   const result = { ...movie };
   if (result.tmdbId === undefined) {

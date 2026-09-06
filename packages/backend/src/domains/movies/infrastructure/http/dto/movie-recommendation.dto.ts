@@ -9,8 +9,19 @@ export type MovieRecommendationRequest = z.infer<
   typeof MovieRecommendationRequestDTOSchema
 >;
 
+export const SingleMovieReccomendationResponseSchema =
+  SingleMovieReccomendationSchema.and(
+    z.object({
+      posterPath: z.string().nullable(),
+    }),
+  );
+
+export type SingleMovieReccomendationResponse = z.infer<
+  typeof SingleMovieReccomendationResponseSchema
+>;
+
 export const MovieRecommendationResponseDTOSchema = z.object({
-  movies: z.array(SingleMovieReccomendationSchema),
+  movies: z.array(SingleMovieReccomendationResponseSchema),
   response: z.string(),
 });
 

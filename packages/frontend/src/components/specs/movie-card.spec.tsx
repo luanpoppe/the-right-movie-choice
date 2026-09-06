@@ -9,6 +9,7 @@ jest.mock("lucide-react", () => ({
   Star: () => <span data-testid="icon-star" />,
   Calendar: () => <span data-testid="icon-calendar" />,
   Clock: () => <span data-testid="icon-clock" />,
+  Film: () => <span data-testid="icon-film" />,
   Bookmark: () => <span data-testid="icon-bookmark" />,
   Eye: () => <span data-testid="icon-eye" />,
   Heart: () => <span data-testid="icon-heart" />,
@@ -92,5 +93,26 @@ describe("MovieCard", () => {
     expect(screen.getByRole("button", { name: "Favorite" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Watchlist" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Watched" })).toBeInTheDocument();
+  });
+
+  it("exibe poster quando posterPath está presente", () => {
+    const movie = MovieCardFixtures.movie({
+      posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
+    });
+    renderCard(movie);
+
+    const poster = screen.getByRole("img", { name: "Poster for Inception" });
+    expect(poster).toHaveAttribute(
+      "src",
+      "https://image.tmdb.org/t/p/w500/poster.jpg",
+    );
+  });
+
+  it("exibe placeholder quando posterPath é null", () => {
+    const movie = MovieCardFixtures.movie({ posterPath: null });
+    renderCard(movie);
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.getByTestId("icon-film")).toBeInTheDocument();
   });
 });

@@ -263,12 +263,13 @@ Pastas: **Movies** (recomendação convidado/Bearer), **User movie entries** (JW
         "whySuggestion": "string",
         "durationInMinutes": 120,
         "tmdbId": 27205,
-        "imdbId": "tt1375666"
+        "imdbId": "tt1375666",
+        "posterPath": "https://image.tmdb.org/t/p/w500/..."
       }
     ]
   }
   ```
-  `tmdbId` e `imdbId` são **opcionais** — presentes quando o agente resolve o filme no catálogo via `lookupMovies`; omitidos quando o título não foi encontrado.
+  `tmdbId` e `imdbId` são **opcionais** — presentes quando o agente resolve o filme no catálogo via `lookupMovies`; omitidos quando o título não foi encontrado. `posterPath` é **sempre** retornado (`null` quando não há capa no catálogo); quando presente, é URL completa TMDB.
 
 **Exemplo (produção):**
 ```bash
