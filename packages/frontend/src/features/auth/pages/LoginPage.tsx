@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,32 @@ import { useAuth } from "../context/AuthContext";
 import { AuthService } from "../services/auth.service";
 import { getAuthErrorMessage } from "../utils/auth-error.util";
 
+export class LoginRedirectUtils {
+  static resolveRedirectPath(searchParams: URLSearchParams): string {
+    const redirect = searchParams.get("redirect");
+    const isMissingRedirect = redirect === null || redirect === "";
+    if (isMissingRedirect) {
+      return "/";
+    }
+
+    const isRelativePath = redirect.startsWith("/");
+    const isProtocolRelative = redirect.startsWith("//");
+    const isValidRedirect = isRelativePath && !isProtocolRelative;
+    if (!isValidRedirect) {
+      return "/";
+    }
+
+    return redirect;
+  }
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setAccessToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+
+  const redirectPath = LoginRedirectUtils.resolveRedirectPath(searchParams);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,7 +48,7 @@ export function LoginPage() {
       const tokens = await AuthService.login({ email, password });
       setAccessToken(tokens.accessToken);
       toast.success("Login realizado!");
-      navigate("/");
+      navigate(redirectPath);
     } catch (error) {
       toast.error(getAuthErrorMessage(error));
     } finally {
@@ -84,7 +106,7 @@ export function LoginPage() {
           </div>
         </div>
 
-        <GoogleSignInButton />
+        <GoogleSignInButton redirectPath={redirectPath} />
 
         <p className="text-center text-sm text-muted-foreground">
           Não tem conta?{" "}

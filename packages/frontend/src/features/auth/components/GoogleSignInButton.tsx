@@ -5,7 +5,13 @@ import { useAuth } from "../context/AuthContext";
 import { AuthService } from "../services/auth.service";
 import { getAuthErrorMessage } from "../utils/auth-error.util";
 
-export function GoogleSignInButton() {
+interface GoogleSignInButtonProps {
+  redirectPath?: string;
+}
+
+export function GoogleSignInButton({
+  redirectPath = "/",
+}: GoogleSignInButtonProps) {
   const navigate = useNavigate();
   const { setAccessToken } = useAuth();
 
@@ -21,7 +27,7 @@ export function GoogleSignInButton() {
       });
       setAccessToken(tokens.accessToken);
       toast.success("Autenticação com Google realizada!");
-      navigate("/");
+      navigate(redirectPath);
     } catch (error) {
       toast.error(getAuthErrorMessage(error));
     }
