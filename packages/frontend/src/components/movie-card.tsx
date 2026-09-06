@@ -8,6 +8,7 @@ import {
 
 import { Star, Calendar, Clock } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { MovieCardListActions } from "./movie-card-list-actions";
 import { SingleMovieReccomendationEntity } from "@/features/movies/entities/movie-recommendation.entity";
 
 interface MovieCardProps {
@@ -15,6 +16,9 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie }: MovieCardProps) {
+  const tmdbId = movie.tmdbId;
+  const hasTmdbId = tmdbId !== undefined;
+
   return (
     <Card className="overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-border/50 bg-card/50 backdrop-blur-sm">
       <div className="h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
@@ -61,6 +65,12 @@ export function MovieCard({ movie }: MovieCardProps) {
         <p className="text-sm text-muted-foreground leading-relaxed">
           {movie.synopsis}
         </p>
+
+        {hasTmdbId && (
+          <div className="pt-3 border-t border-border/50">
+            <MovieCardListActions tmdbId={tmdbId} />
+          </div>
+        )}
 
         <div className="pt-3 border-t border-border/50">
           <div className="flex items-center gap-2 mb-2">
