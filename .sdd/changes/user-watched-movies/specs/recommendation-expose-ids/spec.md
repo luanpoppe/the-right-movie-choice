@@ -54,6 +54,6 @@ Inclui `tmdbId` e `imdbId` opcionais em cada filme da resposta pública de `POST
 
 ## Contratos expostos
 
-- `POST /movie/recommendation` — cada item de `movies[]` ganha `tmdbId?` (inteiro positivo) e `imdbId?` (string). Demais campos inalterados.
-- Schema público backend (provisório até implementação): `SingleMovieReccomendationSchema` com `.extend({ tmdbId: z.number().int().positive().optional(), imdbId: z.string().optional() })`.
-- Schema público frontend (provisório): mesmo shape em `packages/frontend/src/features/movies/entities/movie-recommendation.entity.ts`.
+- `POST /movie/recommendation` — cada item de `movies[]` ganha `tmdbId?` (inteiro positivo) e `imdbId?` (string não vazia). Demais campos inalterados.
+- `packages/backend/src/domains/movies/domain/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema`
+- `packages/frontend/src/features/movies/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema`

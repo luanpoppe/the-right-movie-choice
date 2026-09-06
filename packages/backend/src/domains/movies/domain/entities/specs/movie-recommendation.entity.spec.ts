@@ -175,4 +175,19 @@ describe("MovieRecommendationSchema", () => {
 
     expect(parseResult.success).toBe(false);
   });
+
+  it("aceita imdbId null e omite a propriedade na saida", () => {
+    const movie = {
+      ...MovieRecommendationEntityFixtures.singleMovie(),
+      tmdbId: 603,
+      imdbId: null,
+    };
+    const parseResult = SingleMovieReccomendationSchema.safeParse(movie);
+
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.tmdbId).toBe(603);
+      expect(parseResult.data).not.toHaveProperty("imdbId");
+    }
+  });
 });

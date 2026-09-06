@@ -12,8 +12,23 @@ export const SingleMovieReccomendationSchema = z.object({
     .string()
     .describe("Breve motivo pelo qual o filme é uma boa sugestão"),
   durationInMinutes: z.coerce.number().describe("Duração do filme em minutos"),
-  tmdbId: z.coerce.number().int().positive().optional(),
-  imdbId: z.string().min(1).optional(),
+  tmdbId: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z.coerce.number().int().positive().optional(),
+  ),
+  imdbId: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+}).transform((movie) => {
+  const result = { ...movie };
+  if (result.tmdbId === undefined) {
+    delete result.tmdbId;
+  }
+  if (result.imdbId === undefined) {
+    delete result.imdbId;
+  }
+  return result;
 });
 
 export const SingleMovieReccomendationInternalSchema =

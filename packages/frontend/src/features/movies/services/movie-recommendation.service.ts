@@ -1,7 +1,7 @@
 import { movieClient } from "@/lib/api/movie-client";
 import {
   MovieRecommendationRequestDTO,
-  MovieRecommendationResponseDTO,
+  MovieRecommendationResponseDTOSchema,
 } from "../dto/movie-recommendation.dto";
 import { GuestRemainingUtils } from "../utils/guest-remaining.utils";
 
@@ -10,15 +10,15 @@ export class MovieRecommendationService {
     body: MovieRecommendationRequestDTO,
     chatId: string,
   ) {
-    const { data, headers } =
-      await movieClient.post<MovieRecommendationResponseDTO>(
-        "/movie/recommendation",
-        body,
-        { headers: { chatId } },
-      );
+    const { data, headers } = await movieClient.post(
+      "/movie/recommendation",
+      body,
+      { headers: { chatId } },
+    );
 
+    const parsedResponse = MovieRecommendationResponseDTOSchema.parse(data);
     const guestRemaining = GuestRemainingUtils.parseFromHeaders(headers);
 
-    return { ...data, guestRemaining };
+    return { ...parsedResponse, guestRemaining };
   }
 }

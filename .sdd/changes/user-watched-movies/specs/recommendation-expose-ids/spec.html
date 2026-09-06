@@ -83,9 +83,9 @@
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
       <ul>
-        <li><code>POST /movie/recommendation</code> — cada item de <code>movies[]</code> ganha <code>tmdbId?</code> (inteiro positivo) e <code>imdbId?</code> (string). Demais campos inalterados.</li>
-        <li>Schema público backend (provisório até implementação): <code>SingleMovieReccomendationSchema</code> com <code>.extend({ tmdbId: z.number().int().positive().optional(), imdbId: z.string().optional() })</code>.</li>
-        <li>Schema público frontend (provisório): mesmo shape em <code>packages/frontend/src/features/movies/entities/movie-recommendation.entity.ts</code>.</li>
+        <li><code>POST /movie/recommendation</code> — cada item de <code>movies[]</code> ganha <code>tmdbId?</code> (inteiro positivo) e <code>imdbId?</code> (string não vazia). Demais campos inalterados.</li>
+        <li><code>packages/backend/src/domains/movies/domain/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema</code></li>
+        <li><code>packages/frontend/src/features/movies/entities/movie-recommendation.entity.ts:SingleMovieReccomendationSchema</code></li>
       </ul>
     </details>
   </main>

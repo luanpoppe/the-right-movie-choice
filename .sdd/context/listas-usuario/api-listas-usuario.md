@@ -24,4 +24,4 @@ Endpoints HTTP autenticados (JWT) para consultar e atualizar o status de um film
 ## Notas
 
 - Testes unitários cobrem controller, hook, factory wiring e registro de rotas (mock Fastify). E2E com JWT real e concorrência de PATCH ficam fora do escopo unitário.
-- Próxima frente: `recommendation-expose-ids` expõe `tmdbId`/`imdbId` na recommendation para o SPA acionar estes endpoints.
+- `tmdbId` na recommendation vem de [IDs na recommendation](../recomendacoes-filmes/ids-na-recommendation.md) — pré-requisito para toggles nos cards.
