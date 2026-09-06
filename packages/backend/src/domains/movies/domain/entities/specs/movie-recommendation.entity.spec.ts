@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import z from "zod";
 import {
+  MovieRecommendationLlmSchema,
   MovieRecommendationSchema,
   SingleMovieReccomendationInternalSchema,
   SingleMovieReccomendationSchema,
@@ -27,6 +29,10 @@ class MovieRecommendationEntityFixtures {
 }
 
 describe("MovieRecommendationSchema", () => {
+  it("MovieRecommendationLlmSchema converte para JSON Schema sem transform", () => {
+    expect(() => z.toJSONSchema(MovieRecommendationLlmSchema)).not.toThrow();
+  });
+
   it("aceita lista vazia de filmes com response não vazia", () => {
     const payload = {
       movies: [],
