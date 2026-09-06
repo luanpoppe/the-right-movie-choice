@@ -405,6 +405,37 @@ describe("PrismaUserMovieEntryRepository", () => {
       });
     });
 
+    it("REQ-4 aplica filtro AND quando watched e favorite estão presentes", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, { watched: true, favorite: true });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: { userId: 42, watched: true, favorite: true },
+        orderBy: { updatedAt: "desc" },
+      });
+    });
+
+    it("REQ-4 aplica filtro AND com as três query flags", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
+
+      await repository.listByUser(42, {
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+      });
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 42,
+          watched: true,
+          favorite: true,
+          inWatchlist: true,
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    });
+
     it("filtra watched: false quando enviado explicitamente no filtro", async () => {
       vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([]);
 

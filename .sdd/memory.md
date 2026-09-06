@@ -6,6 +6,11 @@
 
 <!-- Como o agente deve trabalhar. Carrega SEMPRE. Não pré-supõe nada sobre features. -->
 
+- Com `code_review: on` no SDD, usar subagente `code-reviewer` + `code-review-guide.md` no passo c-bis/f-ter — não o Bugbot do Cursor (`subagent_type: bugbot`).
+  - **Quando**: `/lp-continue` com code review habilitado
+  - **Por quê**: formatos, severidades (`grave`/`medio`/`menor`), integração com `sdd_record_chunk` e g-quater são do pipeline lp, não do Bugbot
+  - **Registrado em**: 2026-09-06
+
 - Chaves de persistência no cliente usam nome de produto/domínio, não de bundler.
   - **Quando**: localStorage / sessionStorage
   - **Por quê**: o nome da ferramenta (Vite, etc.) não diz o que o usuário está salvando

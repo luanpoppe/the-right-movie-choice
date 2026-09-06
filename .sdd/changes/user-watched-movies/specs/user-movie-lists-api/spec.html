@@ -113,12 +113,11 @@
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
       <ul>
-        <li><code>PATCH /movie/user-entries/:tmdbId</code> — body parcial: <code>watched?</code>, <code>favorite?</code>, <code>inWatchlist?</code>, <code>rating?</code> (1–10 ou <code>null</code>), <code>watchedAt?</code> (ISO 8601 ou <code>null</code>). Resposta <code>200</code>: <code>{ entry: UserMovieEntryResponse | null }</code>.</li>
-        <li><code>GET /movie/user-entries/:tmdbId</code> — resposta <code>200</code>: <code>{ entry: UserMovieEntryResponse }</code> ou <code>404</code> se ausente.</li>
-        <li><code>GET /movie/user-entries</code> — query opcional <code>watched</code>, <code>favorite</code>, <code>inWatchlist</code> (boolean). Resposta <code>200</code>: <code>{ entries: UserMovieEntryResponse[] }</code>.</li>
+        <li>Rotas HTTP: <code>packages/backend/src/domains/movies/infrastructure/http/controllers/routes.ts:moviesControllers</code></li>
+        <li>OpenAPI por rota: <code>packages/backend/src/domains/movies/infrastructure/http/docs/user-movie-entry.docs.ts</code> (<code>UserMovieEntryListDocs</code>, <code>UserMovieEntryGetDocs</code>, <code>UserMovieEntryPatchDocs</code>)</li>
         <li><code>UserMovieEntryResponse</code>: <code>packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryResponseSchema</code></li>
-        <li>Autenticação: <code>Authorization: Bearer</code> obrigatório em todas as rotas  ||  <code>401</code> se ausente ou inválido.</li>
-        <li>Erros de validação de domínio: <code>400</code> com mensagem  ||  mesma família de <code>UserMovieEntryValidationException</code>.</li>
+        <li>Autenticação: <code>packages/backend/src/domains/movies/infrastructure/http/hooks/user-movie-entry-auth.hook.ts:UserMovieEntryAuthHook</code>  ||  <code>401</code> se Bearer ausente ou inválido</li>
+        <li>Erros de validação de domínio: <code>400</code> com mensagem  ||  mesma família de <code>UserMovieEntryValidationException</code></li>
       </ul>
     </details>
   </main>

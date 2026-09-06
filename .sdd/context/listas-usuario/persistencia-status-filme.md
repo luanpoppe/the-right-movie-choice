@@ -23,4 +23,4 @@ Uma linha Postgres por par `(userId, tmdbId)` com flags `watched`, `favorite`, `
 ## Notas
 
 - Testes unitários cobrem domínio, merge, mapper e adapter (mock Prisma). Integração (cascade, CHECK Postgres, concorrência) não testada em unit.
-- Próxima frente: `user-movie-lists-api` expõe endpoints autenticados sobre esta porta.
+- Próxima frente: SPA consome a API via `recommendation-expose-ids` e ações nos cards.

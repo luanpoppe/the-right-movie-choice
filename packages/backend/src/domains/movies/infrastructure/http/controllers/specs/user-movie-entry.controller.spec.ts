@@ -77,7 +77,7 @@ describe("UserMovieEntryController", () => {
     vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
     const request = createAuthRequest({
       query: { watched: "true" },
-    }) as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
     const reply = createReply();
 
     await handlers.list(request, reply);
@@ -108,7 +108,7 @@ describe("UserMovieEntryController", () => {
     vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
     const request = createAuthRequest({
       query: { watched: true },
-    }) as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
     const reply = createReply();
 
     await handlers.list(request, reply);
@@ -139,7 +139,7 @@ describe("UserMovieEntryController", () => {
     vi.mocked(getUserMovieEntryUseCase.execute).mockResolvedValue(entry);
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
-    }) as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
+    }) as unknown as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
     const reply = createReply();
 
     await handlers.getByTmdbId(request, reply);
@@ -165,7 +165,7 @@ describe("UserMovieEntryController", () => {
     vi.mocked(getUserMovieEntryUseCase.execute).mockResolvedValue(null);
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
-    }) as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
+    }) as unknown as FastifyRequest<{ Params: UserMovieEntryTmdbIdParams }>;
     const reply = createReply();
 
     await handlers.getByTmdbId(request, reply);
@@ -182,7 +182,7 @@ describe("UserMovieEntryController", () => {
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
       body: { favorite: true },
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
@@ -216,7 +216,7 @@ describe("UserMovieEntryController", () => {
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
       body: { watched: false, favorite: false, inWatchlist: false },
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
@@ -232,7 +232,7 @@ describe("UserMovieEntryController", () => {
     const request = createAuthRequest({
       params: { tmdbId: "0" },
       body: { watched: true },
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
@@ -248,7 +248,7 @@ describe("UserMovieEntryController", () => {
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
       body: { rating: 11 },
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
@@ -264,7 +264,7 @@ describe("UserMovieEntryController", () => {
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
       body: {},
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
@@ -276,13 +276,111 @@ describe("UserMovieEntryController", () => {
     expect(upsertUserMovieEntryUseCase.execute).not.toHaveBeenCalled();
   });
 
+  it("list without query passes empty filter to use case", async () => {
+    const entryA = UserMovieEntryControllerFixtures.entry({ tmdbId: 1 });
+    const entryB = UserMovieEntryControllerFixtures.entry({ tmdbId: 2 });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([
+      entryA,
+      entryB,
+    ]);
+    const request = createAuthRequest({
+      query: {},
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {});
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entries: expect.arrayContaining([
+        expect.objectContaining({ tmdbId: 1 }),
+        expect.objectContaining({ tmdbId: 2 }),
+      ]),
+    });
+  });
+
+  it("list passes AND filter when multiple query flags are present", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry({
+      watched: true,
+      favorite: true,
+      inWatchlist: false,
+    });
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([entry]);
+    const request = createAuthRequest({
+      query: { watched: "true", favorite: "true" },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+      favorite: true,
+    });
+    expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("list passes all three query flags as AND filter", async () => {
+    vi.mocked(listUserMovieEntriesUseCase.execute).mockResolvedValue([]);
+    const request = createAuthRequest({
+      query: {
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+      },
+    }) as unknown as FastifyRequest<{ Querystring: UserMovieEntryListQueryDTO }>;
+    const reply = createReply();
+
+    await handlers.list(request, reply);
+
+    expect(listUserMovieEntriesUseCase.execute).toHaveBeenCalledWith(42, {
+      watched: true,
+      favorite: true,
+      inWatchlist: true,
+    });
+  });
+
+  it("patch REQ-9 forwards partial body and returns entry with preserved flags", async () => {
+    const entry = UserMovieEntryControllerFixtures.entry({
+      watched: true,
+      favorite: true,
+      inWatchlist: true,
+    });
+    vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(entry);
+    const request = createAuthRequest({
+      params: { tmdbId: "157336" },
+      body: { inWatchlist: true },
+    }) as unknown as FastifyRequest<{
+      Params: UserMovieEntryTmdbIdParams;
+      Body: UserMovieEntryPatchDTO;
+    }>;
+    const reply = createReply();
+
+    await handlers.patch(request, reply);
+
+    expect(upsertUserMovieEntryUseCase.execute).toHaveBeenCalledWith(
+      42,
+      157336,
+      { inWatchlist: true },
+    );
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      entry: expect.objectContaining({
+        watched: true,
+        favorite: true,
+        inWatchlist: true,
+      }),
+    });
+  });
+
   it("uses userId from auth context instead of any client input", async () => {
     const entry = UserMovieEntryControllerFixtures.entry();
     vi.mocked(upsertUserMovieEntryUseCase.execute).mockResolvedValue(entry);
     const request = createAuthRequest({
       params: { tmdbId: "157336" },
       body: { watched: true },
-    }) as FastifyRequest<{
+    }) as unknown as FastifyRequest<{
       Params: UserMovieEntryTmdbIdParams;
       Body: UserMovieEntryPatchDTO;
     }>;
