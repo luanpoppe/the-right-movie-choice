@@ -4,6 +4,7 @@ import { UserMovieEntryFlags } from "./user-movie-entry-merge.utils";
 
 export type UserMovieEntriesContextValue = {
   getFlags: (tmdbId: number) => UserMovieEntryFlags;
+  hasEntry: (tmdbId: number) => boolean;
   patchEntry: (
     tmdbId: number,
     patch: UserMovieEntryPatchDTO,

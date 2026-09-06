@@ -5,7 +5,7 @@
 Topo da SPA: marca, atalhos de auth e tema claro/escuro. Não participa da lógica de recomendação.
 
 ## Como funciona
-- `Header` no layout: logo/título recarregam a página; `AuthActions` mostra Entrar/Criar conta ou Sair conforme `useAuth().accessToken`.
+- `Header` no layout: logo/título recarregam a página; `AuthActions` mostra Entrar/Criar conta ou, logado, link **Meus filmes** (`/my-movies`) + Sair.
 - `ModeToggle` e `AuthActions` ficam na mesma fileira (`flex items-center gap-2`).
 - `ModeToggle` é um botão único: o clique chama `setTheme` com light ou dark. Enquanto o valor persistido (ou o default) for `system`, a aparência segue `prefers-color-scheme` até o primeiro clique.
 - `ThemeProvider` aplica a classe no `documentElement` e grava em `localStorage` com default `storageKey = "ui-theme"`. Toaster no `Root`.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router";
 import toast from "react-hot-toast";
 import { LibraryMovieCard } from "@/components/library-movie-card";
@@ -10,7 +10,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { UserMovieEntryFlags } from "@/features/movies/context/user-movie-entry-merge.utils";
+import { UserMovieEntryFlags, UserMovieEntryMergeUtils } from "@/features/movies/context/user-movie-entry-merge.utils";
 import { UserMovieEntriesProvider } from "@/features/movies/context/user-movie-entries.context";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
 import { UserMovieEntryListFilter } from "@/features/movies/dto/user-movie-entry.dto";
@@ -62,16 +62,46 @@ export class MyMoviesPageUtils {
 
     return "Você ainda não favoritou nenhum filme.";
   }
+
+  static resolveFlagsWithFallback(
+    entry: UserMovieEntryEntity,
+    getFlags: (tmdbId: number) => UserMovieEntryFlags,
+    hasEntry: (tmdbId: number) => boolean,
+  ): UserMovieEntryFlags {
+    const entryInContext = hasEntry(entry.tmdbId);
+    if (entryInContext) {
+      return getFlags(entry.tmdbId);
+    }
+
+    return UserMovieEntryMergeUtils.toFlags(entry);
+  }
+
+  static resolveVisibleFlags(
+    entry: UserMovieEntryEntity,
+    getFlags: (tmdbId: number) => UserMovieEntryFlags,
+    hasEntry: (tmdbId: number) => boolean,
+    isProviderLoading: boolean,
+  ): UserMovieEntryFlags {
+    if (isProviderLoading) {
+      return UserMovieEntryMergeUtils.toFlags(entry);
+    }
+
+    return MyMoviesPageUtils.resolveFlagsWithFallback(entry, getFlags, hasEntry);
+  }
 }
 
 function MyMoviesPageContent() {
-  const { getFlags } = useUserMovieEntries();
+  const { getFlags, hasEntry, isLoading: isProviderLoading } = useUserMovieEntries();
   const [activeTab, setActiveTab] = useState<MyMoviesTab>("watched");
   const [tabEntries, setTabEntries] = useState<UserMovieEntryEntity[]>([]);
   const [isLoadingTab, setIsLoadingTab] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const activeFetchIdRef = useRef(0);
 
   const fetchTabEntries = useCallback(async (tab: MyMoviesTab) => {
+    const fetchId = activeFetchIdRef.current + 1;
+    activeFetchIdRef.current = fetchId;
+
     const filter = MyMoviesPageUtils.getTabFilter(tab);
 
     setIsLoadingTab(true);
@@ -81,12 +111,22 @@ function MyMoviesPageContent() {
 
     try {
       const entries = await UserMovieEntryService.listEntries(filter);
+      const isStaleFetch = fetchId !== activeFetchIdRef.current;
+      if (isStaleFetch) {
+        return;
+      }
+
       setTabEntries(entries);
       console.info("[MyMoviesPage] ✅ Entradas carregadas", {
         tab,
         entryCount: entries.length,
       });
     } catch (error) {
+      const isStaleFetch = fetchId !== activeFetchIdRef.current;
+      if (isStaleFetch) {
+        return;
+      }
+
       console.error("[MyMoviesPage] ❌ Falha ao carregar entradas da aba", {
         tab,
         error,
@@ -94,7 +134,10 @@ function MyMoviesPageContent() {
       setHasLoadError(true);
       toast.error(GENERIC_ERROR_TOAST);
     } finally {
-      setIsLoadingTab(false);
+      const isCurrentFetch = fetchId === activeFetchIdRef.current;
+      if (isCurrentFetch) {
+        setIsLoadingTab(false);
+      }
     }
   }, []);
 
@@ -111,16 +154,22 @@ function MyMoviesPageContent() {
   }
 
   const visibleEntries = tabEntries.filter((entry) => {
-    const flags = getFlags(entry.tmdbId);
+    const flags = MyMoviesPageUtils.resolveVisibleFlags(
+      entry,
+      getFlags,
+      hasEntry,
+      isProviderLoading,
+    );
     const matchesTab = MyMoviesPageUtils.matchesTab(activeTab, flags);
     return matchesTab;
   });
 
   const showWatchedDetails = MyMoviesPageUtils.showWatchedDetails(activeTab);
   const emptyStateMessage = MyMoviesPageUtils.getEmptyStateMessage(activeTab);
+  const isPageLoading = isLoadingTab || isProviderLoading;
   const hasVisibleEntries = visibleEntries.length > 0;
   const shouldShowEmptyState =
-    !isLoadingTab && !hasLoadError && !hasVisibleEntries;
+    !isPageLoading && !hasLoadError && !hasVisibleEntries;
 
   return (
     <div className="container mx-auto px-6 py-8">
@@ -139,11 +188,11 @@ function MyMoviesPageContent() {
         </TabsList>
 
         <TabsContent value={activeTab}>
-          {isLoadingTab && (
+          {isPageLoading && (
             <p className="text-center text-muted-foreground">Carregando...</p>
           )}
 
-          {hasLoadError && !isLoadingTab && (
+          {hasLoadError && !isPageLoading && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
               <p className="text-muted-foreground">
                 Não foi possível carregar seus filmes.
@@ -166,7 +215,7 @@ function MyMoviesPageContent() {
             </div>
           )}
 
-          {hasVisibleEntries && !isLoadingTab && !hasLoadError && (
+          {hasVisibleEntries && !isPageLoading && !hasLoadError && (
             <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {visibleEntries.map((entry) => (
                 <LibraryMovieCard

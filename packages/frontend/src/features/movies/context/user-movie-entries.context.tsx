@@ -123,6 +123,13 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
     [entries],
   );
 
+  const hasEntry = useCallback(
+    (tmdbId: number): boolean => {
+      return entries.has(tmdbId);
+    },
+    [entries],
+  );
+
   const patchEntry = useCallback(
     async (
       tmdbId: number,
@@ -225,11 +232,12 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
   const value = useMemo(
     () => ({
       getFlags,
+      hasEntry,
       patchEntry,
       isLoading,
       isPatching,
     }),
-    [getFlags, patchEntry, isLoading, isPatching],
+    [getFlags, hasEntry, patchEntry, isLoading, isPatching],
   );
 
   return (

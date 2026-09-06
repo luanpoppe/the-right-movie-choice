@@ -87,5 +87,5 @@ Página autenticada `/my-movies` com abas Assistidos, Quero ver e Favoritos. Cad
 
 ## Contratos expostos
 
-- `GET /movie/user-entries` — resposta enriquecida: cada `entry` ganha `movie: { title: string, year: number | null, posterPath: string | null } | null` (provisório até implementação)
-- Ordenação: `watched=true` usa `watchedAt desc`; demais filtros usam `updatedAt desc` (comportamento novo no repositório)
+- `GET /movie/user-entries` — resposta enriquecida: `packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryResponseSchema` + `packages/backend/src/domains/movies/infrastructure/http/mappers/user-movie-entry-response.mapper.ts:UserMovieEntryResponseMapper`
+- Ordenação: `watched=true` usa `watchedAt desc`; demais filtros usam `updatedAt desc` — `packages/backend/src/domains/movies/infrastructure/repositories/user-movie-entry/user-movie-entry-list-order.utils.ts:UserMovieEntryListOrderUtils`

@@ -8,3 +8,4 @@
 - [Login e register](login-register.md) — páginas nativas + Google, sessão no `AuthContext`.
 - [Refresh silencioso no SPA](refresh-silencioso-spa.md) — `movieClient`, 401 → `/auth/refresh`, ponte para `/login`.
 - [Header e tema](header-e-tema.md) — header/topo da app, toggle claro/escuro, ações de auth.
+- [Biblioteca do usuário](biblioteca-usuario.md) — `/my-movies` com abas Assistidos/Quero ver/Favoritos.

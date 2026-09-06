@@ -116,8 +116,8 @@
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
       <ul>
-        <li><code>GET /movie/user-entries</code> — resposta enriquecida: cada <code>entry</code> ganha <code>movie: { title: string, year: number | null, posterPath: string | null } | null</code> (provisório até implementação)</li>
-        <li>Ordenação: <code>watched=true</code> usa <code>watchedAt desc</code>; demais filtros usam <code>updatedAt desc</code> (comportamento novo no repositório)</li>
+        <li><code>GET /movie/user-entries</code> — resposta enriquecida: <code>packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryResponseSchema</code> + <code>packages/backend/src/domains/movies/infrastructure/http/mappers/user-movie-entry-response.mapper.ts:UserMovieEntryResponseMapper</code></li>
+        <li>Ordenação: <code>watched=true</code> usa <code>watchedAt desc</code>; demais filtros usam <code>updatedAt desc</code> — <code>packages/backend/src/domains/movies/infrastructure/repositories/user-movie-entry/user-movie-entry-list-order.utils.ts:UserMovieEntryListOrderUtils</code></li>
       </ul>
     </details>
   </main>

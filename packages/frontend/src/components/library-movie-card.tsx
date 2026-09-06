@@ -58,6 +58,14 @@ export class LibraryMovieCardUtils {
       return null;
     }
 
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(watchedAt);
+    if (dateOnlyMatch) {
+      const year = dateOnlyMatch[1];
+      const month = dateOnlyMatch[2];
+      const day = dateOnlyMatch[3];
+      return `${day}/${month}/${year}`;
+    }
+
     const parsedDate = new Date(watchedAt);
     const isInvalidDate = Number.isNaN(parsedDate.getTime());
     if (isInvalidDate) {
