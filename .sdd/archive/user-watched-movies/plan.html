@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — user-watched-movies</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>user-watched-movies</strong> / plan</p>
+    <h1>Filmes assistidos, favoritos e watchlist do usuário</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>user-watched-movies</code> · <strong>criada</strong>: 2026-09-05 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-06</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Usuários autenticados precisam registrar filmes que já assistiram (com nota e data opcionais), marcar favoritos e adicionar títulos a uma watchlist genérica. A persistência usa uma linha por par usuário+filme (<code>tmdbId</code> como chave), com colunas booleanas para cada estado. Listas personalizáveis ficam para uma mudança futura com tabelas próprias. Esta mudança é base para filtrar recomendações e enriquecer o perfil do usuário depois.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: Apenas usuário autenticado (JWT). <strong>Por quê</strong>: persistência por usuário no Postgres. <strong>Alternativa descartada</strong>: guest com localStorage.</li>
+        <li><strong>Decisão</strong>: <code>tmdbId</code> obrigatório em cada item; <code>movieId</code> (FK <code>Movie</code>) opcional quando o filme existir no catálogo local. <strong>Por quê</strong>: recomendações podem existir antes do upsert no Postgres. <strong>Alternativa descartada</strong>: FK obrigatória só para <code>Movie.id</code>.</li>
+        <li><strong>Decisão</strong>: Tabela única <code>UserMovieEntry</code> — uma linha por <code>(userId, tmdbId)</code> com colunas <code>watched</code>, <code>favorite</code>, <code>inWatchlist</code> (booleans) e <code>rating</code> (1–10) / <code>watchedAt</code> opcionais quando assistido. <strong>Por quê</strong>: simples para os três estados fixos da UI; consultas sem join. <strong>Alternativa descartada</strong>: <code>UserMovieList</code> + <code>UserMovieListItem</code> (over-engineering para flags fixos).</li>
+        <li><strong>Decisão</strong>: Listas personalizáveis pelo usuário ficam fora desta mudança; quando chegarem, novas tabelas em mudança separada. <strong>Por quê</strong>: o usuário aceita refatoração/aditivo futuro em troca de modelo mais direto agora.</li>
+        <li><strong>Decisão</strong>: Expor <code>tmdbId</code> e <code>imdbId</code> na resposta pública de <code>/movie/recommendation</code>. <strong>Por quê</strong>: o SPA precisa do identificador estável para chamar a API de listas. <strong>Alternativa descartada</strong>: lookup por título/ano ao marcar.</li>
+        <li><strong>Decisão</strong>: Reutilizar <code>domains/movies</code>, padrões de auth JWT existentes, Prisma em subpasta de repositório e testes em <code>specs/</code>. <strong>Por quê</strong>: consistência com o projeto. <strong>Alternativa descartada</strong>: módulo paralelo ou Prisma direto no controller.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>user-movie-lists-persistence</strong> — Tabela <code>UserMovieEntry</code>, migração e repositório (flags + metadados de assistido).</li>
+        <li><strong>user-movie-lists-api</strong> — Endpoints autenticados para assistido (com nota/data), favorito e watchlist, incluindo listagens.</li>
+        <li><strong>recommendation-expose-ids</strong> — Inclui <code>tmdbId</code> e <code>imdbId</code> na resposta pública de recommendation (backend + DTO do SPA).</li>
+        <li><strong>user-movie-card-actions</strong> — Ações nos cards do chat: assistido, favorito e watchlist com feedback visual.</li>
+        <li><strong>user-movie-library-ui</strong> — Rota <code>/my-movies</code> com abas Assistidos, Quero ver e Favoritos.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: persistência Postgres; API completa watched/favorite/watchlist; expor ids na recommendation; ações nos cards; biblioteca <code>/my-movies</code>; auth obrigatório; marcar e desmarcar (toggle).</p>
+      <p><strong>Fora</strong>: filtro na recommendation por não assistidos; listas personalizáveis (novas tabelas em mudança futura); importação em massa; suporte a guest/anônimo; páginas de lista separadas (<code>/watched</code>, <code>/watchlist</code> isoladas).</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,24 @@
+id: user-watched-movies
+title: Filmes assistidos, favoritos e watchlist do usuário
+created: 2026-09-05
+archived: 2026-09-06
+state: archived
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: user-movie-lists-persistence
+    title: Persistência do status por filme
+    summary: Tabela UserMovieEntry (watched, favorite, inWatchlist + rating/watchedAt), migração e repositório.
+  - slug: user-movie-lists-api
+    title: API de listas do usuário
+    summary: Endpoints autenticados para assistido (nota/data opcionais), favorito e watchlist.
+  - slug: recommendation-expose-ids
+    title: IDs na recommendation
+    summary: Expõe tmdbId e imdbId na resposta pública de recommendation para o SPA.
+  - slug: user-movie-card-actions
+    title: Ações nos cards
+    summary: Toggle assistido, favorito e watchlist nos cards do chat.
+  - slug: user-movie-library-ui
+    title: Biblioteca do usuário
+    summary: Rota /my-movies com abas Assistidos, Quero ver e Favoritos.
