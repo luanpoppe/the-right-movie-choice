@@ -1,6 +1,7 @@
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExcludeWatchedToggle } from "@/features/chat/components/ExcludeWatchedToggle";
 import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
 import { InputSuggestions } from "./InputSuggestions";
 
@@ -8,18 +9,31 @@ interface FormProps {
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isGuestLocked?: boolean;
+  excludeWatched: boolean;
+  onExcludeWatchedChange: (value: boolean) => void;
+  hasAccessToken: boolean;
 }
 
 export function Form({
   handleSubmit,
   isLoading,
   isGuestLocked = false,
+  excludeWatched,
+  onExcludeWatchedChange,
+  hasAccessToken,
 }: FormProps) {
   const isDisabled = isLoading || isGuestLocked;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {isGuestLocked && <GuestLockBanner />}
+      <ExcludeWatchedToggle
+        showToggle={hasAccessToken}
+        excludeWatched={excludeWatched}
+        onExcludeWatchedChange={onExcludeWatchedChange}
+        isLoading={isLoading}
+        isGuestLocked={isGuestLocked}
+      />
       <div className="relative">
         <Input
           name="message"

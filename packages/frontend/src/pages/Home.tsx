@@ -38,6 +38,11 @@ export function Home() {
     const input = target.message.value.trim();
     if (!input) return;
 
+    const excludeWatchedField = target.elements.namedItem("excludeWatched");
+    const isExcludeWatchedChecked =
+      excludeWatchedField instanceof HTMLInputElement &&
+      excludeWatchedField.checked;
+
     setMessages([...messages, { from: "user", message: input }]);
     setHasStartedChat(true);
     target.message.value = "";
@@ -48,7 +53,7 @@ export function Home() {
         userMessage: input,
       };
       const requestBody = hasAccessToken
-        ? { ...baseRequestBody, excludeWatched }
+        ? { ...baseRequestBody, excludeWatched: isExcludeWatchedChecked }
         : baseRequestBody;
 
       const { movies, response, guestRemaining } =
@@ -107,6 +112,9 @@ export function Home() {
         handleSubmit={handleSubmit}
         isLoading={isLoading}
         isGuestLocked={isGuestLocked}
+        excludeWatched={excludeWatched}
+        onExcludeWatchedChange={setExcludeWatched}
+        hasAccessToken={hasAccessToken}
       />
     );
   }
@@ -118,6 +126,9 @@ export function Home() {
       isLoading={isLoading}
       handleSubmit={handleSubmit}
       isGuestLocked={isGuestLocked}
+      excludeWatched={excludeWatched}
+      onExcludeWatchedChange={setExcludeWatched}
+      hasAccessToken={hasAccessToken}
     />
   );
 

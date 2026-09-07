@@ -1,18 +1,25 @@
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExcludeWatchedToggle } from "@/features/chat/components/ExcludeWatchedToggle";
 import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
 
 interface ChatFormProps {
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
   isGuestLocked?: boolean;
+  excludeWatched: boolean;
+  onExcludeWatchedChange: (value: boolean) => void;
+  hasAccessToken: boolean;
 }
 
 export function ChatForm({
   isLoading,
   handleSubmit,
   isGuestLocked = false,
+  excludeWatched,
+  onExcludeWatchedChange,
+  hasAccessToken,
 }: ChatFormProps) {
   const isDisabled = isLoading || isGuestLocked;
 
@@ -22,6 +29,13 @@ export function ChatForm({
       className="sticky bottom-0 bg-background/80 backdrop-blur-xl pt-6 pb-4 space-y-3"
     >
       {isGuestLocked && <GuestLockBanner />}
+      <ExcludeWatchedToggle
+        showToggle={hasAccessToken}
+        excludeWatched={excludeWatched}
+        onExcludeWatchedChange={onExcludeWatchedChange}
+        isLoading={isLoading}
+        isGuestLocked={isGuestLocked}
+      />
       <div className="flex gap-3 p-2 rounded-3xl bg-card/80 border border-border/50 shadow-lg">
         <Input
           name="message"

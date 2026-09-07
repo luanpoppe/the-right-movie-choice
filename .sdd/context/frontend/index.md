@@ -3,6 +3,7 @@
 
 ## Áreas
 - [Chat e welcome](chat-ui.md) — landing, sugestões de prompt, conversa e cards de filme.
+- [Toggle exclude-watched](exclude-watched-toggle.md) — checkbox nos formulários (só logado) enviando `excludeWatched` na recommendation.
 - [Ações nos cards do chat](acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist com PATCH otimista.
 - [Lock do chat anônimo](lock-chat-anonimo.md) — trava input após cota; banner `/register` e `/login`.
 - [Login e register](login-register.md) — páginas nativas + Google, sessão no `AuthContext`.
