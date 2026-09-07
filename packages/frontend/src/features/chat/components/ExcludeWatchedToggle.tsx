@@ -30,14 +30,27 @@ export function ExcludeWatchedToggle({
     onExcludeWatchedChange(nextValue);
   };
 
-  const checkboxClassName = cn(
-    "h-4 w-4 shrink-0 rounded border border-primary text-primary",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-    "disabled:cursor-not-allowed disabled:opacity-50",
+  const labelClassName = cn(
+    "inline-flex items-center gap-2.5 rounded-full border border-border/40 bg-card/50 px-3 py-1.5",
+    "text-sm font-normal text-muted-foreground shadow-sm backdrop-blur-sm",
+    "transition-colors hover:bg-card/70",
+    isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+  );
+
+  const switchTrackClassName = cn(
+    "relative inline-flex h-5 w-9 shrink-0 rounded-full border border-border/30 bg-muted/60",
+    "transition-all duration-200 ease-out",
+    "after:pointer-events-none after:absolute after:left-[2px] after:top-[2px]",
+    "after:block after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm",
+    "after:transition-transform after:duration-200 after:ease-out",
+    "peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
+    "peer-checked:border-primary/40 peer-checked:bg-gradient-to-r peer-checked:from-primary peer-checked:to-accent",
+    "peer-checked:after:translate-x-4",
+    "peer-disabled:cursor-not-allowed",
   );
 
   return (
-    <div className="flex items-center gap-2">
+    <Label htmlFor={toggleId} className={labelClassName}>
       <input
         type="checkbox"
         id={toggleId}
@@ -45,11 +58,10 @@ export function ExcludeWatchedToggle({
         checked={excludeWatched}
         onChange={handleChange}
         disabled={isDisabled}
-        className={checkboxClassName}
+        className="peer sr-only"
       />
-      <Label htmlFor={toggleId} className="text-sm text-muted-foreground">
-        Exclude watched movies
-      </Label>
-    </div>
+      <span aria-hidden="true" className={switchTrackClassName} />
+      <span>Exclude watched movies</span>
+    </Label>
   );
 }
