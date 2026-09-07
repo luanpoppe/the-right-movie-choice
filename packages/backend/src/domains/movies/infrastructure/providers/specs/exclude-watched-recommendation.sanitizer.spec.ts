@@ -299,4 +299,84 @@ describe("ExcludeWatchedRecommendationSanitizer", () => {
       expect(merged[0]?.watched).toBe(true);
     });
   });
+
+  describe("escopo fechado e metadados", () => {
+    it("canStopExcludeWatchedRound: escopo fechado satisfeito com 1 verificado para cedo", () => {
+      const recommendation =
+        ExcludeWatchedRecommendationSanitizerFixtures.recommendation(
+          [
+            ExcludeWatchedRecommendationSanitizerFixtures.movie({
+              title: "Deadpool",
+              tmdbId: 293660,
+            }),
+          ],
+          "sugestão",
+        );
+      const withScope = {
+        ...recommendation,
+        requestScope: "closed" as const,
+        scopeSatisfied: true,
+      };
+
+      const canStop = ExcludeWatchedRecommendationSanitizer.canStopExcludeWatchedRound(
+        1,
+        withScope,
+        2,
+      );
+
+      expect(canStop).toBe(true);
+    });
+
+    it("canStopExcludeWatchedRound: pedido aberto exige mínimo global", () => {
+      const recommendation =
+        ExcludeWatchedRecommendationSanitizerFixtures.recommendation([
+          ExcludeWatchedRecommendationSanitizerFixtures.movie({ tmdbId: 100 }),
+        ]);
+
+      const canStopWithOne = ExcludeWatchedRecommendationSanitizer.canStopExcludeWatchedRound(
+        1,
+        recommendation,
+        2,
+      );
+      const canStopWithTwo = ExcludeWatchedRecommendationSanitizer.canStopExcludeWatchedRound(
+        2,
+        recommendation,
+        2,
+      );
+
+      expect(canStopWithOne).toBe(false);
+      expect(canStopWithTwo).toBe(true);
+    });
+
+    it("shouldApplyExhaustionNotice: não aplica quando escopo fechado satisfeito", () => {
+      const shouldApply =
+        ExcludeWatchedRecommendationSanitizer.shouldApplyExhaustionNotice(
+          1,
+          2,
+          true,
+        );
+
+      expect(shouldApply).toBe(false);
+    });
+
+    it("stripScopeMetadata remove campos internos antes da resposta HTTP", () => {
+      const recommendation = {
+        ...ExcludeWatchedRecommendationSanitizerFixtures.recommendation([
+          ExcludeWatchedRecommendationSanitizerFixtures.movie({ tmdbId: 100 }),
+        ]),
+        requestScope: "closed" as const,
+        scopeSatisfied: true,
+      };
+
+      const stripped =
+        ExcludeWatchedRecommendationSanitizer.stripScopeMetadata(recommendation);
+
+      expect(stripped).toEqual({
+        movies: recommendation.movies,
+        response: recommendation.response,
+      });
+      expect(stripped).not.toHaveProperty("requestScope");
+      expect(stripped).not.toHaveProperty("scopeSatisfied");
+    });
+  });
 });

@@ -1,5 +1,10 @@
 import type { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation.entity";
 
+export type ExcludeWatchedScopeMetadata = {
+  requestScope?: "open" | "closed" | undefined;
+  scopeSatisfied?: boolean | undefined;
+};
+
 export type ExcludeWatchedContextEntry = {
   title: string;
   tmdbId?: number | undefined;
@@ -13,6 +18,62 @@ export type ExcludeWatchedRoundResult = {
 };
 
 export class ExcludeWatchedRecommendationSanitizer {
+  static isClosedScopeSatisfied(
+    recommendation: ExcludeWatchedScopeMetadata,
+  ): boolean {
+    const isClosedScope = recommendation.requestScope === "closed";
+    const isScopeSatisfied = recommendation.scopeSatisfied === true;
+
+    return isClosedScope && isScopeSatisfied;
+  }
+
+  static canStopExcludeWatchedRound(
+    verifiedUnwatchedCount: number,
+    recommendation: ExcludeWatchedScopeMetadata,
+    minVerifiedUnwatched: number,
+  ): boolean {
+    const hasMinimumForOpenScope =
+      verifiedUnwatchedCount >= minVerifiedUnwatched;
+    if (hasMinimumForOpenScope) {
+      return true;
+    }
+
+    const isClosedScopeSatisfied =
+      ExcludeWatchedRecommendationSanitizer.isClosedScopeSatisfied(
+        recommendation,
+      );
+    const hasAtLeastOneVerified = verifiedUnwatchedCount >= 1;
+
+    return isClosedScopeSatisfied && hasAtLeastOneVerified;
+  }
+
+  static shouldApplyExhaustionNotice(
+    bestVerifiedUnwatchedCount: number,
+    minVerifiedUnwatched: number,
+    isClosedScopeSatisfied: boolean,
+  ): boolean {
+    if (isClosedScopeSatisfied) {
+      return false;
+    }
+
+    const hasMinimumForOpenScope =
+      bestVerifiedUnwatchedCount >= minVerifiedUnwatched;
+    if (hasMinimumForOpenScope) {
+      return false;
+    }
+
+    return true;
+  }
+
+  static stripScopeMetadata(
+    recommendation: MovieRecommendationEntity,
+  ): MovieRecommendationEntity {
+    return {
+      movies: recommendation.movies,
+      response: recommendation.response,
+    };
+  }
+
   static sanitize(
     recommendation: MovieRecommendationEntity,
     watchedTmdbIds: ReadonlySet<number>,

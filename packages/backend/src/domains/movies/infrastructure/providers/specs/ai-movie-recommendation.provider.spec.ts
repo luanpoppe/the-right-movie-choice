@@ -79,8 +79,9 @@ class MovieRecommendationFixtures {
   static entityWithMovies(
     movies: MovieRecommendationEntity["movies"],
     response = "sugestão",
+    scope?: Pick<MovieRecommendationEntity, "requestScope" | "scopeSatisfied">,
   ): MovieRecommendationEntity {
-    return { movies, response };
+    return { movies, response, ...scope };
   }
 }
 
@@ -537,6 +538,83 @@ describe("AiMovieRecommendationProvider", () => {
             ExcludeWatchedRecommendationConstants.MIN_VERIFIED_UNWATCHED,
         }),
       );
+    });
+
+    it("para cedo com escopo fechado satisfeito e 1 filme verificado", async () => {
+      const closedScopeEntity = MovieRecommendationFixtures.entityWithMovies(
+        [MovieRecommendationFixtures.movieWithTmdbId("Deadpool", 293660)],
+        "Aqui está o que falta da franquia.",
+        { requestScope: "closed", scopeSatisfied: true },
+      );
+      callStructuredOutput.mockResolvedValue({ response: closedScopeEntity });
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(callStructuredOutput).toHaveBeenCalledTimes(1);
+      expect(result.movies).toHaveLength(1);
+      expect(result.movies[0]?.tmdbId).toBe(293660);
+      expect(result.response).toBe("Aqui está o que falta da franquia.");
+      expect(result).not.toHaveProperty("requestScope");
+      expect(Logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("escopo fechado satisfeito não recebe aviso de esgotamento após esgotar rodadas", async () => {
+      const closedScopeOnLastRound = MovieRecommendationFixtures.entityWithMovies(
+        [MovieRecommendationFixtures.movieWithTmdbId("Deadpool", 293660)],
+        "Só falta este da trilogia.",
+        { requestScope: "closed", scopeSatisfied: true },
+      );
+      const openScopeSingle = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Outro", 100),
+      ]);
+      callStructuredOutput
+        .mockResolvedValueOnce({ response: openScopeSingle })
+        .mockResolvedValueOnce({ response: openScopeSingle })
+        .mockResolvedValueOnce({ response: openScopeSingle })
+        .mockResolvedValueOnce({ response: openScopeSingle })
+        .mockResolvedValueOnce({ response: closedScopeOnLastRound });
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(result.movies.map((movie) => movie.tmdbId)).toEqual([293660]);
+      expect(result.response).toBe("Só falta este da trilogia.");
+      expect(result.response).not.toContain("couldn't find many unwatched matches");
+      expect(Logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("desempate prefere rodada mais recente com mesmo número de verificados", async () => {
+      const roundOneEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Deadpool 2", 383498),
+      ]);
+      const roundTwoEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Deadpool", 293660),
+      ]);
+      const emptyRoundEntity = MovieRecommendationFixtures.entityWithMovies([]);
+      callStructuredOutput
+        .mockResolvedValueOnce({ response: roundOneEntity })
+        .mockResolvedValueOnce({ response: roundTwoEntity })
+        .mockResolvedValueOnce({ response: emptyRoundEntity })
+        .mockResolvedValueOnce({ response: emptyRoundEntity })
+        .mockResolvedValueOnce({ response: emptyRoundEntity });
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(callStructuredOutput).toHaveBeenCalledTimes(
+        ExcludeWatchedRecommendationConstants.MAX_EXCLUDE_ROUNDS,
+      );
+      expect(result.movies.map((movie) => movie.tmdbId)).toEqual([293660]);
     });
 
     it("REQ-4: retorna melhor rodada entre várias quando a última piora", async () => {

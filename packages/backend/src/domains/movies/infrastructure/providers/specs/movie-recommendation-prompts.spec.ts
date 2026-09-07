@@ -92,13 +92,44 @@ describe("MovieRecommendationPrompts", () => {
       expect(poolSize).toBe(25);
     });
 
-    it("instrui mínimo de filmes verificados não assistidos usando constante", () => {
+    it("instrui mínimo de filmes verificados não assistidos em pedidos amplos", () => {
       const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
 
       expect(prompt).toContain(
-        `prefira pelo menos ${minVerifiedUnwatched} filmes com tmdbId confirmado`,
+        `prefira pelo menos ${minVerifiedUnwatched} filmes com \`tmdbId\` confirmado`,
       );
+      expect(prompt).toContain("Pedido amplo");
       expect(minVerifiedUnwatched).toBe(2);
+    });
+
+    it("instrui cobertura completa e flexibilidade em pedidos de escopo fechado", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Pedidos de escopo fechado");
+      expect(prompt).toContain("filmes do Deadpool");
+      expect(prompt).toContain("obras principais");
+      expect(prompt).toContain("Pedido de escopo fechado");
+      expect(prompt).toContain("uma sugestão é suficiente");
+      expect(prompt).toContain("não force quantidade mínima além do que o universo pedido oferece");
+    });
+
+    it("incentiva preencher o batch até o máximo relevante sem padding aleatório", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Preenchimento do batch de queries");
+      expect(prompt).toContain(`até o limite de ${poolSize} itens`);
+      expect(prompt).toContain("Não complete o batch com títulos aleatórios");
+      expect(prompt).toContain("não pare em 3 se ainda há obras pertinentes");
+      expect(prompt).toContain("obras adjacentes");
+      expect(prompt).toContain("não precisa recomendar tudo que foi pesquisado");
+    });
+
+    it("documenta metadados requestScope e scopeSatisfied no JSON", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Metadados de escopo");
+      expect(prompt).toContain("`requestScope`");
+      expect(prompt).toContain("`scopeSatisfied`");
     });
 
     it("explica filtro de assistidos e rede ampla de candidatos", () => {

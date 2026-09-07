@@ -95,6 +95,8 @@ export class AiMovieRecommendationProvider
     let exclusionEntries: ExcludeWatchedContextEntry[] = [];
     let bestSanitizedRecommendation: MovieRecommendationEntity | null = null;
     let bestVerifiedUnwatchedCount = 0;
+    let bestRoundNumber = 0;
+    let bestClosedScopeSatisfied = false;
 
     Logger.info("🚀 Iniciando recomendação exclude-watched", {
       chatId,
@@ -160,18 +162,26 @@ export class AiMovieRecommendationProvider
       const sanitizedRecommendation = roundResult.sanitized;
       const verifiedUnwatchedCount = roundResult.verifiedUnwatchedCount;
       exclusionEntries = roundResult.exclusionEntries;
+      const isClosedScopeSatisfied =
+        ExcludeWatchedRecommendationSanitizer.isClosedScopeSatisfied(
+          sanitizedRecommendation,
+        );
 
       const isBetterRound =
         bestSanitizedRecommendation === null ||
         AiMovieRecommendationProvider.isBetterExcludeRound(
           verifiedUnwatchedCount,
           sanitizedRecommendation.movies.length,
+          round,
           bestVerifiedUnwatchedCount,
           bestSanitizedRecommendation.movies.length,
+          bestRoundNumber,
         );
       if (isBetterRound) {
         bestVerifiedUnwatchedCount = verifiedUnwatchedCount;
         bestSanitizedRecommendation = sanitizedRecommendation;
+        bestRoundNumber = round;
+        bestClosedScopeSatisfied = isClosedScopeSatisfied;
       }
 
       Logger.debug("📊 Resultado da rodada exclude-watched", {
@@ -182,12 +192,20 @@ export class AiMovieRecommendationProvider
         movieCount: sanitizedRecommendation.movies.length,
         watchedRemovedCount: parsedRecommendation.movies.length -
           sanitizedRecommendation.movies.length,
+        requestScope: sanitizedRecommendation.requestScope,
+        scopeSatisfied: sanitizedRecommendation.scopeSatisfied,
       });
 
-      const hasEnoughVerifiedUnwatched =
-        verifiedUnwatchedCount >= minVerifiedUnwatched;
-      if (hasEnoughVerifiedUnwatched) {
-        return sanitizedRecommendation;
+      const canStopRound =
+        ExcludeWatchedRecommendationSanitizer.canStopExcludeWatchedRound(
+          verifiedUnwatchedCount,
+          sanitizedRecommendation,
+          minVerifiedUnwatched,
+        );
+      if (canStopRound) {
+        return AiMovieRecommendationProvider.stripExcludeWatchedResponse(
+          sanitizedRecommendation,
+        );
       }
 
       if (isLastRound) {
@@ -199,9 +217,16 @@ export class AiMovieRecommendationProvider
       throw new WrongMovieSchemaFromLlmException();
     }
 
-    const isExhausted = bestVerifiedUnwatchedCount < minVerifiedUnwatched;
-    if (!isExhausted) {
-      return bestSanitizedRecommendation;
+    const shouldApplyExhaustionNotice =
+      ExcludeWatchedRecommendationSanitizer.shouldApplyExhaustionNotice(
+        bestVerifiedUnwatchedCount,
+        minVerifiedUnwatched,
+        bestClosedScopeSatisfied,
+      );
+    if (!shouldApplyExhaustionNotice) {
+      return AiMovieRecommendationProvider.stripExcludeWatchedResponse(
+        bestSanitizedRecommendation,
+      );
     }
 
     Logger.warn("⚠️ Rodadas exclude-watched esgotadas sem mínimo verificado", {
@@ -217,28 +242,51 @@ export class AiMovieRecommendationProvider
         bestSanitizedRecommendation.response,
       );
 
-    return {
+    const exhaustedRecommendation = {
       ...bestSanitizedRecommendation,
       response: ensuredResponse,
     };
+
+    return AiMovieRecommendationProvider.stripExcludeWatchedResponse(
+      exhaustedRecommendation,
+    );
+  }
+
+  private static stripExcludeWatchedResponse(
+    recommendation: MovieRecommendationEntity,
+  ): MovieRecommendationEntity {
+    return ExcludeWatchedRecommendationSanitizer.stripScopeMetadata(
+      recommendation,
+    );
   }
 
   private static isBetterExcludeRound(
     verifiedCount: number,
     movieCount: number,
+    round: number,
     bestVerifiedCount: number,
     bestMovieCount: number,
+    bestRound: number,
   ): boolean {
     if (verifiedCount > bestVerifiedCount) {
       return true;
     }
 
     const isTieOnVerified = verifiedCount === bestVerifiedCount;
-    if (isTieOnVerified && movieCount > bestMovieCount) {
+    if (!isTieOnVerified) {
+      return false;
+    }
+
+    if (movieCount > bestMovieCount) {
       return true;
     }
 
-    return false;
+    const isTieOnMovieCount = movieCount === bestMovieCount;
+    if (!isTieOnMovieCount) {
+      return false;
+    }
+
+    return round > bestRound;
   }
 
   private async callStructuredRecommendation(params: {

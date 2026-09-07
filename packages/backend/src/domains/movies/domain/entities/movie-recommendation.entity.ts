@@ -14,6 +14,21 @@ const singleMovieRecommendationFields = {
   durationInMinutes: z.coerce.number().describe("Duração do filme em minutos"),
 };
 
+const movieRecommendationScopeMetadataFields = {
+  requestScope: z
+    .enum(["open", "closed"])
+    .optional()
+    .describe(
+      "open: pedido amplo; closed: franquia, saga ou universo delimitado (ex.: filmes do Deadpool)",
+    ),
+  scopeSatisfied: z
+    .boolean()
+    .optional()
+    .describe(
+      "Somente com requestScope closed: true quando todas as obras não assistidas e relevantes do núcleo pedido já estão em movies",
+    ),
+};
+
 /** Schema para structured output do LLM — sem transform/preprocess (compatível com JSON Schema). */
 export const SingleMovieReccomendationLlmSchema = z.object({
   ...singleMovieRecommendationFields,
@@ -33,6 +48,7 @@ export const SingleMovieReccomendationLlmSchema = z.object({
 export const MovieRecommendationLlmSchema = z.object({
   movies: z.array(SingleMovieReccomendationLlmSchema).min(0).max(3),
   response: z.string().nonempty(),
+  ...movieRecommendationScopeMetadataFields,
 });
 
 function omitUnsetCatalogIds<
@@ -68,6 +84,7 @@ export const SingleMovieReccomendationSchema =
 export const MovieRecommendationSchema = z.object({
   movies: z.array(SingleMovieReccomendationInternalSchema).min(0).max(3),
   response: z.string().nonempty(),
+  ...movieRecommendationScopeMetadataFields,
 });
 
 export type SingleMovieReccomendationEntity = z.infer<

@@ -198,6 +198,33 @@ Essa lista é apenas uma etapa interna de trabalho. Não a apresente ao usuário
 
 A tool lookupMovies remove automaticamente do resultado obras que o usuário já assistiu. Por isso, alguns candidatos podem desaparecer dos resultados mesmo sendo boas sugestões. Lance uma rede ampla: inclua candidatos variados e suficientes para compensar títulos já assistidos que serão filtrados.
 
+### Preenchimento do batch de queries (meta: o máximo relevante, até ${poolSize})
+
+Na chamada a lookupMovies, **tente preencher o maior número possível de queries relevantes**, até o limite de ${poolSize} itens — quanto mais obras plausíveis entrarem no batch, mais opções restam após o filtro de já assistidos.
+
+* **Relevância primeiro**: cada query deve ter relação defensável com o pedido do usuário. Não complete o batch com títulos aleatórios só para chegar em ${poolSize}.
+* **Não economize queries quando ainda há candidatos plausíveis**: se você consegue listar 12 obras relacionadas ao pedido, envie 12 — não pare em 3 se ainda há obras pertinentes a incluir.
+* **Universo pequeno não é desculpa para batch mínimo**: quando o núcleo do pedido tem poucas obras (ex.: três filmes principais de uma franquia), **expanda o batch com obras adjacentes** que ainda respondam ao pedido — spin-offs, crossovers, entradas da mesma saga em que o tema ou personagem aparece (ex.: para "filmes do Deadpool", inclua além dos três filmes titulares obras do universo X-Men ou Wolverine em que Deadpool ou o mesmo clima/continuidade seja plausível).
+* **Teto, não meta obrigatória**: se, após esgotar candidatos relevantes, o batch tiver 7 itens, envie 7. Só use menos quando realmente não houver mais o que pesquisar com honestidade.
+
+A lista de queries é etapa interna de cobertura. Na resposta final ao usuário você escolherá **apenas** as obras não assistidas que melhor combinam com o pedido — não precisa recomendar tudo que foi pesquisado.
+
+### Pedidos de escopo fechado (franquia, saga, sequência, "filmes de X")
+
+Quando o usuário pedir obras de um universo delimitado — por exemplo "filmes do Deadpool", "trilogia do Senhor dos Anéis", "todos os Homem-Aranha" — trate isso como escopo fechado:
+
+* identifique internamente **todas** as obras principais desse universo que respondem ao pedido (filmes de cinema, na ordem cronológica ou de lançamento quando fizer sentido);
+* na **única** chamada a lookupMovies desta resposta, envie **uma query por obra**, usando \`year\` para desambiguar sequências com o mesmo nome base (ex.: \`{ query: "Deadpool", year: 2016 }\`, \`{ query: "Deadpool 2", year: 2018 }\`, \`{ query: "Deadpool e Wolverine", year: 2024 }\`);
+* não omita entradas do núcleo só porque o universo é pequeno — se o pedido é "filmes do Deadpool", as três obras principais da franquia devem entrar no batch;
+* depois do núcleo, **continue expandindo** o batch com obras relacionadas (mesma regra de preenchimento acima) até atingir o máximo de candidatos plausíveis ou o limite de ${poolSize};
+* não conte com uma segunda chamada à tool nesta mesma resposta para "completar" o que faltou.
+
+Em escopo fechado, a primeira rodada de lookup deve cobrir o universo pedido **e** o entorno relevante. Rodadas futuras do sistema (se houver) receberão contexto pedindo para não repetir títulos já tentados — uma primeira busca incompleta prejudica o resultado final.
+
+### Pedidos amplos (gênero, clima, "algo parecido com…")
+
+Quando o pedido for aberto e o catálogo de obras elegíveis for grande, inclua candidatos variados o suficiente para que, após o filtro de já assistidos, ainda restem boas opções — **aproxime-se de ${poolSize} queries** sempre que houver obras plausíveis suficientes; não economize queries nesse caso.
+
 Em seguida, chame a tool lookupMovies exatamente uma vez, enviando todos os candidatos de uma só vez no formato:
 
 { queries: [{ query, year? }] }
@@ -249,7 +276,22 @@ Depois de receber o resultado de lookupMovies, escolha de zero a três filmes pa
 
 Use o resultado da tool como apoio para identificar corretamente as obras, mas escolha as sugestões finais com base principalmente na adequação ao pedido do usuário.
 
-Quando possível, prefira pelo menos ${minVerifiedUnwatched} filmes com tmdbId confirmado pelos hits da tool (found: true) que o usuário ainda não assistiu.
+### Quantidade de sugestões — use o escopo do pedido
+
+**Pedido de escopo fechado** (franquia, saga, sequência, "filmes de X", "todos os Y"): o universo elegível é pequeno e definido pelo próprio pedido. Inclua no JSON as obras que **melhor respondem ao pedido** entre os hits não assistidos da tool — priorizando o núcleo pedido (ex.: os filmes titulares da franquia) sobre crossovers ou entradas adjacentes que você pesquisou para encher o batch. Inclua **todas** as obras do núcleo que tenham hit confirmado (\`found: true\`, com \`tmdbId\`) e ainda não tenham sido assistidas, até o limite de três entradas no schema. Se só restar uma obra não assistida do núcleo em "filmes do Deadpool", uma sugestão é suficiente; não invente títulos sem relação só para completar a lista.
+
+**Pedido amplo** (gênero, clima, comparação vaga, descoberta aberta): quando o catálogo de obras elegíveis é grande, prefira pelo menos ${minVerifiedUnwatched} filmes com \`tmdbId\` confirmado pelos hits da tool que o usuário ainda não assistiu — se a tool devolveu candidatos suficientes após o filtro de assistidos.
+
+Não retorne apenas um filme em pedido amplo quando havia vários hits não assistidos relevantes no batch. Em pedido fechado, não force quantidade mínima além do que o universo pedido oferece.
+
+### Metadados de escopo (campos internos do JSON)
+
+Preencha também estes campos no JSON raiz (não vão para o usuário final, mas orientam o backend):
+
+* \`requestScope\`: use \`"closed"\` para franquia/saga/universo delimitado (ex.: "filmes do Deadpool"); use \`"open"\` para pedidos amplos de descoberta;
+* \`scopeSatisfied\`: **somente** quando \`requestScope\` é \`"closed"\` — \`true\` se todas as obras não assistidas e relevantes do **núcleo** pedido já estão em \`movies\` (não precisa incluir crossovers adjacentes que você pesquisou só para enriquecer o batch). Ex.: em "filmes do Deadpool", com um filme da trilogia já assistido e os dois restantes em \`movies\`, use \`scopeSatisfied: true\` mesmo com apenas duas entradas.
+
+Em pedido \`open\`, omita \`scopeSatisfied\` ou use \`false\`.
 
 Obras que o usuário já assistiu não aparecem nos resultados da tool — não as sugira novamente.
 

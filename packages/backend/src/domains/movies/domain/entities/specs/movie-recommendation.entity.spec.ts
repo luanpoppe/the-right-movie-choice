@@ -44,6 +44,23 @@ describe("MovieRecommendationSchema", () => {
     expect(parseResult.success).toBe(true);
   });
 
+  it("aceita metadados opcionais de escopo no payload", () => {
+    const payload = {
+      movies: [],
+      response: "Nenhum filme encontrado, mas aqui vai uma sugestão em texto.",
+      requestScope: "closed",
+      scopeSatisfied: true,
+    };
+
+    const parseResult = MovieRecommendationSchema.safeParse(payload);
+
+    expect(parseResult.success).toBe(true);
+    if (parseResult.success) {
+      expect(parseResult.data.requestScope).toBe("closed");
+      expect(parseResult.data.scopeSatisfied).toBe(true);
+    }
+  });
+
   it("rejeita mais de 3 filmes", () => {
     const movies = MovieRecommendationEntityFixtures.movies(4);
     const payload = {
