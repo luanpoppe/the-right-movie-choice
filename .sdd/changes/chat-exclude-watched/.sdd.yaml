@@ -11,3 +11,4 @@ features:
   - slug: exclude-watched-toggle
     title: Toggle no chat para excluir assistidos
     summary: Controle no formulário do chat (só logado, padrão ON) enviando excludeWatched na API.
+    status: done
