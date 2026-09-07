@@ -1,9 +1,17 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { SingleMovieReccomendationSchema } from "../../entities/movie-recommendation.entity";
-import { MovieRecommendationResponseDTOSchema } from "../movie-recommendation.dto";
+import {
+  MovieRecommendationRequestDTOSchema,
+  MovieRecommendationResponseDTOSchema,
+} from "../movie-recommendation.dto";
 
 class MovieRecommendationDtoFixtures {
+  static recommendationRequest(overrides?: { excludeWatched?: boolean }) {
+    return {
+      userMessage: "filme de sci-fi",
+      ...overrides,
+    };
+  }
+
   static publicMovie() {
     return {
       title: "Fight Club",
@@ -19,24 +27,63 @@ class MovieRecommendationDtoFixtures {
   }
 }
 
-class MovieRecommendationDtoSource {
-  static read() {
-    const dtoPath = join(
-      process.cwd(),
-      "src/features/movies/dto/movie-recommendation.dto.ts",
+describe("MovieRecommendationRequestDTO", () => {
+  it("REQ-8: aceita userMessage sem excludeWatched", () => {
+    const request = MovieRecommendationDtoFixtures.recommendationRequest();
+
+    const parsed = MovieRecommendationRequestDTOSchema.parse(request);
+
+    expect(parsed).toEqual({ userMessage: "filme de sci-fi" });
+  });
+
+  it("REQ-8: aceita excludeWatched boolean opcional", () => {
+    const requestWithExclusion =
+      MovieRecommendationDtoFixtures.recommendationRequest({
+        excludeWatched: true,
+      });
+
+    const parsed =
+      MovieRecommendationRequestDTOSchema.parse(requestWithExclusion);
+
+    expect(parsed).toEqual({
+      userMessage: "filme de sci-fi",
+      excludeWatched: true,
+    });
+  });
+
+  it("REQ-8: aceita excludeWatched false", () => {
+    const requestWithoutExclusion =
+      MovieRecommendationDtoFixtures.recommendationRequest({
+        excludeWatched: false,
+      });
+
+    const parsed = MovieRecommendationRequestDTOSchema.parse(
+      requestWithoutExclusion,
     );
-    return readFileSync(dtoPath, "utf8");
-  }
-}
+
+    expect(parsed).toEqual({
+      userMessage: "filme de sci-fi",
+      excludeWatched: false,
+    });
+  });
+
+  it("REQ-8: rejeita userMessage vazio", () => {
+    const requestWithEmptyMessage = { userMessage: "" };
+
+    const parseResult = MovieRecommendationRequestDTOSchema.safeParse(
+      requestWithEmptyMessage,
+    );
+
+    expect(parseResult.success).toBe(false);
+  });
+});
 
 describe("MovieRecommendationResponseDTO", () => {
   it("usa SingleMovieReccomendationSchema nos filmes da resposta", () => {
-    const source = MovieRecommendationDtoSource.read();
+    const moviesElement =
+      MovieRecommendationResponseDTOSchema.shape.movies.element;
 
-    expect(source).toContain("SingleMovieReccomendationSchema");
-    expect(MovieRecommendationResponseDTOSchema.shape.movies.element).toBe(
-      SingleMovieReccomendationSchema,
-    );
+    expect(moviesElement).toBe(SingleMovieReccomendationSchema);
   });
 
   it("REQ-6: aceita JSON de recommendation com tmdbId e imdbId", () => {

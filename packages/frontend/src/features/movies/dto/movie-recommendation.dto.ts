@@ -12,6 +12,7 @@ export type MovieRecommendationResponseDTO = z.infer<
 
 export const MovieRecommendationRequestDTOSchema = z.object({
   userMessage: z.string().nonempty(),
+  excludeWatched: z.boolean().optional(),
 });
 
 export type MovieRecommendationRequestDTO = z.infer<
