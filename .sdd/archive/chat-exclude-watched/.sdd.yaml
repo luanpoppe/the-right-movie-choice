@@ -1,0 +1,15 @@
+id: chat-exclude-watched
+title: Excluir filmes assistidos nas recomendações do chat
+created: 2026-09-06
+archived: 2026-09-07
+state: archived
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: watched-filter-pipeline
+    title: Pipeline backend de exclusão de assistidos
+    summary: Flag no POST, filtro pós-lookup na tool, loop no provider e prompt com pool de 25 candidatos.
+  - slug: exclude-watched-toggle
+    title: Toggle no chat para excluir assistidos
+    summary: Controle no formulário do chat (só logado, padrão ON) enviando excludeWatched na API.
