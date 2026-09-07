@@ -3,6 +3,7 @@ import { SingleMovieReccomendationSchema } from "../../../domain/entities/movie-
 
 export const MovieRecommendationRequestDTOSchema = z.object({
   userMessage: z.string().nonempty(),
+  excludeWatched: z.boolean().optional(),
 });
 
 export type MovieRecommendationRequest = z.infer<

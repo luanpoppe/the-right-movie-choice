@@ -13,10 +13,11 @@ class MovieRecommendationProviderSource {
 }
 
 describe("IMovieRecommendationProvider", () => {
-  it("declara só getMovieRecommendation(userMessage, chatId)", () => {
+  it("declara getMovieRecommendation com options opcional", () => {
     const source = MovieRecommendationProviderSource.read();
 
     expect(source).toMatch(/getMovieRecommendation\s*\(\s*userMessage:\s*string,\s*chatId:\s*string/);
+    expect(source).toMatch(/options\?:\s*MovieRecommendationProviderOptions/);
     expect(source).toMatch(/Promise<MovieRecommendationEntity>/);
     expect(source).not.toMatch(/getStructuredMoviesRecommendation/);
     expect(source).not.toMatch(/getChatResponse/);

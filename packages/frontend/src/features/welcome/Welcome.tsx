@@ -6,12 +6,18 @@ interface WelcomeProps {
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isGuestLocked?: boolean;
+  excludeWatched: boolean;
+  onExcludeWatchedChange: (value: boolean) => void;
+  hasAccessToken: boolean;
 }
 
 export function Welcome({
   isLoading,
   handleSubmit,
   isGuestLocked = false,
+  excludeWatched,
+  onExcludeWatchedChange,
+  hasAccessToken,
 }: WelcomeProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
@@ -24,6 +30,9 @@ export function Welcome({
           isLoading={isLoading}
           handleSubmit={handleSubmit}
           isGuestLocked={isGuestLocked}
+          excludeWatched={excludeWatched}
+          onExcludeWatchedChange={onExcludeWatchedChange}
+          hasAccessToken={hasAccessToken}
         />
       </div>
     </div>

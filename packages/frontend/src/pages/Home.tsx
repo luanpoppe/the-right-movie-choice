@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Chat } from "@/features/chat";
 import { Welcome } from "@/features/welcome";
 import { ChatEntity } from "@/features/chat/entities/chat.entity";
+import { MovieRecommendationRequestDTO } from "@/features/movies/dto/movie-recommendation.dto";
 import { MovieRecommendationService } from "@/features/movies/services/movie-recommendation.service";
 import { GuestChatLockUtils } from "@/features/movies/utils/guest-chat-lock.utils";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -21,6 +22,7 @@ export function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [chatId, setChatId] = useState<string>(crypto.randomUUID());
   const [guestLockFlag, setGuestLockFlag] = useState(false);
+  const [excludeWatched, setExcludeWatched] = useState(true);
 
   const isGuestLocked = guestLockFlag && !hasAccessToken;
 
@@ -36,15 +38,27 @@ export function Home() {
     const input = target.message.value.trim();
     if (!input) return;
 
+    const excludeWatchedField = target.elements.namedItem("excludeWatched");
+    const isExcludeWatchedChecked =
+      excludeWatchedField instanceof HTMLInputElement &&
+      excludeWatchedField.checked;
+
     setMessages([...messages, { from: "user", message: input }]);
     setHasStartedChat(true);
     target.message.value = "";
     setIsLoading(true);
 
     try {
+      const baseRequestBody: MovieRecommendationRequestDTO = {
+        userMessage: input,
+      };
+      const requestBody = hasAccessToken
+        ? { ...baseRequestBody, excludeWatched: isExcludeWatchedChecked }
+        : baseRequestBody;
+
       const { movies, response, guestRemaining } =
         await MovieRecommendationService.getRecommendations(
-          { userMessage: input },
+          requestBody,
           chatId,
         );
 
@@ -89,6 +103,7 @@ export function Home() {
     setHasStartedChat(false);
     setMessages([]);
     setIsLoading(false);
+    setExcludeWatched(true);
   };
 
   if (!hasStartedChat) {
@@ -97,6 +112,9 @@ export function Home() {
         handleSubmit={handleSubmit}
         isLoading={isLoading}
         isGuestLocked={isGuestLocked}
+        excludeWatched={excludeWatched}
+        onExcludeWatchedChange={setExcludeWatched}
+        hasAccessToken={hasAccessToken}
       />
     );
   }
@@ -108,6 +126,9 @@ export function Home() {
       isLoading={isLoading}
       handleSubmit={handleSubmit}
       isGuestLocked={isGuestLocked}
+      excludeWatched={excludeWatched}
+      onExcludeWatchedChange={setExcludeWatched}
+      hasAccessToken={hasAccessToken}
     />
   );
 

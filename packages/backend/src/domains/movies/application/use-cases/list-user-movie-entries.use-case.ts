@@ -1,7 +1,7 @@
 import { Logger } from "@/lib/logger/logger";
 import type {
-  UserMovieEntryEntity,
   UserMovieEntryListFilter,
+  UserMovieEntryListItemEntity,
 } from "../../domain/entities/user-movie-entry.entity";
 import { IUserMovieEntryRepository } from "../../domain/repositories/user-movie-entry.repository";
 
@@ -11,7 +11,7 @@ export class ListUserMovieEntriesUseCase {
   async execute(
     userId: number,
     filter: UserMovieEntryListFilter,
-  ): Promise<UserMovieEntryEntity[]> {
+  ): Promise<UserMovieEntryListItemEntity[]> {
     const entries = await this.userMovieEntryRepository.listByUser(
       userId,
       filter,

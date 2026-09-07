@@ -370,6 +370,87 @@ describe("PrismaUserMovieEntryRepository", () => {
     });
   });
 
+  describe("findWatchedTmdbIdsByUser", () => {
+    it("REQ-9 retorna subconjunto de tmdbIds assistidos pelo usuário", async () => {
+      const tmdbIds = [100, 200, 300, 400];
+      const watchedRowA = { tmdbId: 100 };
+      const watchedRowC = { tmdbId: 300 };
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([
+        watchedRowA,
+        watchedRowC,
+      ] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUser(42, tmdbIds);
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 42,
+          tmdbId: { in: tmdbIds },
+          watched: true,
+        },
+        select: {
+          tmdbId: true,
+        },
+      });
+      expect(result).toEqual([100, 300]);
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User movie entry watched batch lookup hit",
+        {
+          userId: 42,
+          requestedCount: 4,
+          watchedCount: 2,
+        },
+      );
+    });
+
+    it("REQ-9 retorna array vazio quando tmdbIds de entrada está vazio", async () => {
+      const result = await repository.findWatchedTmdbIdsByUser(42, []);
+
+      expect(result).toEqual([]);
+      expect(prisma.userMovieEntry.findMany).not.toHaveBeenCalled();
+    });
+
+    it("REQ-9 retorna array vazio quando nenhum tmdbId é assistido", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUser(42, [500, 600]);
+
+      expect(result).toEqual([]);
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User movie entry watched batch lookup hit",
+        {
+          userId: 42,
+          requestedCount: 2,
+          watchedCount: 0,
+        },
+      );
+    });
+
+    it("REQ-9 conta apenas watched=true, não favorite ou watchlist isolados", async () => {
+      const tmdbIds = [10, 20, 30];
+      const watchedRow = { tmdbId: 10 };
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([
+        watchedRow,
+      ] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUser(42, tmdbIds);
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 42,
+          tmdbId: { in: tmdbIds },
+          watched: true,
+        },
+        select: {
+          tmdbId: true,
+        },
+      });
+      expect(result).toEqual([10]);
+    });
+  });
+
   describe("listByUser", () => {
     it("REQ-6 filtra por watched quando presente no filtro", async () => {
       const rowA = UserMovieEntryRepositoryFixtures.prismaRow({

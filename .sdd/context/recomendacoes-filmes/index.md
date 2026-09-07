@@ -9,3 +9,4 @@
 - [Histórico de chat no Redis](historico-chat-redis.md) — checkpointer da lib (`threadId` = `chatid`), TTL de 20 min.
 - [Exemplos de queries](exemplos-de-queries.md) — `GET /movie/queries` gera exatamente 3 buscas em inglês para a landing (temperature 1.2).
 - [Lookup no catálogo TMDB](lookup-catalogo-tmdb.md) — serviço `MovieCatalogLookupService` sobre `IMovieCatalogProvider`; miss estruturado se o TMDB cair; tool de IA em `MovieCatalogLookupAiTool`.
+- [Pipeline exclude-watched](exclude-watched-pipeline.md) — filtro de assistidos na tool, loop no provider e wiring por request na factory.

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — chat-exclude-watched</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>chat-exclude-watched</strong> / plan</p>
+    <h1>Excluir filmes assistidos nas recomendações do chat</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>chat-exclude-watched</code> · <strong>criada</strong>: 2026-09-06 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-07</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Usuários logados com histórico grande recebem recomendações de filmes que já assistiram. Esta mudança adiciona um toggle no chat (padrão ligado) que, quando ativo, amplia o pool de candidatos da IA, resolve os títulos no catálogo local (Redis → Postgres → TMDB), remove os já assistidos e só então deixa o agente escolher as melhores sugestões entre o que restou.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Filtro na factory da <code>lookupMovies</code></strong>: após o batch de catálogo, remover resultados cujo <code>tmdbId</code> está <code>watched=true</code> para o usuário autenticado. <strong>Por quê</strong>: o modelo não conhece o histórico; um único ponto de filtro antes de devolver à IA. <strong>Alternativa descartada</strong>: serviço separado sem integrar na tool.</li>
+        <li><strong>Retry orquestrado no backend (provider)</strong>: até 5 rodadas de candidatos + lookup + filtro até acumular pelo menos 2 não-assistidos (ou esgotar). <strong>Por quê</strong>: confiabilidade sem depender do LLM chamar a tool de novo. <strong>Alternativa descartada</strong>: instruir o agente a chamar <code>lookupMovies</code> repetidamente via prompt.</li>
+        <li><strong>Constantes nomeadas (não env var)</strong>: pool de 25 candidatos por rodada, mínimo de 2 recomendações finais não-assistidas, teto de 5 rodadas por request. <strong>Por quê</strong>: valores ajustáveis depois; não são segredo.</li>
+        <li><strong>Contrato HTTP</strong>: campo opcional <code>excludeWatched: boolean</code> no body de <code>POST /movie/recommendation</code>; só tem efeito com JWT; anônimo ignora. <strong>Por quê</strong>: o frontend controla o toggle; o backend valida auth.</li>
+        <li><strong>Toggle só no frontend (estado React)</strong>: visível apenas para usuário logado, padrão ON; não persiste em localStorage nem no backend nesta mudança. <strong>Por quê</strong>: escopo mínimo; preferência de sessão.</li>
+        <li><strong>Esgotamento das rodadas</strong>: retornar melhor esforço (quantos não-assistidos existirem) e avisar no <code>response</code> que o histórico cobriu quase tudo. <strong>Alternativa descartada</strong>: relaxar filtro e recomendar assistidos.</li>
+        <li><strong>Reúso</strong>: <code>MovieCatalogLookupService.findDetailsByTitlesBatch</code>, tool <code>lookupMovies</code> existente, <code>IUserMovieEntryRepository</code> com novo método batch para checar <code>watched</code> por <code>tmdbId[]</code>.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>watched-filter-pipeline</strong> — Backend: flag no POST, filtro pós-lookup na tool, loop no provider, prompt com pool de 25 e mínimo de 2 não-assistidos.</li>
+        <li><strong>exclude-watched-toggle</strong> — Frontend: toggle no formulário do chat (só logado, padrão ON) enviando <code>excludeWatched</code> na API.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: filtro de assistidos no fluxo de recommendation; pool ampliado (25) e loop backend (até 5×); toggle no chat para usuário logado; constantes configuráveis no código.</p>
+      <p><strong>Fora</strong>: persistência do toggle (localStorage ou perfil); comportamento para guest além de ignorar a flag; alterar cota anônima; listas customizadas além de <code>watched</code>; mudar o fluxo quando <code>excludeWatched=false</code> (mantém comportamento atual).</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

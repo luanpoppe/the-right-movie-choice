@@ -11,6 +11,9 @@ interface ChatProps {
   isLoading: boolean;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isGuestLocked?: boolean;
+  excludeWatched: boolean;
+  onExcludeWatchedChange: (value: boolean) => void;
+  hasAccessToken: boolean;
 }
 
 export function Chat({
@@ -19,6 +22,9 @@ export function Chat({
   displayMessages,
   handleReset,
   isGuestLocked = false,
+  excludeWatched,
+  onExcludeWatchedChange,
+  hasAccessToken,
 }: ChatProps) {
   return (
     <div className="flex-1 flex flex-col container mx-auto max-w-5xl px-6 py-8">
@@ -49,6 +55,9 @@ export function Chat({
         handleSubmit={handleSubmit}
         isLoading={isLoading}
         isGuestLocked={isGuestLocked}
+        excludeWatched={excludeWatched}
+        onExcludeWatchedChange={onExcludeWatchedChange}
+        hasAccessToken={hasAccessToken}
       />
     </div>
   );

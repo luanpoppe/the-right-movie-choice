@@ -7,6 +7,7 @@ import {
   HeadersDTO,
   HeadersDTOSchema,
 } from "@/infrastructure/http/dto/headers.dto";
+import { GetMovieRecommendationUseCaseOptions } from "@/domains/movies/application/use-cases/get-movie-recommendation.use-case";
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
@@ -39,9 +40,16 @@ export class MovieRecommendationController {
       if (!parsed.success) throw new MissingHeaderException("chatid");
       const { chatid } = parsed.data;
 
-      const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
+      const useCaseOptions =
+        MovieRecommendationController.resolveUseCaseOptions(request);
+      const useCase =
+        MakeGetMovieRecommendationUseCaseFactory.create(useCaseOptions);
 
-      const { movies, response } = await useCase.execute(userMessage, chatid);
+      const { movies, response } = await useCase.execute(
+        userMessage,
+        chatid,
+        useCaseOptions,
+      );
       const responseBody = await responseMapper.toResponse(movies, response);
 
       const movieAuth = request.movieAuth;
@@ -68,6 +76,26 @@ export class MovieRecommendationController {
       );
 
       return reply.status(200).send(responseBody);
+    };
+  }
+
+  private static resolveUseCaseOptions(
+    request: FastifyRequest<{ Body: MovieRecommendationRequest }>,
+  ): GetMovieRecommendationUseCaseOptions | undefined {
+    const movieAuth = request.movieAuth;
+    const isAuthenticated =
+      movieAuth !== undefined && movieAuth.kind === "authenticated";
+
+    if (!isAuthenticated) {
+      return undefined;
+    }
+
+    const bodyExcludeWatched = request.body.excludeWatched;
+    const excludeWatched = bodyExcludeWatched ?? true;
+
+    return {
+      userId: movieAuth.userId,
+      excludeWatched,
     };
   }
 

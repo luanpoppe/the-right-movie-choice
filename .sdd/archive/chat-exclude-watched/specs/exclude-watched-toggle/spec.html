@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: exclude-watched-toggle — chat-exclude-watched</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">chat-exclude-watched</a> / specs / <strong>exclude-watched-toggle</strong> / spec</p>
+    <h1>Spec: exclude-watched-toggle</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>chat-exclude-watched</code></a> · atualizado em 2026-09-07</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Usuário autenticado vê um toggle no formulário do chat (welcome e conversa) para ligar ou desligar a exclusão de filmes já assistidos. Padrão ligado; o valor vai no body de cada <code>POST /movie/recommendation</code> como <code>excludeWatched</code>. Visitante anônimo não vê o controle.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Toggle visível só para autenticado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado na home (<code>accessToken</code> presente)</li>
+        <li><strong>Quando</strong> a welcome ou o chat renderiza o formulário de envio</li>
+        <li><strong>Então</strong> o toggle de exclusão de assistidos aparece acima ou junto ao campo de mensagem</li>
+        <li><strong>E</strong> o toggle inicia ligado</li>
+      </ul>
+      <h3>REQ-2: Anônimo não vê o toggle</h3>
+      <ul>
+        <li><strong>Dado que</strong> o visitante está anônimo (sem <code>accessToken</code>)</li>
+        <li><strong>Quando</strong> a welcome ou o chat renderiza o formulário</li>
+        <li><strong>Então</strong> o toggle não é exibido</li>
+        <li><strong>E</strong> o body do POST não inclui <code>excludeWatched</code></li>
+      </ul>
+      <h3>REQ-3: Envio com exclusão ligada</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado envia uma mensagem com o toggle ligado</li>
+        <li><strong>Quando</strong> <code>MovieRecommendationService.getRecommendations</code> é chamado</li>
+        <li><strong>Então</strong> o body inclui <code>excludeWatched: true</code> junto de <code>userMessage</code></li>
+      </ul>
+      <h3>REQ-4: Envio com exclusão desligada</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado desligou o toggle</li>
+        <li><strong>Quando</strong> envia uma nova mensagem</li>
+        <li><strong>Então</strong> o body inclui <code>excludeWatched: false</code></li>
+        <li><strong>E</strong> mensagens anteriores da conversa não são reprocessadas</li>
+      </ul>
+      <h3>REQ-5: Estado de sessão sem persistência</h3>
+      <ul>
+        <li><strong>Entrada</strong> toggle alterado várias vezes na mesma sessão, sem recarregar a página</li>
+        <li><strong>Saída</strong> cada submit usa o valor atual do estado React em <code>Home</code></li>
+        <li><strong>E</strong> não há gravação em <code>localStorage</code>, cookie nem API de preferências</li>
+      </ul>
+      <h3>REQ-6: Reset do chat restaura padrão</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado desligou o toggle e clicou em voltar/resetar o chat</li>
+        <li><strong>Quando</strong> a welcome é exibida de novo</li>
+        <li><strong>Então</strong> o toggle volta ligado</li>
+      </ul>
+      <h3>REQ-7: Toggle desabilitado durante loading</h3>
+      <ul>
+        <li><strong>Dado que</strong> uma recommendation está em andamento (<code>isLoading: true</code>)</li>
+        <li><strong>Quando</strong> o formulário está visível</li>
+        <li><strong>Então</strong> o toggle não pode ser alterado até o loading terminar</li>
+      </ul>
+      <h3>REQ-8: Contrato do request no frontend</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>MovieRecommendationRequestDTO</code> com <code>userMessage: &quot;filme de sci-fi&quot;</code></li>
+        <li><strong>Saída</strong> schema Zod aceita <code>excludeWatched?: boolean</code> opcional além de <code>userMessage</code></li>
+        <li><strong>Erro</strong> <code>userMessage</code> vazio continua inválido</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Login no meio da sessão anônima: após obter token, o toggle aparece ligado na próxima renderização  ||  mensagens já enviadas como anônimo não são refeitas</li>
+        <li>Logout com chat aberto: toggle some  ||  próximo envio (se houver) não manda <code>excludeWatched</code></li>
+        <li>Guest lock ativo: input e toggle (se visível) seguem <code>disabled</code> como o restante do formulário</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Request: <code>packages/backend/src/domains/movies/infrastructure/http/dto/movie-recommendation.dto.ts:MovieRecommendationRequest</code></li>
+        <li>Frontend DTO: <code>packages/frontend/src/features/movies/dto/movie-recommendation.dto.ts:MovieRecommendationRequestDTOSchema</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

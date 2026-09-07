@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { ExcludeWatchedRecommendationConstants } from "@/domains/movies/domain/exclude-watched-recommendation.constants";
 import { MovieRecommendationPrompts } from "../movie-recommendation-prompts";
 
 class MovieRecommendationPromptsSource {
@@ -66,15 +67,97 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("details.tmdbId e details.imdbId");
   });
 
-  it("expõe só unified na API — sem structured nem chat", () => {
+  it("expõe unified e unifiedExcludeWatched na API — sem structured nem chat", () => {
     const staticNames = Object.getOwnPropertyNames(MovieRecommendationPrompts).filter(
       (name) => name !== "length" && name !== "name" && name !== "prototype",
     );
     const source = MovieRecommendationPromptsSource.read();
 
-    expect(staticNames).toEqual(["unified"]);
+    expect(staticNames).toEqual(["unified", "unifiedExcludeWatched"]);
     expect(source).not.toMatch(/static structured\s*\(/);
     expect(source).not.toMatch(/static chat\s*\(/);
     expect(typeof MovieRecommendationPrompts.unified).toBe("function");
+    expect(typeof MovieRecommendationPrompts.unifiedExcludeWatched).toBe("function");
+  });
+
+  describe("unifiedExcludeWatched", () => {
+    const poolSize = ExcludeWatchedRecommendationConstants.CANDIDATE_POOL_SIZE;
+    const minVerifiedUnwatched = ExcludeWatchedRecommendationConstants.MIN_VERIFIED_UNWATCHED;
+
+    it("menciona pool de candidatos ampliado usando constante", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain(`até ${poolSize} candidatos relevantes`);
+      expect(prompt).toContain(`Envie entre 1 e ${poolSize} itens`);
+      expect(poolSize).toBe(25);
+    });
+
+    it("instrui mínimo de filmes verificados não assistidos em pedidos amplos", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain(
+        `prefira pelo menos ${minVerifiedUnwatched} filmes com \`tmdbId\` confirmado`,
+      );
+      expect(prompt).toContain("Pedido amplo");
+      expect(minVerifiedUnwatched).toBe(2);
+    });
+
+    it("instrui cobertura completa e flexibilidade em pedidos de escopo fechado", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Pedidos de escopo fechado");
+      expect(prompt).toContain("filmes do Deadpool");
+      expect(prompt).toContain("obras principais");
+      expect(prompt).toContain("Pedido de escopo fechado");
+      expect(prompt).toContain("uma sugestão é suficiente");
+      expect(prompt).toContain("não force quantidade mínima além do que o universo pedido oferece");
+    });
+
+    it("incentiva preencher o batch até o máximo relevante sem padding aleatório", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Preenchimento do batch de queries");
+      expect(prompt).toContain(`até o limite de ${poolSize} itens`);
+      expect(prompt).toContain("Não complete o batch com títulos aleatórios");
+      expect(prompt).toContain("não pare em 3 se ainda há obras pertinentes");
+      expect(prompt).toContain("obras adjacentes");
+      expect(prompt).toContain("não precisa recomendar tudo que foi pesquisado");
+    });
+
+    it("documenta metadados requestScope e scopeSatisfied no JSON", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("Metadados de escopo");
+      expect(prompt).toContain("`requestScope`");
+      expect(prompt).toContain("`scopeSatisfied`");
+    });
+
+    it("explica filtro de assistidos e rede ampla de candidatos", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("remove automaticamente do resultado obras que o usuário já assistiu");
+      expect(prompt).toContain("Lance uma rede ampla");
+      expect(prompt).toContain("não as sugira novamente");
+    });
+
+    it("mantém exatamente uma chamada lookupMovies por resposta", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("chame a tool lookupMovies exatamente uma vez");
+      expect(prompt).toContain(
+        "Não chame lookupMovies novamente para tentar corrigir, complementar ou substituir resultados da primeira chamada",
+      );
+    });
+
+    it("diferencia-se de unified na quantidade de candidatos", () => {
+      const unifiedPrompt = MovieRecommendationPrompts.unified();
+      const excludePrompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(unifiedPrompt).toContain("entre 4 e 8 candidatos");
+      expect(unifiedPrompt).toContain("Envie entre 1 e 8 itens");
+      expect(excludePrompt).not.toContain("entre 4 e 8 candidatos");
+      expect(excludePrompt).not.toContain("Envie entre 1 e 8 itens");
+      expect(excludePrompt).toContain(`até ${poolSize} candidatos relevantes`);
+    });
   });
 });

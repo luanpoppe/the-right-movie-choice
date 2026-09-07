@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: watched-filter-pipeline — chat-exclude-watched</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">chat-exclude-watched</a> / specs / <strong>watched-filter-pipeline</strong> / spec</p>
+    <h1>Spec: watched-filter-pipeline</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>chat-exclude-watched</code></a> · atualizado em 2026-09-07</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Quando <code>excludeWatched=true</code> num POST autenticado de recommendation, o backend amplia o pool de candidatos (25), filtra assistidos após o lookup no catálogo e repete até obter pelo menos 2 filmes finais com <code>tmdbId</code> verificado como não-assistido — ou esgota 5 rodadas.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Recommendation sem filmes já assistidos</h3>
+      <ul>
+        <li><strong>Dado que</strong> um usuário autenticado envia <code>POST /movie/recommendation</code> com <code>excludeWatched: true</code></li>
+        <li><strong>Quando</strong> a recommendation é concluída com sucesso</li>
+        <li><strong>Então</strong> cada filme retornado com <code>tmdbId</code> presente não está marcado como <code>watched</code> para esse usuário</li>
+        <li><strong>E</strong> há pelo menos 2 filmes com <code>tmdbId</code> verificado como não-assistido, quando o catálogo e o histórico permitirem</li>
+      </ul>
+      <h3>REQ-2: Modo sem filtro preserva comportamento atual</h3>
+      <ul>
+        <li><strong>Dado que</strong> um usuário autenticado envia <code>POST /movie/recommendation</code> com <code>excludeWatched: false</code></li>
+        <li><strong>Quando</strong> a recommendation é concluída</li>
+        <li><strong>Então</strong> o fluxo segue o prompt e limites atuais (4–8 candidatos, uma chamada <code>lookupMovies</code>, sem filtro de assistidos)</li>
+      </ul>
+      <h3>REQ-3: Anônimo ignora a flag</h3>
+      <ul>
+        <li><strong>Dado que</strong> um visitante anônimo envia <code>POST /movie/recommendation</code> com <code>excludeWatched: true</code></li>
+        <li><strong>Quando</strong> a recommendation é concluída</li>
+        <li><strong>Então</strong> o fluxo é idêntico ao anônimo atual, sem consultar <code>UserMovieEntry</code></li>
+      </ul>
+      <h3>REQ-4: Esgotamento das rodadas</h3>
+      <ul>
+        <li><strong>Dado que</strong> um usuário autenticado com <code>excludeWatched: true</code> esgota 5 rodadas sem atingir 2 filmes finais verificados como não-assistidos</li>
+        <li><strong>Quando</strong> a recommendation é concluída</li>
+        <li><strong>Então</strong> retorna o melhor esforço disponível (0, 1 ou mais filmes válidos após sanitização)</li>
+        <li><strong>E</strong> o campo <code>response</code> avisa brevemente que quase tudo do histórico já foi assistido</li>
+      </ul>
+      <h3>REQ-5: Default da flag para autenticado</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>POST /movie/recommendation</code> autenticado sem campo <code>excludeWatched</code> no body</li>
+        <li><strong>Saída</strong> o fluxo trata como <code>excludeWatched: true</code></li>
+      </ul>
+      <h3>REQ-6: Filtro na tool <code>lookupMovies</code></h3>
+      <ul>
+        <li><strong>Entrada</strong> tool <code>lookupMovies</code> com <code>userId</code> e <code>excludeWatched: true</code>, batch de até 25 queries</li>
+        <li><strong>Saída</strong> array na mesma ordem das queries, omitindo hits cujo <code>details.tmdbId</code> está <code>watched=true</code> para o usuário</li>
+        <li><strong>E</strong> entradas com <code>found: false</code> permanecem no array</li>
+      </ul>
+      <h3>REQ-7: Loop no provider</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>excludeWatched: true</code>, <code>userId</code> e mensagem do usuário</li>
+        <li><strong>Saída</strong> até 5 <code>callStructuredOutput</code> completas</li>
+        <li><strong>E</strong> nova rodada quando, após sanitização, há menos de 2 filmes finais com <code>tmdbId</code> verificado como não-assistido</li>
+        <li><strong>E</strong> rodadas seguintes recebem contexto com títulos/<code>tmdbId</code> já tentados ou assistidos para evitar repetição</li>
+      </ul>
+      <h3>REQ-8: Sanitização da resposta final</h3>
+      <ul>
+        <li><strong>Entrada</strong> JSON do LLM com filme cujo <code>tmdbId</code> está <code>watched=true</code> para o usuário</li>
+        <li><strong>Saída</strong> esse filme é removido da lista <code>movies</code> antes da resposta HTTP</li>
+        <li><strong>E</strong> a remoção conta para o critério de retry do REQ-7</li>
+      </ul>
+      <h3>REQ-9: Consulta batch de assistidos</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>userId: 42</code> e <code>tmdbIds: [550, 680, 13]</code></li>
+        <li><strong>Saída</strong> subconjunto dos ids com <code>watched=true</code> em <code>UserMovieEntry</code> (ex.: <code>[550, 13]</code>)</li>
+        <li><strong>Erro</strong> lista vazia de ids → <code>[]</code>  ||  não lança</li>
+      </ul>
+      <h3>REQ-10: Constantes do pipeline</h3>
+      <ul>
+        <li><strong>Entrada</strong> modo <code>excludeWatched: true</code></li>
+        <li><strong>Saída</strong> usa constantes nomeadas: <code>CANDIDATE_POOL_SIZE = 25</code>, <code>MIN_VERIFIED_UNWATCHED = 2</code>, <code>MAX_EXCLUDE_ROUNDS = 5</code></li>
+        <li><strong>E</strong> modo <code>excludeWatched: false</code> mantém <code>MAX_QUERIES = 8</code> na tool</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Histórico de assistidos vazio: nenhum hit é filtrado pelo REQ-6</li>
+        <li>Catálogo/TMDB indisponível numa rodada: misses estruturados seguem o comportamento atual da tool  ||  não aborta o turno inteiro</li>
+        <li>Todas as 25 queries da rodada são assistidas: provider inicia próxima rodada com contexto de exclusão até o teto de 5</li>
+        <li><code>excludeWatched: true</code> com JWT inválido: rejeição de auth existente, antes do pipeline</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Body de <code>POST /movie/recommendation</code> ganha campo opcional <code>excludeWatched: boolean</code> (default efetivo <code>true</code> para autenticado quando ausente; ignorado para anônimo). Schema em <code>packages/backend/src/domains/movies/infrastructure/http/dto/movie-recommendation.dto.ts</code> (a criar/estender nesta feature).</li>
+        <li>Porta <code>IUserMovieEntryRepository</code> ganha método batch de ids assistidos (assinatura definida no chunk de domínio/repositório).</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
