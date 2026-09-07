@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { z } from "zod";
 import type { MovieCatalogLookupResult } from "@/domains/movies/domain/entities/movie-catalog-lookup-result.entity";
+import type { IUserMovieEntryRepository } from "@/domains/movies/domain/repositories/user-movie-entry.repository";
 import { Logger } from "@/lib/logger/logger";
 import { MovieCatalogLookupAiTool } from "../movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../movie-catalog-lookup.service";
@@ -17,11 +18,11 @@ type CapturedToolConfig = {
 };
 
 class MovieCatalogLookupAiToolFixtures {
-  static hit(title: string): MovieCatalogLookupResult {
+  static hit(title: string, tmdbId = 1): MovieCatalogLookupResult {
     return {
       found: true,
       details: {
-        tmdbId: 1,
+        tmdbId,
         title,
         year: 2010,
         posterPath: "/poster.jpg",
@@ -69,6 +70,23 @@ vi.mock("@/lib/logger/logger", () => ({
   },
 }));
 
+function captureLookupMoviesTool(
+  catalogLookup: MovieCatalogLookupService,
+  options?: {
+    userMovieEntryRepository?: IUserMovieEntryRepository;
+    userId?: number;
+    excludeWatched?: boolean;
+  },
+): CapturedToolConfig {
+  const aiTool = new MovieCatalogLookupAiTool(catalogLookup, options);
+  aiTool.createLookupMoviesTool();
+  const captured = toolCapture.config;
+  if (captured === undefined) {
+    throw new Error("lookupMovies tool was not captured");
+  }
+  return captured;
+}
+
 describe("MovieCatalogLookupAiTool", () => {
   let catalogLookup: MovieCatalogLookupService;
   let findDetailsByTitlesBatch: ReturnType<typeof vi.fn>;
@@ -81,12 +99,7 @@ describe("MovieCatalogLookupAiTool", () => {
       findDetailsByTitlesBatch,
     } as unknown as MovieCatalogLookupService;
 
-    const aiTool = new MovieCatalogLookupAiTool(catalogLookup);
-    aiTool.createLookupMoviesTool();
-    const captured = toolCapture.config;
-    if (captured === undefined) {
-      throw new Error("lookupMovies tool was not captured");
-    }
+    const captured = captureLookupMoviesTool(catalogLookup);
     toolExecute = captured.toolFunction;
   });
 
@@ -235,5 +248,156 @@ describe("MovieCatalogLookupAiTool", () => {
     >;
     expect(logContext).not.toHaveProperty("prompt");
     expect(logContext).not.toHaveProperty("systemPrompt");
+  });
+
+  describe("modo exclude-watched", () => {
+    let findWatchedTmdbIdsByUser: ReturnType<typeof vi.fn>;
+    let userMovieEntryRepository: IUserMovieEntryRepository;
+    let excludeToolExecute: (
+      input: LookupMoviesToolInput,
+    ) => Promise<MovieCatalogLookupResult[]>;
+    let excludeToolSchema: z.ZodType<LookupMoviesToolInput>;
+
+    beforeEach(() => {
+      findWatchedTmdbIdsByUser = vi.fn();
+      userMovieEntryRepository = {
+        findWatchedTmdbIdsByUser,
+      } as unknown as IUserMovieEntryRepository;
+
+      const captured = captureLookupMoviesTool(catalogLookup, {
+        userMovieEntryRepository,
+        userId: 42,
+        excludeWatched: true,
+      });
+      excludeToolExecute = captured.toolFunction;
+      excludeToolSchema = captured.schema;
+    });
+
+    it("REQ-6: omite hits assistidos e mantém hits não assistidos e misses", async () => {
+      const watchedHit = MovieCatalogLookupAiToolFixtures.hit("Assistido", 100);
+      const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
+        "Não assistido",
+        200,
+      );
+      const miss = MovieCatalogLookupAiToolFixtures.miss("Não encontrado");
+
+      findDetailsByTitlesBatch.mockResolvedValue([
+        watchedHit,
+        unwatchedHit,
+        miss,
+      ]);
+      findWatchedTmdbIdsByUser.mockResolvedValue([100]);
+
+      const results = await excludeToolExecute({
+        queries: [
+          { query: "Assistido" },
+          { query: "Não assistido" },
+          { query: "Desconhecido" },
+        ],
+      });
+
+      expect(results).toEqual([unwatchedHit, miss]);
+      expect(findWatchedTmdbIdsByUser).toHaveBeenCalledWith(42, [100, 200]);
+    });
+
+    it("aceita até 25 queries no schema Zod e rejeita 26", () => {
+      const twentyFiveQueries = Array.from({ length: 25 }, (_, index) => ({
+        query: `Filme ${index + 1}`,
+      }));
+      const twentySixQueries = Array.from({ length: 26 }, (_, index) => ({
+        query: `Filme ${index + 1}`,
+      }));
+
+      const validParse = excludeToolSchema.safeParse({
+        queries: twentyFiveQueries,
+      });
+      const invalidParse = excludeToolSchema.safeParse({
+        queries: twentySixQueries,
+      });
+
+      expect(validParse.success).toBe(true);
+      expect(invalidParse.success).toBe(false);
+    });
+
+    it("chama findWatchedTmdbIdsByUser apenas com tmdbIds dos hits", async () => {
+      const hitA = MovieCatalogLookupAiToolFixtures.hit("A", 10);
+      const miss = MovieCatalogLookupAiToolFixtures.miss("Miss");
+      const hitB = MovieCatalogLookupAiToolFixtures.hit("B", 20);
+
+      findDetailsByTitlesBatch.mockResolvedValue([hitA, miss, hitB]);
+      findWatchedTmdbIdsByUser.mockResolvedValue([]);
+
+      await excludeToolExecute({
+        queries: [{ query: "A" }, { query: "X" }, { query: "B" }],
+      });
+
+      expect(findWatchedTmdbIdsByUser).toHaveBeenCalledWith(42, [10, 20]);
+    });
+
+    it("excludeWatched=true sem userId não chama repositório nem filtra", async () => {
+      const watchedHit = MovieCatalogLookupAiToolFixtures.hit("Assistido", 100);
+      const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
+        "Não assistido",
+        200,
+      );
+
+      findDetailsByTitlesBatch.mockResolvedValue([watchedHit, unwatchedHit]);
+
+      const guestCaptured = captureLookupMoviesTool(catalogLookup, {
+        userMovieEntryRepository,
+        excludeWatched: true,
+      });
+      const guestExecute = guestCaptured.toolFunction;
+
+      const results = await guestExecute({
+        queries: [{ query: "Assistido" }, { query: "Não assistido" }],
+      });
+
+      expect(results).toEqual([watchedHit, unwatchedHit]);
+      expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+    });
+
+    it("excludeWatched=true sem repositório injetado não filtra e loga warn", async () => {
+      const watchedHit = MovieCatalogLookupAiToolFixtures.hit("Assistido", 100);
+      const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
+        "Não assistido",
+        200,
+      );
+
+      findDetailsByTitlesBatch.mockResolvedValue([watchedHit, unwatchedHit]);
+
+      const noRepoCaptured = captureLookupMoviesTool(catalogLookup, {
+        userId: 42,
+        excludeWatched: true,
+      });
+      const noRepoExecute = noRepoCaptured.toolFunction;
+
+      const results = await noRepoExecute({
+        queries: [{ query: "Assistido" }, { query: "Não assistido" }],
+      });
+
+      expect(results).toEqual([watchedHit, unwatchedHit]);
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Filtro de assistidos ignorado: repositório não injetado",
+        { userId: 42 },
+      );
+    });
+
+    it("schema mantém max 8 quando excludeWatched=false mesmo com userId", () => {
+      const defaultCaptured = captureLookupMoviesTool(catalogLookup, {
+        userMovieEntryRepository,
+        userId: 42,
+        excludeWatched: false,
+      });
+      const nineQueries = Array.from({ length: 9 }, (_, index) => ({
+        query: `Filme ${index + 1}`,
+      }));
+
+      const parseResult = defaultCaptured.schema.safeParse({
+        queries: nineQueries,
+      });
+
+      expect(parseResult.success).toBe(false);
+    });
   });
 });
