@@ -53,13 +53,63 @@ describe("GetMovieRecommendationUseCase", () => {
 
     expect(
       movieRecommendationProvider.getMovieRecommendation
-    ).toHaveBeenCalledWith(userMessage, chatId);
+    ).toHaveBeenCalledWith(userMessage, chatId, undefined);
     expect(
       movieRecommendationProvider.getMovieRecommendation,
     ).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       movies: mockRecommendation.movies,
       response: mockRecommendation.response,
+    });
+  });
+
+  it("repassa userId e excludeWatched ao provider quando informados", async () => {
+    const userMessage = "I want to watch a sci-fi movie";
+    const chatId = "test-chat-id";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Here are some sci-fi movie recommendations for you!",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation
+    ).mockResolvedValue(mockRecommendation);
+
+    await getMovieRecommendationUseCase.execute(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+    });
+  });
+
+  it("repassa excludeWatched false ao provider para fluxo legado", async () => {
+    const userMessage = "I want to watch a sci-fi movie";
+    const chatId = "test-chat-id";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Legacy recommendation.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation
+    ).mockResolvedValue(mockRecommendation);
+
+    await getMovieRecommendationUseCase.execute(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: false,
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: false,
     });
   });
 

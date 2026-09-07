@@ -47,12 +47,16 @@ function createReply(): FastifyReply {
 
 function createRequest(overrides?: {
   movieAuth?: FastifyRequest["movieAuth"];
+  body?: Partial<MovieRecommendationRequest>;
 }): FastifyRequest<{
   Body: MovieRecommendationRequest;
   Headers: { chatid: string };
 }> {
   return {
-    body: { userMessage: "recommend a sci-fi movie" },
+    body: {
+      userMessage: "recommend a sci-fi movie",
+      ...overrides?.body,
+    },
     headers: { chatid: "chat-123" },
     movieAuth: overrides?.movieAuth,
   } as FastifyRequest<{
@@ -98,6 +102,73 @@ describe("MovieRecommendationController", () => {
       guestQuotaService,
       catalogRepository,
     });
+  });
+
+  it("REQ-5: autenticado sem excludeWatched no body repassa excludeWatched true ao use case", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Authenticated default exclude.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      "recommend a sci-fi movie",
+      "chat-123",
+      {
+        userId: 42,
+        excludeWatched: true,
+      },
+    );
+  });
+
+  it("REQ-2: autenticado com excludeWatched false repassa flag ao use case", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Legacy flow.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 99 },
+      body: { excludeWatched: false },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      "recommend a sci-fi movie",
+      "chat-123",
+      {
+        userId: 99,
+        excludeWatched: false,
+      },
+    );
+  });
+
+  it("REQ-3: anônimo com excludeWatched true ignora flag e não repassa userId", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Guest recommendation.",
+    });
+    vi.mocked(guestQuotaService.incrementAfterSuccess).mockResolvedValue(1);
+    const guestId = "guest-uuid-456";
+    const request = createRequest({
+      movieAuth: { kind: "anonymous", guestId },
+      body: { excludeWatched: true },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      "recommend a sci-fi movie",
+      "chat-123",
+      undefined,
+    );
   });
 
   it("REQ-1: expõe tmdbId e imdbId na resposta autenticada quando presentes", async () => {

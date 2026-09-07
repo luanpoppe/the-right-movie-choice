@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { SingleMovieReccomendationSchema } from "@/domains/movies/domain/entities/movie-recommendation.entity";
 import {
+  MovieRecommendationRequestDTOSchema,
   MovieRecommendationResponseDTOSchema,
+  SingleMovieReccomendationResponseSchema,
 } from "../movie-recommendation.dto";
 
 class MovieRecommendationDtoFixtures {
@@ -18,6 +20,7 @@ class MovieRecommendationDtoFixtures {
       synopsis: "A thief who steals corporate secrets through dream-sharing.",
       whySuggestion: "Fits a mind-bending request",
       durationInMinutes: 148,
+      posterPath: null,
     };
   }
 }
@@ -31,6 +34,44 @@ class MovieRecommendationDtoSource {
     return readFileSync(dtoPath, "utf8");
   }
 }
+
+describe("MovieRecommendationRequestDTO", () => {
+  it("aceita userMessage sem excludeWatched", () => {
+    const parsed = MovieRecommendationRequestDTOSchema.parse({
+      userMessage: "Quero um filme de ação",
+    });
+
+    expect(parsed).toEqual({ userMessage: "Quero um filme de ação" });
+    expect(parsed).not.toHaveProperty("excludeWatched");
+  });
+
+  it("aceita excludeWatched true no body", () => {
+    const parsed = MovieRecommendationRequestDTOSchema.parse({
+      userMessage: "Quero um filme de ação",
+      excludeWatched: true,
+    });
+
+    expect(parsed.excludeWatched).toBe(true);
+  });
+
+  it("aceita excludeWatched false no body", () => {
+    const parsed = MovieRecommendationRequestDTOSchema.parse({
+      userMessage: "Quero um filme de ação",
+      excludeWatched: false,
+    });
+
+    expect(parsed.excludeWatched).toBe(false);
+  });
+
+  it("rejeita excludeWatched não booleano", () => {
+    const parseResult = MovieRecommendationRequestDTOSchema.safeParse({
+      userMessage: "Quero um filme de ação",
+      excludeWatched: "true",
+    });
+
+    expect(parseResult.success).toBe(false);
+  });
+});
 
 describe("MovieRecommendationResponseDTO", () => {
   it("não reutiliza SingleMovieReccomendationInternalSchema no DTO", () => {
@@ -55,7 +96,7 @@ describe("MovieRecommendationResponseDTO", () => {
     });
 
     expect(parsed.movies[0]).toEqual(movieWithCatalogIds);
-    expect(SingleMovieReccomendationSchema).toBe(
+    expect(SingleMovieReccomendationResponseSchema).toBe(
       MovieRecommendationResponseDTOSchema.shape.movies.element,
     );
   });
