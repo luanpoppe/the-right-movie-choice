@@ -12,35 +12,33 @@ export class WatchedMovieFilterUtils {
     const filteredResults: MovieCatalogLookupResult[] = [];
 
     for (const result of results) {
-      const shouldKeepResult = WatchedMovieFilterUtils.shouldKeepResult(
+      const filteredResult = WatchedMovieFilterUtils.filterResult(
         result,
         watchedTmdbIds,
       );
-
-      if (!shouldKeepResult) {
-        continue;
-      }
-
-      filteredResults.push(result);
+      filteredResults.push(filteredResult);
     }
 
     return filteredResults;
   }
 
-  private static shouldKeepResult(
+  private static filterResult(
     result: MovieCatalogLookupResult,
     watchedTmdbIds: ReadonlySet<number>,
-  ): boolean {
+  ): MovieCatalogLookupResult {
     if (!result.found) {
-      return true;
+      return result;
     }
 
     const tmdbId = result.details.tmdbId;
     const isWatched = watchedTmdbIds.has(tmdbId);
-    if (isWatched) {
-      return false;
+    if (!isWatched) {
+      return result;
     }
 
-    return true;
+    return {
+      found: false,
+      message: "Filme já assistido pelo usuário.",
+    };
   }
 }

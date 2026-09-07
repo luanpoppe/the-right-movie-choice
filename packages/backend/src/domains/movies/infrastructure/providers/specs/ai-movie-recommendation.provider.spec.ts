@@ -455,6 +455,139 @@ describe("AiMovieRecommendationProvider", () => {
       expect(result.movies[0]?.tmdbId).toBe(100);
     });
 
+    it("REQ-7/8: nova rodada quando sanitização remove assistidos e fica abaixo do mínimo", async () => {
+      const roundOneEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido A", 100),
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido B", 101),
+        MovieRecommendationFixtures.movieWithTmdbId("Livre", 200),
+      ]);
+      const roundTwoEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Filme C", 300),
+        MovieRecommendationFixtures.movieWithTmdbId("Filme D", 400),
+      ]);
+      callStructuredOutput
+        .mockResolvedValueOnce({ response: roundOneEntity })
+        .mockResolvedValueOnce({ response: roundTwoEntity });
+      findWatchedTmdbIdsByUser.mockResolvedValueOnce([100, 101]);
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(callStructuredOutput).toHaveBeenCalledTimes(2);
+      expect(result.movies.map((movie) => movie.tmdbId)).toEqual([300, 400]);
+      expect(findWatchedTmdbIdsByUser).toHaveBeenNthCalledWith(1, userId, [
+        100, 101, 200,
+      ]);
+    });
+
+    it("REQ-7: inicia próxima rodada quando todos os filmes verificados da rodada são assistidos", async () => {
+      const roundOneEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido A", 100),
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido B", 101),
+      ]);
+      const roundTwoEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Filme C", 300),
+        MovieRecommendationFixtures.movieWithTmdbId("Filme D", 400),
+      ]);
+      callStructuredOutput
+        .mockResolvedValueOnce({ response: roundOneEntity })
+        .mockResolvedValueOnce({ response: roundTwoEntity });
+      findWatchedTmdbIdsByUser
+        .mockResolvedValueOnce([100, 101])
+        .mockResolvedValueOnce([]);
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(callStructuredOutput).toHaveBeenCalledTimes(2);
+      expect(result.movies).toHaveLength(2);
+      expect(findWatchedTmdbIdsByUser).toHaveBeenCalledTimes(2);
+    });
+
+    it("REQ-4: retorna melhor esforço com zero filmes após esgotar rodadas", async () => {
+      const allWatchedEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido", 100),
+      ]);
+      callStructuredOutput.mockResolvedValue({ response: allWatchedEntity });
+      findWatchedTmdbIdsByUser.mockResolvedValue([100]);
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(callStructuredOutput).toHaveBeenCalledTimes(
+        ExcludeWatchedRecommendationConstants.MAX_EXCLUDE_ROUNDS,
+      );
+      expect(result.movies).toEqual([]);
+      expect(result.response).toContain("couldn't find many unwatched matches");
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "⚠️ Rodadas exclude-watched esgotadas sem mínimo verificado",
+        expect.objectContaining({
+          userId,
+          verifiedUnwatchedCount: 0,
+          minVerifiedUnwatched:
+            ExcludeWatchedRecommendationConstants.MIN_VERIFIED_UNWATCHED,
+        }),
+      );
+    });
+
+    it("REQ-4: retorna melhor rodada entre várias quando a última piora", async () => {
+      const roundWithOneValid = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Filme OK", 300),
+      ]);
+      const roundWithNone = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Assistido", 100),
+      ]);
+      callStructuredOutput
+        .mockResolvedValueOnce({ response: roundWithOneValid })
+        .mockResolvedValueOnce({ response: roundWithOneValid })
+        .mockResolvedValueOnce({ response: roundWithOneValid })
+        .mockResolvedValueOnce({ response: roundWithOneValid })
+        .mockResolvedValueOnce({ response: roundWithNone });
+      findWatchedTmdbIdsByUser
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([100]);
+
+      const result = await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      expect(result.movies.map((movie) => movie.tmdbId)).toEqual([300]);
+    });
+
+    it("REQ-7: usa threadId efêmero por rodada para não poluir o chat principal", async () => {
+      const validEntity = MovieRecommendationFixtures.entityWithMovies([
+        MovieRecommendationFixtures.movieWithTmdbId("Filme A", 100),
+        MovieRecommendationFixtures.movieWithTmdbId("Filme B", 200),
+      ]);
+      callStructuredOutput.mockResolvedValue({ response: validEntity });
+      findWatchedTmdbIdsByUser.mockResolvedValue([]);
+
+      await provider.getMovieRecommendation(
+        userMessage,
+        chatId,
+        buildExcludeWatchedOptions(),
+      );
+
+      const structuredCallArgs = VitestMockCallUtils.nthArg<{
+        threadId: string;
+      }>(callStructuredOutput.mock.calls, 0);
+      expect(structuredCallArgs.threadId).toBe(`${chatId}:exclude:1`);
+    });
+
     it("com excludeWatched true sem userId faz uma única chamada como o fluxo legado", async () => {
       const validEntity = MovieRecommendationFixtures.validEntity();
       callStructuredOutput.mockResolvedValue({ response: validEntity });

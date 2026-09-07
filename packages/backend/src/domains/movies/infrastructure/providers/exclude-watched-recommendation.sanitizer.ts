@@ -140,6 +140,35 @@ export class ExcludeWatchedRecommendationSanitizer {
     ].join("\n");
   }
 
+  static ensureExhaustionNotice(response: string): string {
+    const trimmedResponse = response.trim();
+    if (trimmedResponse.length === 0) {
+      return ExcludeWatchedRecommendationSanitizer.EXHAUSTION_NOTICE_FALLBACK;
+    }
+
+    const hasExhaustionSignal =
+      ExcludeWatchedRecommendationSanitizer.EXHAUSTION_NOTICE_MARKERS.some(
+        (marker) => marker.test(trimmedResponse),
+      );
+    if (hasExhaustionSignal) {
+      return trimmedResponse;
+    }
+
+    return `${trimmedResponse}\n\n${ExcludeWatchedRecommendationSanitizer.EXHAUSTION_NOTICE_FALLBACK}`;
+  }
+
+  private static readonly EXHAUSTION_NOTICE_FALLBACK =
+    "I couldn't find many unwatched matches for this request — you've likely already watched most of what fit your taste here.";
+
+  private static readonly EXHAUSTION_NOTICE_MARKERS = [
+    /almost everything/i,
+    /already watched/i,
+    /watched most/i,
+    /histórico/i,
+    /já assist/i,
+    /quase tudo/i,
+  ];
+
   static buildExclusionContextMessage(
     entries: ExcludeWatchedContextEntry[],
   ): string {

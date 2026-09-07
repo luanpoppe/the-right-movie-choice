@@ -40,9 +40,10 @@ export class MovieRecommendationController {
       if (!parsed.success) throw new MissingHeaderException("chatid");
       const { chatid } = parsed.data;
 
-      const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
       const useCaseOptions =
         MovieRecommendationController.resolveUseCaseOptions(request);
+      const useCase =
+        MakeGetMovieRecommendationUseCaseFactory.create(useCaseOptions);
 
       const { movies, response } = await useCase.execute(
         userMessage,

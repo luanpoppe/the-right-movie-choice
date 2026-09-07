@@ -126,6 +126,28 @@ describe("ExcludeWatchedRecommendationSanitizer", () => {
     });
   });
 
+  describe("ensureExhaustionNotice", () => {
+    it("anexa aviso fallback quando response não sinaliza esgotamento", () => {
+      const response = "Here are a couple of picks for you.";
+
+      const ensured =
+        ExcludeWatchedRecommendationSanitizer.ensureExhaustionNotice(response);
+
+      expect(ensured).toContain(response);
+      expect(ensured).toContain("couldn't find many unwatched matches");
+    });
+
+    it("preserva response que já menciona histórico esgotado", () => {
+      const response =
+        "You've already watched almost everything I could suggest here.";
+
+      const ensured =
+        ExcludeWatchedRecommendationSanitizer.ensureExhaustionNotice(response);
+
+      expect(ensured).toBe(response);
+    });
+  });
+
   describe("buildExclusionContextMessage", () => {
     it("lista títulos e tmdbIds já sugeridos ou assistidos", () => {
       const entries: ExcludeWatchedContextEntry[] = [
@@ -143,6 +165,13 @@ describe("ExcludeWatchedRecommendationSanitizer", () => {
       expect(message).toContain("já assistido");
       expect(message).toContain("Blade Runner");
       expect(message).toContain("já sugerido");
+    });
+
+    it("retorna string vazia quando não há entradas de exclusão", () => {
+      const message =
+        ExcludeWatchedRecommendationSanitizer.buildExclusionContextMessage([]);
+
+      expect(message).toBe("");
     });
   });
 
@@ -177,6 +206,74 @@ describe("ExcludeWatchedRecommendationSanitizer", () => {
       expect(
         result.exclusionEntries.find((entry) => entry.tmdbId === 100)?.watched,
       ).toBe(true);
+    });
+
+    it("REQ-8: verifiedUnwatchedCount zero quando todos os filmes verificados são assistidos", () => {
+      const watchedA = ExcludeWatchedRecommendationSanitizerFixtures.movie({
+        title: "Assistido A",
+        tmdbId: 100,
+      });
+      const watchedB = ExcludeWatchedRecommendationSanitizerFixtures.movie({
+        title: "Assistido B",
+        tmdbId: 101,
+      });
+      const recommendation =
+        ExcludeWatchedRecommendationSanitizerFixtures.recommendation([
+          watchedA,
+          watchedB,
+        ]);
+
+      const result = ExcludeWatchedRecommendationSanitizer.processRoundResult(
+        recommendation,
+        new Set([100, 101]),
+        [],
+      );
+
+      expect(result.sanitized.movies).toEqual([]);
+      expect(result.verifiedUnwatchedCount).toBe(0);
+      expect(result.exclusionEntries).toHaveLength(2);
+      expect(result.exclusionEntries.every((entry) => entry.watched)).toBe(true);
+    });
+
+    it("mantém filmes sem tmdbId e não os conta como verificados", () => {
+      const withoutTmdbId = ExcludeWatchedRecommendationSanitizerFixtures.movie({
+        title: "Sem catálogo",
+      });
+      const verified = ExcludeWatchedRecommendationSanitizerFixtures.movie({
+        title: "Verificado",
+        tmdbId: 200,
+      });
+      const recommendation =
+        ExcludeWatchedRecommendationSanitizerFixtures.recommendation([
+          withoutTmdbId,
+          verified,
+        ]);
+
+      const result = ExcludeWatchedRecommendationSanitizer.processRoundResult(
+        recommendation,
+        new Set<number>(),
+        [],
+      );
+
+      expect(result.sanitized.movies).toEqual([withoutTmdbId, verified]);
+      expect(result.verifiedUnwatchedCount).toBe(1);
+    });
+  });
+
+  describe("extractTmdbIds", () => {
+    it("retorna apenas tmdbIds positivos definidos", () => {
+      const movies = [
+        ExcludeWatchedRecommendationSanitizerFixtures.movie({ tmdbId: 100 }),
+        ExcludeWatchedRecommendationSanitizerFixtures.movie({
+          title: "Sem id",
+        }),
+        ExcludeWatchedRecommendationSanitizerFixtures.movie({ tmdbId: 0 }),
+        ExcludeWatchedRecommendationSanitizerFixtures.movie({ tmdbId: 200 }),
+      ];
+
+      const tmdbIds = ExcludeWatchedRecommendationSanitizer.extractTmdbIds(movies);
+
+      expect(tmdbIds).toEqual([100, 200]);
     });
   });
 

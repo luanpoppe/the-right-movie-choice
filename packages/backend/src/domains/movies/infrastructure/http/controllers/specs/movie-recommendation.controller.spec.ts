@@ -7,17 +7,18 @@ import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositori
 import { MovieRecommendationRequest } from "../../dto/movie-recommendation.dto";
 import { MovieRecommendationController } from "../movie-recommendation.controller";
 
-const { mockExecute } = vi.hoisted(() => ({
+const { mockExecute, mockFactoryCreate } = vi.hoisted(() => ({
   mockExecute: vi.fn(),
+  mockFactoryCreate: vi.fn(() => ({
+    execute: mockExecute,
+  })),
 }));
 
 vi.mock(
   "../../../factories/make-get-movie-recommendation-use-case.factory",
   () => ({
     MakeGetMovieRecommendationUseCaseFactory: {
-      create: vi.fn(() => ({
-        execute: mockExecute,
-      })),
+      create: mockFactoryCreate,
     },
   }),
 );
@@ -72,6 +73,7 @@ describe("MovieRecommendationController", () => {
 
   beforeEach(() => {
     mockExecute.mockReset();
+    mockFactoryCreate.mockClear();
     guestQuotaService = {
       incrementAfterSuccess: vi.fn(),
     } as unknown as GuestQuotaService;
@@ -116,6 +118,10 @@ describe("MovieRecommendationController", () => {
 
     await handler(request, reply);
 
+    expect(mockFactoryCreate).toHaveBeenCalledWith({
+      userId: 42,
+      excludeWatched: true,
+    });
     expect(mockExecute).toHaveBeenCalledWith(
       "recommend a sci-fi movie",
       "chat-123",
@@ -164,6 +170,7 @@ describe("MovieRecommendationController", () => {
 
     await handler(request, reply);
 
+    expect(mockFactoryCreate).toHaveBeenCalledWith(undefined);
     expect(mockExecute).toHaveBeenCalledWith(
       "recommend a sci-fi movie",
       "chat-123",
@@ -292,6 +299,65 @@ describe("MovieRecommendationController", () => {
     expect(sentBody.movies[0]).not.toHaveProperty("imdbId");
     expect(sentBody.movies[0]?.posterPath).toBeNull();
     expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("REQ-4: devolve resposta parcial quando exclude esgota rodadas com um filme", async () => {
+    const partialMovie = {
+      ...INTERNAL_MOVIE,
+      title: "Único disponível",
+      tmdbId: 999,
+    };
+    const partialResponse =
+      "You've already watched most titles that matched this request.";
+    mockExecute.mockResolvedValue({
+      movies: [partialMovie],
+      response: partialResponse,
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+      body: { excludeWatched: true },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockFactoryCreate).toHaveBeenCalledWith({
+      userId: 42,
+      excludeWatched: true,
+    });
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      movies: [
+        expect.objectContaining({
+          title: "Único disponível",
+          tmdbId: 999,
+        }),
+      ],
+      response: partialResponse,
+    });
+  });
+
+  it("REQ-1: autenticado com excludeWatched true repassa flag explicitamente", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Filtered recommendation.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 55 },
+      body: { excludeWatched: true },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockExecute).toHaveBeenCalledWith(
+      "recommend a sci-fi movie",
+      "chat-123",
+      {
+        userId: 55,
+        excludeWatched: true,
+      },
+    );
   });
 
   it("returns an empty movies array without error", async () => {

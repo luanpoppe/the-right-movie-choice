@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { GetMovieRecommendationUseCase } from "./get-movie-recommendation.use-case";
-import { IMovieRecommendationProvider } from "../providers/movie-recommendation.provider";
+import {
+  IMovieRecommendationProvider,
+} from "../providers/movie-recommendation.provider";
+import type { IUserMovieEntryRepository } from "../../domain/repositories/user-movie-entry.repository";
 import { MovieRecommendationEntity } from "../../domain/entities/movie-recommendation.entity";
 
 describe("GetMovieRecommendationUseCase", () => {
@@ -88,6 +91,39 @@ describe("GetMovieRecommendationUseCase", () => {
     });
   });
 
+  it("repassa userMovieEntryRepository ao provider em modo exclude quando injetado", async () => {
+    const userMovieEntryRepository = {
+      findWatchedTmdbIdsByUser: vi.fn(),
+    } as unknown as IUserMovieEntryRepository;
+    const useCaseWithRepository = new GetMovieRecommendationUseCase(
+      movieRecommendationProvider,
+      userMovieEntryRepository,
+    );
+    const userMessage = "I want to watch a sci-fi movie";
+    const chatId = "test-chat-id";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Exclude mode recommendation.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).mockResolvedValue(mockRecommendation);
+
+    await useCaseWithRepository.execute(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+      userMovieEntryRepository,
+    });
+  });
+
   it("repassa excludeWatched false ao provider para fluxo legado", async () => {
     const userMessage = "I want to watch a sci-fi movie";
     const chatId = "test-chat-id";
@@ -111,6 +147,40 @@ describe("GetMovieRecommendationUseCase", () => {
       userId: 7,
       excludeWatched: false,
     });
+  });
+
+  it("não injeta userMovieEntryRepository quando excludeWatched true mas use case não tem repositório", async () => {
+    const userMessage = "I want to watch a sci-fi movie";
+    const chatId = "test-chat-id";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Exclude without repository.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).mockResolvedValue(mockRecommendation);
+
+    await getMovieRecommendationUseCase.execute(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 42,
+      excludeWatched: true,
+    });
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).not.toHaveBeenCalledWith(
+      userMessage,
+      chatId,
+      expect.objectContaining({
+        userMovieEntryRepository: expect.anything(),
+      }),
+    );
   });
 
   it("propaga o erro quando getMovieRecommendation falha", async () => {

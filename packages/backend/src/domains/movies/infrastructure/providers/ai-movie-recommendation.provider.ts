@@ -74,7 +74,7 @@ export class AiMovieRecommendationProvider
     return this.callStructuredRecommendation({
       systemPrompt,
       messages,
-      chatId,
+      threadId: chatId,
     });
   }
 
@@ -93,8 +93,8 @@ export class AiMovieRecommendationProvider
       ExcludeWatchedRecommendationConstants.MIN_VERIFIED_UNWATCHED;
 
     let exclusionEntries: ExcludeWatchedContextEntry[] = [];
-    let lastSanitizedRecommendation: MovieRecommendationEntity | null = null;
-    let verifiedUnwatchedCount = 0;
+    let bestSanitizedRecommendation: MovieRecommendationEntity | null = null;
+    let bestVerifiedUnwatchedCount = 0;
 
     Logger.info("🚀 Iniciando recomendação exclude-watched", {
       chatId,
@@ -141,7 +141,7 @@ export class AiMovieRecommendationProvider
       const parsedRecommendation = await this.callStructuredRecommendation({
         systemPrompt,
         messages,
-        chatId,
+        threadId: `${chatId}:exclude:${round}`,
       });
       const tmdbIds = ExcludeWatchedRecommendationSanitizer.extractTmdbIds(
         parsedRecommendation.movies,
@@ -158,9 +158,21 @@ export class AiMovieRecommendationProvider
         exclusionEntries,
       );
       const sanitizedRecommendation = roundResult.sanitized;
-      verifiedUnwatchedCount = roundResult.verifiedUnwatchedCount;
-      lastSanitizedRecommendation = sanitizedRecommendation;
+      const verifiedUnwatchedCount = roundResult.verifiedUnwatchedCount;
       exclusionEntries = roundResult.exclusionEntries;
+
+      const isBetterRound =
+        bestSanitizedRecommendation === null ||
+        AiMovieRecommendationProvider.isBetterExcludeRound(
+          verifiedUnwatchedCount,
+          sanitizedRecommendation.movies.length,
+          bestVerifiedUnwatchedCount,
+          bestSanitizedRecommendation.movies.length,
+        );
+      if (isBetterRound) {
+        bestVerifiedUnwatchedCount = verifiedUnwatchedCount;
+        bestSanitizedRecommendation = sanitizedRecommendation;
+      }
 
       Logger.debug("📊 Resultado da rodada exclude-watched", {
         chatId,
@@ -174,42 +186,72 @@ export class AiMovieRecommendationProvider
 
       const hasEnoughVerifiedUnwatched =
         verifiedUnwatchedCount >= minVerifiedUnwatched;
-      if (hasEnoughVerifiedUnwatched || isLastRound) {
+      if (hasEnoughVerifiedUnwatched) {
+        return sanitizedRecommendation;
+      }
+
+      if (isLastRound) {
         break;
       }
     }
 
-    if (!lastSanitizedRecommendation) {
+    if (!bestSanitizedRecommendation) {
       throw new WrongMovieSchemaFromLlmException();
     }
 
-    const isExhausted = verifiedUnwatchedCount < minVerifiedUnwatched;
+    const isExhausted = bestVerifiedUnwatchedCount < minVerifiedUnwatched;
     if (!isExhausted) {
-      return lastSanitizedRecommendation;
+      return bestSanitizedRecommendation;
     }
 
     Logger.warn("⚠️ Rodadas exclude-watched esgotadas sem mínimo verificado", {
       chatId,
       userId,
-      verifiedUnwatchedCount,
+      verifiedUnwatchedCount: bestVerifiedUnwatchedCount,
       minVerifiedUnwatched,
       maxRounds,
     });
 
-    return lastSanitizedRecommendation;
+    const ensuredResponse =
+      ExcludeWatchedRecommendationSanitizer.ensureExhaustionNotice(
+        bestSanitizedRecommendation.response,
+      );
+
+    return {
+      ...bestSanitizedRecommendation,
+      response: ensuredResponse,
+    };
+  }
+
+  private static isBetterExcludeRound(
+    verifiedCount: number,
+    movieCount: number,
+    bestVerifiedCount: number,
+    bestMovieCount: number,
+  ): boolean {
+    if (verifiedCount > bestVerifiedCount) {
+      return true;
+    }
+
+    const isTieOnVerified = verifiedCount === bestVerifiedCount;
+    if (isTieOnVerified && movieCount > bestMovieCount) {
+      return true;
+    }
+
+    return false;
   }
 
   private async callStructuredRecommendation(params: {
     systemPrompt: string;
     messages: ReturnType<typeof AIMessages.human>[];
-    chatId: string;
+    threadId: string;
   }): Promise<MovieRecommendationEntity> {
     const lookupMoviesTool = this.params.lookupMoviesTool;
     const result = await this.params.ai.callStructuredOutput({
       aiModel: AiModels.PRIMARY,
       systemPrompt: params.systemPrompt,
       messages: params.messages,
-      threadId: params.chatId,
+      threadId: params.threadId,
       outputSchema: MovieRecommendationLlmSchema as never,
       agent: { tools: [lookupMoviesTool] },
     });

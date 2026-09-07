@@ -273,7 +273,7 @@ describe("MovieCatalogLookupAiTool", () => {
       excludeToolSchema = captured.schema;
     });
 
-    it("REQ-6: omite hits assistidos e mantém hits não assistidos e misses", async () => {
+    it("REQ-6: substitui hits assistidos por miss preservando ordem e comprimento", async () => {
       const watchedHit = MovieCatalogLookupAiToolFixtures.hit("Assistido", 100);
       const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
         "Não assistido",
@@ -296,7 +296,13 @@ describe("MovieCatalogLookupAiTool", () => {
         ],
       });
 
-      expect(results).toEqual([unwatchedHit, miss]);
+      expect(results).toHaveLength(3);
+      expect(results[0]).toEqual({
+        found: false,
+        message: "Filme já assistido pelo usuário.",
+      });
+      expect(results[1]).toEqual(unwatchedHit);
+      expect(results[2]).toEqual(miss);
       expect(findWatchedTmdbIdsByUser).toHaveBeenCalledWith(42, [100, 200]);
     });
 
@@ -381,6 +387,38 @@ describe("MovieCatalogLookupAiTool", () => {
         "Filtro de assistidos ignorado: repositório não injetado",
         { userId: 42 },
       );
+    });
+
+    it("edge: histórico de assistidos vazio não remove hits", async () => {
+      const hitA = MovieCatalogLookupAiToolFixtures.hit("Filme A", 10);
+      const hitB = MovieCatalogLookupAiToolFixtures.hit("Filme B", 20);
+
+      findDetailsByTitlesBatch.mockResolvedValue([hitA, hitB]);
+      findWatchedTmdbIdsByUser.mockResolvedValue([]);
+
+      const results = await excludeToolExecute({
+        queries: [{ query: "Filme A" }, { query: "Filme B" }],
+      });
+
+      expect(results).toEqual([hitA, hitB]);
+      expect(findWatchedTmdbIdsByUser).toHaveBeenCalledWith(42, [10, 20]);
+    });
+
+    it("edge: miss de catálogo não aborta batch no modo exclude", async () => {
+      const hit = MovieCatalogLookupAiToolFixtures.hit("OK", 10);
+      const catalogMiss = MovieCatalogLookupAiToolFixtures.miss(
+        "O catálogo de filmes está temporariamente indisponível. Tente novamente mais tarde.",
+      );
+
+      findDetailsByTitlesBatch.mockResolvedValue([hit, catalogMiss]);
+      findWatchedTmdbIdsByUser.mockResolvedValue([]);
+
+      const results = await excludeToolExecute({
+        queries: [{ query: "OK" }, { query: "Indisponível" }],
+      });
+
+      expect(results).toEqual([hit, catalogMiss]);
+      expect(findDetailsByTitlesBatch).toHaveBeenCalledTimes(1);
     });
 
     it("schema mantém max 8 quando excludeWatched=false mesmo com userId", () => {

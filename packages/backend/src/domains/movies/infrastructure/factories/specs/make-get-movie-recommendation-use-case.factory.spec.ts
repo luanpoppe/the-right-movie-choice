@@ -4,15 +4,18 @@ import path from "node:path";
 import { GetMovieRecommendationUseCase } from "../../../application/use-cases/get-movie-recommendation.use-case";
 import { AiMovieRecommendationProvider } from "../../providers/ai-movie-recommendation.provider";
 import { AiModels } from "@/lib/ai/ai-models";
+import { PrismaUserMovieEntryRepository } from "../../repositories/user-movie-entry/prisma-user-movie-entry.repository";
 
-const { envState, aiConstructorCalls } = vi.hoisted(() => ({
-  envState: {
-    OPENROUTER_API_KEY: "openrouter-key",
-    GEMINI_API_KEY: "gemini-key",
-    REDIS_URL: "redis://localhost:6379",
-  },
-  aiConstructorCalls: [] as unknown[],
-}));
+const { envState, aiConstructorCalls, lookupAiToolConstructorCalls } =
+  vi.hoisted(() => ({
+    envState: {
+      OPENROUTER_API_KEY: "openrouter-key",
+      GEMINI_API_KEY: "gemini-key",
+      REDIS_URL: "redis://localhost:6379",
+    },
+    aiConstructorCalls: [] as unknown[],
+    lookupAiToolConstructorCalls: [] as unknown[],
+  }));
 
 vi.mock("@/env", () => ({
   env: {
@@ -50,11 +53,24 @@ vi.mock(
   }),
 );
 
+vi.mock("../../providers/movie-catalog-lookup.ai-tool", () => ({
+  MovieCatalogLookupAiTool: class MovieCatalogLookupAiTool {
+    constructor(_catalogLookup: unknown, options?: unknown) {
+      lookupAiToolConstructorCalls.push(options);
+    }
+
+    createLookupMoviesTool() {
+      return { name: "lookupMovies", description: "stub", execute: vi.fn() };
+    }
+  },
+}));
+
 import { MakeGetMovieRecommendationUseCaseFactory } from "../make-get-movie-recommendation-use-case.factory";
 
 describe("MakeGetMovieRecommendationUseCaseFactory", () => {
   beforeEach(() => {
     aiConstructorCalls.length = 0;
+    lookupAiToolConstructorCalls.length = 0;
     envState.OPENROUTER_API_KEY = "openrouter-key";
     envState.GEMINI_API_KEY = "gemini-key";
     envState.REDIS_URL = "redis://localhost:6379";
@@ -291,6 +307,85 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(tmdbDebugRoutesSource).toMatch(/CatalogPersistEnqueuer\.enqueue/);
     expect(tmdbDebugRoutesSource).toMatch(
       /new MovieCatalogDetailsResolver\([\s\S]*enqueuePersist/,
+    );
+  });
+
+  it("instancia PrismaUserMovieEntryRepository no factory source", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+
+    expect(factorySource).toMatch(/new PrismaUserMovieEntryRepository\(/);
+  });
+
+  it("passa opções de exclude ao MovieCatalogLookupAiTool quando excludeWatched true e userId válido", () => {
+    const useCase = MakeGetMovieRecommendationUseCaseFactory.create({
+      userId: 1,
+      excludeWatched: true,
+    });
+    const useCaseRecord = useCase as unknown as {
+      userMovieEntryRepository: PrismaUserMovieEntryRepository;
+    };
+    const lookupToolOptions = lookupAiToolConstructorCalls[0] as {
+      userId: number;
+      excludeWatched: boolean;
+      userMovieEntryRepository: PrismaUserMovieEntryRepository;
+    };
+
+    expect(lookupToolOptions).toEqual({
+      userId: 1,
+      excludeWatched: true,
+      userMovieEntryRepository: useCaseRecord.userMovieEntryRepository,
+    });
+    expect(useCaseRecord.userMovieEntryRepository).toBeInstanceOf(
+      PrismaUserMovieEntryRepository,
+    );
+  });
+
+  it("cria MovieCatalogLookupAiTool sem opções de exclude quando create é undefined", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create();
+
+    expect(lookupAiToolConstructorCalls).toHaveLength(1);
+    expect(lookupAiToolConstructorCalls[0]).toBeUndefined();
+  });
+
+  it("cria MovieCatalogLookupAiTool sem opções de exclude quando excludeWatched é false", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create({
+      userId: 1,
+      excludeWatched: false,
+    });
+
+    expect(lookupAiToolConstructorCalls).toHaveLength(1);
+    expect(lookupAiToolConstructorCalls[0]).toBeUndefined();
+  });
+
+  it("REQ-10: wiring exclude compartilha o mesmo PrismaUserMovieEntryRepository entre use case e lookup tool", () => {
+    const useCase = MakeGetMovieRecommendationUseCaseFactory.create({
+      userId: 7,
+      excludeWatched: true,
+    });
+    const useCaseRecord = useCase as unknown as {
+      userMovieEntryRepository: PrismaUserMovieEntryRepository;
+    };
+    const lookupToolOptions = lookupAiToolConstructorCalls[0] as {
+      userMovieEntryRepository: PrismaUserMovieEntryRepository;
+    };
+
+    expect(useCaseRecord.userMovieEntryRepository).toBe(
+      lookupToolOptions.userMovieEntryRepository,
+    );
+  });
+
+  it("injeta userMovieEntryRepository no GetMovieRecommendationUseCase", () => {
+    const useCase = MakeGetMovieRecommendationUseCaseFactory.create();
+    const useCaseRecord = useCase as unknown as {
+      userMovieEntryRepository: PrismaUserMovieEntryRepository;
+    };
+
+    expect(useCaseRecord.userMovieEntryRepository).toBeInstanceOf(
+      PrismaUserMovieEntryRepository,
     );
   });
 });

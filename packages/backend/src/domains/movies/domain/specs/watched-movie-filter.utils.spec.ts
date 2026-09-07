@@ -30,7 +30,7 @@ class WatchedMovieFilterUtilsFixtures {
 }
 
 describe("WatchedMovieFilterUtils", () => {
-  it("REQ-6: remove hits assistidos e mantém hits não assistidos e misses", () => {
+  it("REQ-6: substitui hits assistidos por miss e mantém ordem/comprimento do array", () => {
     const watchedHit = WatchedMovieFilterUtilsFixtures.hit(100, "Assistido");
     const unwatchedHit = WatchedMovieFilterUtilsFixtures.hit(200, "Não assistido");
     const miss = WatchedMovieFilterUtilsFixtures.miss("Não encontrado");
@@ -42,7 +42,13 @@ describe("WatchedMovieFilterUtils", () => {
       watchedTmdbIds,
     );
 
-    expect(filtered).toEqual([unwatchedHit, miss]);
+    expect(filtered).toHaveLength(3);
+    expect(filtered[0]).toEqual({
+      found: false,
+      message: "Filme já assistido pelo usuário.",
+    });
+    expect(filtered[1]).toEqual(unwatchedHit);
+    expect(filtered[2]).toEqual(miss);
   });
 
   it("conjunto de assistidos vazio retorna o mesmo array sem filtrar", () => {
@@ -59,7 +65,7 @@ describe("WatchedMovieFilterUtils", () => {
     expect(filtered).toBe(results);
   });
 
-  it("todos os hits assistidos retorna array vazio quando só há hits", () => {
+  it("todos os hits assistidos retorna misses na mesma posição", () => {
     const hitA = WatchedMovieFilterUtilsFixtures.hit(100, "A");
     const hitB = WatchedMovieFilterUtilsFixtures.hit(200, "B");
     const results = [hitA, hitB];
@@ -70,7 +76,9 @@ describe("WatchedMovieFilterUtils", () => {
       watchedTmdbIds,
     );
 
-    expect(filtered).toEqual([]);
+    expect(filtered).toHaveLength(2);
+    expect(filtered[0]?.found).toBe(false);
+    expect(filtered[1]?.found).toBe(false);
   });
 
   it("misses são sempre preservados mesmo com conjunto de assistidos não vazio", () => {
@@ -87,7 +95,7 @@ describe("WatchedMovieFilterUtils", () => {
     expect(filtered).toEqual([missA, missB]);
   });
 
-  it("preserva a ordem dos itens mantidos", () => {
+  it("preserva a ordem e comprimento substituindo assistidos por miss", () => {
     const hitA = WatchedMovieFilterUtilsFixtures.hit(100, "A");
     const miss = WatchedMovieFilterUtilsFixtures.miss("Miss");
     const hitB = WatchedMovieFilterUtilsFixtures.hit(200, "B");
@@ -100,6 +108,10 @@ describe("WatchedMovieFilterUtils", () => {
       watchedTmdbIds,
     );
 
-    expect(filtered).toEqual([miss, hitB]);
+    expect(filtered).toHaveLength(4);
+    expect(filtered[0]?.found).toBe(false);
+    expect(filtered[1]).toEqual(miss);
+    expect(filtered[2]).toEqual(hitB);
+    expect(filtered[3]?.found).toBe(false);
   });
 });
