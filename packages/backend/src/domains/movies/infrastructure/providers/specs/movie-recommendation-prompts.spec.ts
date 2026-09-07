@@ -46,6 +46,16 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("Não use Markdown");
   });
 
+  it("instrui espelhar idioma da ultima mensagem do usuario e separar do catalogo", () => {
+    const prompt = MovieRecommendationPrompts.unified();
+
+    expect(prompt).toContain("última mensagem do usuário");
+    expect(prompt).toContain("Nunca responda em português apenas porque o catálogo");
+    expect(prompt).toContain("somente lookupMovies");
+    expect(prompt).toContain("não copie o título localizado em português");
+    expect(prompt).toContain("prefira títulos em inglês");
+  });
+
   it("ensina query em pt-BR, year separado e ordem estável dos resultados", () => {
     const prompt = MovieRecommendationPrompts.unified();
 
