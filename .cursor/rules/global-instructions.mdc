@@ -3,7 +3,8 @@ description: Instruções globais do usuário (espelho de ~/.claude/CLAUDE.md + 
 alwaysApply: true
 ---
 <!-- GERADO por /cursor-init — NÃO editar manualmente. Editar a fonte (~/.claude/CLAUDE.md ou ~/.claude/rules/) e rodar /cursor-init de novo. -->
-<!-- source-hash: ade3b87ae8e3a9e2a585714ab4669120c0a54123e13c0ad33dee0a5be72549b0 -->
+<!-- source-hash: 25d16513751019ab9bcfd9e997542d7d8803725893679f1fd523258222ba3a18 -->
+
 ## Fonte: ~/.claude/CLAUDE.md
 
 # Global user instructions
@@ -51,6 +52,46 @@ Não é regra obrigatória, mas atenção constante: arquivo passando de ~200-25
 Se decidir dividir em arquivos menores, seguir a estrutura de pastas/arquivos já usada no projeto (não inventar convenção nova) — olhar como o projeto já organiza módulos/domínios antes de propor a divisão.
 
 Isso vale também pra classes estáticas (regra abaixo): concentrar tudo de um domínio numa única classe estática não é desculpa pra ignorar o limite — se crescer demais, dividir por sub-domínio em arquivos separados, mesma estrutura de pastas do projeto.
+
+### Um componente / uma classe por arquivo
+
+Complemento direto da regra acima: além do tamanho, o critério é **quantas coisas nomeadas o arquivo exporta**. Arquivo com dois componentes React, ou com uma classe `Service` e uma `Utils` juntas, já é god object mesmo com 80 linhas — o revisor não sabe pelo nome do arquivo o que tem dentro, e o import puxa contexto que não pediu.
+
+O nome do arquivo deve prever o conteúdo: `user-card.tsx` tem `UserCard`, `invoice-calculator.ts` tem `InvoiceCalculator`. Se o arquivo precisa de nome genérico (`components.tsx`, `helpers.ts`) pra caber tudo que tem dentro, ele já está errado.
+
+**React** — cada componente no seu arquivo, incluindo o subcomponente que nasceu "só pra organizar o JSX daqui":
+
+```tsx
+// Evitar — dois componentes exportáveis no mesmo arquivo
+export function UserCard({ user }: Props) { ... }
+export function UserCardSkeleton() { ... }
+
+// Preferir
+// user-card.tsx          -> UserCard
+// user-card-skeleton.tsx -> UserCardSkeleton
+```
+
+**Classes** (TypeScript, e qualquer linguagem que permita várias classes por arquivo) — uma classe exportada por arquivo:
+
+```ts
+// Evitar — Service e Utils no mesmo arquivo
+export class InvoiceService { ... }
+export class InvoiceUtils { ... }
+
+// Preferir
+// invoice-service.ts -> InvoiceService
+// invoice-utils.ts   -> InvoiceUtils
+```
+
+Exceções — pode ficar junto quando:
+- **Tipo/interface/enum/constante** do próprio componente ou da própria classe. Não são "outra coisa", são a assinatura dele.
+- **Componente ou classe privada ao arquivo, não exportada**, curta (~10-15 linhas), usada só ali e sem vida própria — extrair criaria indireção sem ganho.
+- **Convenção estabelecida no projeto** que já faz diferente (ex: componente + variantes num arquivo só, padrão de biblioteca de UI). Consistência com o projeto vence a preferência.
+- **Linguagem que não permite arquivo separado** por classe aninhada/interna (inner class que só existe dentro da externa).
+
+Vale pra código novo e pra arquivo onde já estou mexendo. Não sair quebrando arquivo legado que não faz parte da tarefa.
+
+Contrapeso: a regra de pasta abaixo continua valendo — dividir em mais arquivos não é licença pra despejar 20 arquivos soltos na mesma pasta. Um componente por arquivo **e** subpasta por sub-domínio.
 
 ### Evitar muitos arquivos soltos na mesma pasta
 Mesma lógica de responsabilidade única, um nível acima: em nível de pasta. Pasta passando de ~10-12 arquivos soltos é warning — parar e avaliar se ali já existem sub-domínios distintos pedindo subpasta.
