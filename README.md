@@ -36,6 +36,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
 - **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
+- **Excluir assistidos (autenticado):** Com Bearer, o body pode enviar `excludeWatched` (padrão `true` se omitido). O backend filtra filmes marcados como assistidos após o lookup no catálogo, amplia o pool de candidatos (até 25 queries por rodada) e repete até obter pelo menos 2 filmes verificados não-assistidos ou esgotar 5 rodadas. Convidados ignoram a flag.
 - **Listas do usuário:** `GET`/`PATCH /movie/user-entries` exigem **JWT** (`Authorization: Bearer`). Uma linha por `(userId, tmdbId)` com flags `watched`, `favorite`, `inWatchlist` e metadados opcionais de assistido (`rating` 1–10, `watchedAt`). Listagens aceitam filtros por flag e podem enriquecer com resumo do catálogo (`title`, `year`, `posterPath` como URL TMDB).
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
 - **Logging estruturado:** **Pino** (`lib/logger`) nos fluxos de auth e cadastro.
@@ -47,6 +48,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 ### Frontend
 
 - **Interface de chat** para pedir recomendações e ver filmes sugeridos.
+- **Toggle "Exclude watched movies":** visível só para usuário autenticado (welcome e chat); padrão ligado; envia `excludeWatched` no POST de recomendação.
 - **Ações nos cards:** marcar assistido (nota/data opcionais), favorito e watchlist com PATCH otimista.
 - **Biblioteca `/my-movies`:** abas Assistidos, Quero ver e Favoritos; link no header quando autenticado.
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
@@ -56,7 +58,6 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 ## Próximos Passos
 
 - **Listas personalizadas** (nomeadas pelo usuário, novas tabelas)
-- **Filtrar recomendações** por filmes já assistidos
 
 ## 🏛️ Análise Arquitetural do Backend
 
@@ -244,9 +245,12 @@ Pastas: **Movies** (recomendação convidado/Bearer), **User movie entries** (JW
 - **Body:**
   ```json
   {
-    "userMessage": "Quero um filme de comédia leve para relaxar."
+    "userMessage": "Quero um filme de comédia leve para relaxar.",
+    "excludeWatched": true
   }
   ```
+  - `userMessage` (string, obrigatório) — mensagem do usuário.
+  - `excludeWatched` (boolean, opcional) — **só tem efeito com Bearer**. Padrão `true` quando omitido para autenticado; `false` mantém o fluxo legado sem filtrar assistidos. Convidados ignoram o campo.
 - **Resposta `200`:**
   ```json
   {
@@ -466,7 +470,7 @@ Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). 
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 
-A tool do agente `lookupMovies` resolve até 8 títulos por turno em **duas fases**:
+A tool do agente `lookupMovies` resolve títulos por turno em **duas fases** (até **8** queries no fluxo padrão; até **25** quando `excludeWatched` está ativo para usuário autenticado):
 
 1. **Batch local** — no máximo 1 SQL de ids (`VALUES` + `ROW_NUMBER` por posição, `rn = 1`) + 1 `findMany` com filhas no Postgres; aquecimento Redis via `MGET`/`pipeline SET` em lote nos hits frescos (< 30 dias).
 2. **TMDB paralelo** — só nos misses/stale: `findDetailsByTitle` em `Promise.all` (comportamento equivalente ao fluxo anterior).

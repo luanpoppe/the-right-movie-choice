@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `userEntryTmdbId` — TMDB id usado em GET/PATCH `/movie/user-entries/:tmdbId` (ex.: 27205 = Inception)\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro para rotas com Bearer. Use \"Movie recommendation (Bearer)\" ou a pasta **User movie entries** com `Authorization: Bearer {{accessToken}}`.\n\n**Resposta da recomendação**\nCada filme pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo via `lookupMovies`.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `userEntryTmdbId` — TMDB id usado em GET/PATCH `/movie/user-entries/:tmdbId` (ex.: 27205 = Inception)\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro para rotas com Bearer. Use \"Movie recommendation (Bearer)\" ou a pasta **User movie entries** com `Authorization: Bearer {{accessToken}}`.\n\n**Resposta da recomendação**\nCada filme pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo via `lookupMovies`.\n\n**excludeWatched (recomendação autenticada)**\nBody opcional `excludeWatched: boolean` — padrão `true` se omitido. Filtra filmes já assistidos do usuário após lookup no catálogo. Convidado ignora o campo.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -81,7 +81,7 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Gera recomendações de filmes com base na mensagem do usuário.\n\n**Headers obrigatórios**\n- `chatid`: {{chatId}} (campo Zod `chatid`; HTTP é case-insensitive)\n\n**Convidado (sem Authorization)**\n- Aplica cota de uso anônimo\n- Define cookie `guest-id` (httpOnly) — o Postman persiste via Cookie Jar\n- Resposta inclui header `X-Guest-Remaining` com tentativas restantes\n\n**Body**\n- `userMessage` (string, não vazia)\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
+            "description": "Gera recomendações de filmes com base na mensagem do usuário.\n\n**Headers obrigatórios**\n- `chatid`: {{chatId}} (campo Zod `chatid`; HTTP é case-insensitive)\n\n**Convidado (sem Authorization)**\n- Aplica cota de uso anônimo\n- Define cookie `guest-id` (httpOnly) — o Postman persiste via Cookie Jar\n- Resposta inclui header `X-Guest-Remaining` com tentativas restantes\n- `excludeWatched` no body é ignorado para convidados\n\n**Body**\n- `userMessage` (string, não vazia)\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
           },
           "response": []
         },
@@ -105,7 +105,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userMessage\": \"Quero um filme de comédia leve para relaxar.\"\n}",
+              "raw": "{\n  \"userMessage\": \"Quero um filme de comédia leve para relaxar.\",\n  \"excludeWatched\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -113,7 +113,7 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
+            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)\n- `excludeWatched` (boolean, opcional) — padrão `true` se omitido; `false` desliga o filtro de filmes já assistidos\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
           },
           "response": []
         }
