@@ -1,6 +1,7 @@
 import {
   UserMovieEntryEntity,
   UserMovieEntryListFilter,
+  UserMovieEntryListItemEntity,
   UserMovieEntryPatch,
 } from "../entities/user-movie-entry.entity";
 
@@ -19,5 +20,10 @@ export interface IUserMovieEntryRepository {
   listByUser(
     userId: number,
     filter: UserMovieEntryListFilter,
-  ): Promise<UserMovieEntryEntity[]>;
+  ): Promise<UserMovieEntryListItemEntity[]>;
+
+  findWatchedTmdbIdsByUser(
+    userId: number,
+    tmdbIds: number[],
+  ): Promise<number[]>;
 }
