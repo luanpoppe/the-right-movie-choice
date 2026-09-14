@@ -3,9 +3,12 @@ import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { MovieQueryExamplesSchemaFactory } from "../../domain/entities/movie-query-examples.entity";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
+import type { IMovieQuerySuggestionBatchProvider } from "../../domain/providers/movie-query-suggestion-batch.provider";
 import { MovieQueryExamplesPrompts } from "./movie-query-examples-prompts";
 
-export class AiMovieQuerySuggestionBatchProvider {
+export class AiMovieQuerySuggestionBatchProvider
+  implements IMovieQuerySuggestionBatchProvider
+{
   constructor(private ai: AI) {}
 
   async generateBatch(
