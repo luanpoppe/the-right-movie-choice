@@ -13,4 +13,7 @@ export class MovieQuerySuggestionPoolConstants {
 
   // Max retries for a single failed batch call (timeout / invalid schema).
   static readonly SEED_IA_MAX_RETRIES = 3;
+
+  // Postgres advisory lock key — serializes concurrent seed runs.
+  static readonly SEED_ADVISORY_LOCK_KEY = 847291034;
 }

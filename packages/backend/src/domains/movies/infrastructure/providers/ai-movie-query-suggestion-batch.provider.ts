@@ -15,7 +15,7 @@ export class AiMovieQuerySuggestionBatchProvider
     count: number,
     existingTexts: string[],
   ): Promise<string[]> {
-    const outputSchema = MovieQueryExamplesSchemaFactory.create(count);
+    const outputSchema = MovieQueryExamplesSchemaFactory.createUpTo(count);
     const systemPrompt = MovieQueryExamplesPrompts.textForBatch(
       count,
       existingTexts,

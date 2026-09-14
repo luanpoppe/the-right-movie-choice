@@ -73,7 +73,7 @@ describe("AiMovieQuerySuggestionBatchProvider", () => {
       const structuredCallArgs = VitestMockCallUtils.nthArg<{
         aiModel: unknown;
         modelConfig: Record<string, unknown>;
-        outputSchema: ReturnType<typeof MovieQueryExamplesSchemaFactory.create>;
+        outputSchema: ReturnType<typeof MovieQueryExamplesSchemaFactory.createUpTo>;
         systemPrompt: string;
         messages: unknown[];
       }>(structuredCalls, 0);
@@ -85,6 +85,13 @@ describe("AiMovieQuerySuggestionBatchProvider", () => {
       expect(
         structuredCallArgs.outputSchema.safeParse({
           queryExamples: [{ queryExample: "only one" }],
+        }).success,
+      ).toBe(true);
+      expect(
+        structuredCallArgs.outputSchema.safeParse({
+          queryExamples: Array.from({ length: 26 }, (_, index) => ({
+            queryExample: `Suggestion ${index}`,
+          })),
         }).success,
       ).toBe(false);
       expect(structuredCallArgs.systemPrompt).toBe(expectedSystemPrompt);
@@ -127,6 +134,16 @@ describe("AiMovieQuerySuggestionBatchProvider", () => {
       );
 
       expect(Logger.error).toHaveBeenCalled();
+    });
+
+    it("edge: array vazio da IA falha validação do schema", async () => {
+      callStructuredOutput.mockResolvedValue({
+        response: { queryExamples: [] },
+      });
+
+      await expect(provider.generateBatch(25, [])).rejects.toBeInstanceOf(
+        WrongMovieSchemaFromLlmException,
+      );
     });
 
     it("loga model, durationMs, count e success sem o corpo da resposta", async () => {

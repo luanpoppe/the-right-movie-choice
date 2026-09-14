@@ -26,6 +26,7 @@ describe("SeedMovieQuerySuggestionsUseCase", () => {
       count: vi.fn(),
       listTexts: vi.fn(),
       insertManySkipDuplicates: vi.fn(),
+      withSeedLock: vi.fn((operation) => operation()),
     };
 
     batchProvider = {
@@ -114,6 +115,103 @@ describe("SeedMovieQuerySuggestionsUseCase", () => {
       "Movie query suggestion batch failed after all attempts",
       expect.objectContaining({ attempt: 3, maxAttempts: 3 }),
     );
+  });
+
+  it("REQ-2: pool parcial (37) completa até 100 com no máximo 4 chamadas IA", async () => {
+    vi.mocked(movieQuerySuggestionRepository.count)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(62)
+      .mockResolvedValueOnce(87)
+      .mockResolvedValueOnce(100);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch).mockImplementation(
+      async (batchSize) =>
+        Array.from({ length: batchSize }, (_, index) => `Batch ${index}`),
+    );
+    vi.mocked(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).mockImplementation(async (texts) => texts.length);
+
+    await useCase.execute();
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledTimes(3);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(1, 25, []);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(2, 25, []);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(3, 13, []);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).toHaveBeenCalledTimes(3);
+  });
+
+  it("REQ-2: pool vazio completa até 100 com exatamente 4 chamadas IA de 25", async () => {
+    vi.mocked(movieQuerySuggestionRepository.count)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(25)
+      .mockResolvedValueOnce(50)
+      .mockResolvedValueOnce(75)
+      .mockResolvedValueOnce(100);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch).mockImplementation(
+      async (batchSize) =>
+        Array.from({ length: batchSize }, (_, index) => `Batch ${index}`),
+    );
+    vi.mocked(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).mockImplementation(async (texts) => texts.length);
+
+    await useCase.execute();
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledTimes(4);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(1, 25, []);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(2, 25, []);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(3, 25, []);
+    expect(batchProvider.generateBatch).toHaveBeenNthCalledWith(4, 25, []);
+  });
+
+  it("edge: array vazio da IA não insere e respeita limite de 4 chamadas", async () => {
+    vi.mocked(movieQuerySuggestionRepository.count)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(37);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch).mockResolvedValue([]);
+    vi.mocked(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).mockResolvedValue(0);
+
+    await useCase.execute();
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledTimes(4);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).toHaveBeenCalledTimes(4);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).toHaveBeenCalledWith([]);
+  });
+
+  it("edge: falha do postgres no insert propaga erro sem continuar seed", async () => {
+    const dbError = new Error("connection lost");
+
+    vi.mocked(movieQuerySuggestionRepository.count)
+      .mockResolvedValueOnce(37)
+      .mockResolvedValueOnce(62);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch).mockResolvedValue(
+      Array.from({ length: 25 }, (_, index) => `Batch ${index}`),
+    );
+    vi.mocked(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).mockRejectedValue(dbError);
+
+    await expect(useCase.execute()).rejects.toThrow("connection lost");
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledTimes(1);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("lote com duplicatas parciais não reexecuta o batch", async () => {

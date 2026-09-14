@@ -12,14 +12,23 @@ export const SingleQueryExampleSchema = z.object({
 });
 
 export class MovieQueryExamplesSchemaFactory {
-  static create(count: number) {
+  static createExact(count: number) {
     return z.object({
       queryExamples: z.array(SingleQueryExampleSchema).length(count),
+    });
+  }
+
+  static createUpTo(count: number) {
+    return z.object({
+      queryExamples: z
+        .array(SingleQueryExampleSchema)
+        .min(1)
+        .max(count),
     });
   }
 }
 
 export const MovieQueryExamplesSchema =
-  MovieQueryExamplesSchemaFactory.create(MOVIE_QUERY_EXAMPLES_COUNT);
+  MovieQueryExamplesSchemaFactory.createExact(MOVIE_QUERY_EXAMPLES_COUNT);
 
 export type MovieQueryExamplesEntity = z.infer<typeof MovieQueryExamplesSchema>;

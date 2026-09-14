@@ -10,6 +10,12 @@ export class SeedMovieQuerySuggestionsUseCase {
   ) {}
 
   async execute(): Promise<void> {
+    await this.movieQuerySuggestionRepository.withSeedLock(async () => {
+      await this.runSeed();
+    });
+  }
+
+  private async runSeed(): Promise<void> {
     const poolSize = MovieQuerySuggestionPoolConstants.POOL_SIZE;
     const poolCountBefore = await this.movieQuerySuggestionRepository.count();
 
