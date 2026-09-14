@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MOVIE_QUERY_EXAMPLES_COUNT,
   MovieQueryExamplesSchema,
+  MovieQueryExamplesSchemaFactory,
 } from "../movie-query-examples.entity";
 
 class MovieQueryExamplesSchemaFixtures {
@@ -23,6 +24,19 @@ describe("MovieQueryExamplesSchema", () => {
     );
 
     expect(MOVIE_QUERY_EXAMPLES_COUNT).toBe(3);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("factory aceita count variável para seed (25 itens)", () => {
+    const batchSchema = MovieQueryExamplesSchemaFactory.create(25);
+    const batchExamples = {
+      queryExamples: Array.from({ length: 25 }, (_, index) => ({
+        queryExample: `Suggestion ${index + 1}`,
+      })),
+    };
+
+    const parsed = batchSchema.safeParse(batchExamples);
+
     expect(parsed.success).toBe(true);
   });
 

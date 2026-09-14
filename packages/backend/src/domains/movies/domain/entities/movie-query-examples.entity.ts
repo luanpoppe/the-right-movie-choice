@@ -11,10 +11,15 @@ export const SingleQueryExampleSchema = z.object({
     ),
 });
 
-export const MovieQueryExamplesSchema = z.object({
-  queryExamples: z
-    .array(SingleQueryExampleSchema)
-    .length(MOVIE_QUERY_EXAMPLES_COUNT),
-});
+export class MovieQueryExamplesSchemaFactory {
+  static create(count: number) {
+    return z.object({
+      queryExamples: z.array(SingleQueryExampleSchema).length(count),
+    });
+  }
+}
+
+export const MovieQueryExamplesSchema =
+  MovieQueryExamplesSchemaFactory.create(MOVIE_QUERY_EXAMPLES_COUNT);
 
 export type MovieQueryExamplesEntity = z.infer<typeof MovieQueryExamplesSchema>;
