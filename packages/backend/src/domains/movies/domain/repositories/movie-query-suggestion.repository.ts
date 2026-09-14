@@ -4,4 +4,8 @@ export interface IMovieQuerySuggestionRepository {
   listTexts(): Promise<string[]>;
 
   insertManySkipDuplicates(texts: string[]): Promise<number>;
+
+  pickRandomTexts(limit: number): Promise<string[]>;
+
+  withSeedLock<T>(operation: () => Promise<T>): Promise<T>;
 }
