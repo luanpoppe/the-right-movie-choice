@@ -43,9 +43,22 @@ export class RotateMovieQuerySuggestionsUseCase {
     });
 
     const batchSize = MovieQuerySuggestionPoolConstants.ROTATION_BATCH_SIZE;
-    const existingTexts =
-      await this.movieQuerySuggestionRepository.listTexts();
+    const existingTexts = await this.movieQuerySuggestionRepository.listTexts();
     const texts = await this.generateBatchWithRetry(batchSize, existingTexts);
+
+    const hasIncompleteRotationBatch = texts.length !== batchSize;
+    if (hasIncompleteRotationBatch) {
+      Logger.error(
+        "Movie query suggestion rotation aborted — incomplete AI batch",
+        {
+          expected: batchSize,
+          received: texts.length,
+        },
+      );
+      throw new Error(
+        `Pool rotation aborted: expected ${batchSize} texts from AI, got ${texts.length}`,
+      );
+    }
 
     await this.movieQuerySuggestionRepository.rotatePoolAtomically(texts);
 
@@ -68,9 +81,11 @@ export class RotateMovieQuerySuggestionsUseCase {
       missingCount,
     });
 
-    const existingTexts =
-      await this.movieQuerySuggestionRepository.listTexts();
-    const texts = await this.generateBatchWithRetry(missingCount, existingTexts);
+    const existingTexts = await this.movieQuerySuggestionRepository.listTexts();
+    const texts = await this.generateBatchWithRetry(
+      missingCount,
+      existingTexts,
+    );
 
     const insertedCount =
       await this.movieQuerySuggestionRepository.insertManySkipDuplicates(texts);

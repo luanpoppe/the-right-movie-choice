@@ -76,14 +76,11 @@ export class PrismaMovieQuerySuggestionRepository
   async withSeedLock<T>(operation: () => Promise<T>): Promise<T> {
     const lockKey = MovieQuerySuggestionPoolConstants.SEED_ADVISORY_LOCK_KEY;
 
-    await prisma.$executeRawUnsafe(`SELECT pg_advisory_lock(${lockKey})`);
-
-    try {
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
       const result = await operation();
       return result;
-    } finally {
-      await prisma.$executeRawUnsafe(`SELECT pg_advisory_unlock(${lockKey})`);
-    }
+    });
   }
 
   async rotatePoolAtomically(texts: string[]): Promise<void> {
