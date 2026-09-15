@@ -121,6 +121,26 @@ describe("PoolFirstMovieQueryExamplesProvider", () => {
       expect(infoContext.poolCount).toBe(0);
     });
 
+    it("count=1 → delega IA (pool parcial ignorado)", async () => {
+      const aiEntity = MovieQueryExamplesFixtures.validEntity();
+      count.mockResolvedValue(1);
+      getQueryExamplesFromAi.mockResolvedValue(aiEntity);
+
+      const result = await provider.getQueryExamples();
+
+      expect(result).toEqual(aiEntity);
+      expect(getQueryExamplesFromAi).toHaveBeenCalledOnce();
+      expect(pickRandomTexts).not.toHaveBeenCalled();
+      expect(Logger.info).toHaveBeenCalled();
+      const infoCalls = vi.mocked(Logger.info).mock.calls;
+      const infoContext = VitestMockCallUtils.nthArg<Record<string, unknown>>(
+        infoCalls,
+        1,
+      );
+      expect(infoContext.fallbackReason).toBe("insufficient_pool");
+      expect(infoContext.poolCount).toBe(1);
+    });
+
     it("count=2 → delega IA (pool parcial ignorado)", async () => {
       const aiEntity = MovieQueryExamplesFixtures.validEntity();
       count.mockResolvedValue(2);
@@ -139,6 +159,60 @@ describe("PoolFirstMovieQueryExamplesProvider", () => {
       );
       expect(infoContext.fallbackReason).toBe("insufficient_pool");
       expect(infoContext.poolCount).toBe(2);
+    });
+
+    it("count lança erro de postgres → delega IA", async () => {
+      const aiEntity = MovieQueryExamplesFixtures.validEntity();
+      count.mockRejectedValue(new Error("connection refused"));
+      getQueryExamplesFromAi.mockResolvedValue(aiEntity);
+
+      const result = await provider.getQueryExamples();
+
+      expect(result).toEqual(aiEntity);
+      expect(getQueryExamplesFromAi).toHaveBeenCalledOnce();
+      expect(pickRandomTexts).not.toHaveBeenCalled();
+      expect(Logger.info).toHaveBeenCalled();
+      const infoCalls = vi.mocked(Logger.info).mock.calls;
+      const infoContext = VitestMockCallUtils.nthArg<Record<string, unknown>>(
+        infoCalls,
+        1,
+      );
+      expect(infoContext.fallbackReason).toBe("database_error");
+      expect(infoContext.error).toBe("connection refused");
+    });
+
+    it("REQ-4: textos retornados do pool são distintos entre si", async () => {
+      const poolTexts = ["Alpha", "Beta", "Gamma"];
+      count.mockResolvedValue(5);
+      pickRandomTexts.mockResolvedValue(poolTexts);
+
+      const result = await provider.getQueryExamples();
+      const texts = result.queryExamples.map((item) => item.queryExample);
+      const uniqueTexts = new Set(texts);
+
+      expect(texts).toHaveLength(MOVIE_QUERY_EXAMPLES_COUNT);
+      expect(uniqueTexts.size).toBe(MOVIE_QUERY_EXAMPLES_COUNT);
+      expect(getQueryExamplesFromAi).not.toHaveBeenCalled();
+    });
+
+    it("count=5 mas pickRandom retorna menos de 3 textos → delega IA", async () => {
+      const aiEntity = MovieQueryExamplesFixtures.validEntity();
+      count.mockResolvedValue(5);
+      pickRandomTexts.mockResolvedValue(["Only", "Two"]);
+      getQueryExamplesFromAi.mockResolvedValue(aiEntity);
+
+      const result = await provider.getQueryExamples();
+
+      expect(result).toEqual(aiEntity);
+      expect(getQueryExamplesFromAi).toHaveBeenCalledOnce();
+      expect(Logger.info).toHaveBeenCalled();
+      const infoCalls = vi.mocked(Logger.info).mock.calls;
+      const infoContext = VitestMockCallUtils.nthArg<Record<string, unknown>>(
+        infoCalls,
+        1,
+      );
+      expect(infoContext.fallbackReason).toBe("invalid_pool_response");
+      expect(infoContext.returnedCount).toBe(2);
     });
 
     it("count=5 mas pickRandom lança erro → delega IA", async () => {
@@ -172,6 +246,29 @@ describe("PoolFirstMovieQueryExamplesProvider", () => {
       expect(result).toEqual(expectedEntity);
       expect(pickRandomTexts).toHaveBeenCalledWith(MOVIE_QUERY_EXAMPLES_COUNT);
       expect(getQueryExamplesFromAi).not.toHaveBeenCalled();
+    });
+
+    it("edge: leituras concorrentes podem retornar conjuntos diferentes do pool", async () => {
+      const firstTexts = ["A", "B", "C"];
+      const secondTexts = ["D", "E", "F"];
+      count.mockResolvedValue(10);
+      pickRandomTexts
+        .mockResolvedValueOnce(firstTexts)
+        .mockResolvedValueOnce(secondTexts);
+
+      const firstPromise = provider.getQueryExamples();
+      const secondPromise = provider.getQueryExamples();
+      const results = await Promise.all([firstPromise, secondPromise]);
+
+      expect(results[0]).toEqual(
+        MovieQueryExamplesFixtures.entityFromTexts(firstTexts),
+      );
+      expect(results[1]).toEqual(
+        MovieQueryExamplesFixtures.entityFromTexts(secondTexts),
+      );
+      expect(getQueryExamplesFromAi).not.toHaveBeenCalled();
+      expect(count).toHaveBeenCalledTimes(2);
+      expect(pickRandomTexts).toHaveBeenCalledTimes(2);
     });
   });
 });

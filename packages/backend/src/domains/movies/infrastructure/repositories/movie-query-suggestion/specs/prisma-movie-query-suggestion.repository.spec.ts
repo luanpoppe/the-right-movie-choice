@@ -135,6 +135,23 @@ describe("PrismaMovieQuerySuggestionRepository", () => {
       expect(prisma.$queryRaw).toHaveBeenCalledOnce();
     });
 
+    it("REQ-1: preserva casing original dos textos do banco", async () => {
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([
+        { text: "Sci-Fi MOVIES from the 90s" },
+        { text: "aCtIoN movies with a Twist" },
+        { text: "horror Films Set In Space" },
+      ]);
+
+      const texts = await repository.pickRandomTexts(3);
+
+      expect(texts).toEqual([
+        "Sci-Fi MOVIES from the 90s",
+        "aCtIoN movies with a Twist",
+        "horror Films Set In Space",
+      ]);
+      expect(prisma.$queryRaw).toHaveBeenCalledOnce();
+    });
+
     it("retorna array vazio sem query quando limit é inválido", async () => {
       const textsZero = await repository.pickRandomTexts(0);
       const textsNegative = await repository.pickRandomTexts(-3);
