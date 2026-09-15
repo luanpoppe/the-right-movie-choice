@@ -1,27 +1,29 @@
 # Pool persistido de sugestões de busca
 
-> Atualizado em 2026-09-14 · fontes: `MovieQuerySuggestion` (Prisma), `SeedMovieQuerySuggestionsUseCase`, `pnpm seed:query-suggestions`
+> Atualizado em 2026-09-14 · fontes: `MovieQuerySuggestion` (Prisma), `SeedMovieQuerySuggestionsUseCase`, `PoolFirstMovieQueryExamplesProvider`, `GET /movie/queries`
 
 ## O que é
 
-Pool fixo de até 100 textos de sugestão de busca para a landing, persistidos no Postgres. O seed inicial popula o pool via IA em lotes de 25 (máx. 4 chamadas por execução). Esta feature cobre só persistência + seed — a leitura na API e a rotação semanal vêm nas features seguintes.
+Pool fixo de até 100 textos de sugestão de busca para a landing, persistidos no Postgres. O seed inicial popula o pool via IA em lotes de 25 (máx. 4 chamadas por execução). `GET /movie/queries` lê 3 sugestões aleatórias do pool quando há pelo menos 3 itens; caso contrário, ou em erro de Postgres, cai no provider IA existente. Rotação semanal (+5/−5) vem na feature `pool-weekly-rotation`.
 
 ## Como funciona
 
 1. **Schema** — tabela `MovieQuerySuggestion`: `text` (casing original após trim), `textNormalized` (trim + lowercase, UNIQUE), `createdAt`.
-2. **Repositório** — `IMovieQuerySuggestionRepository`: `count`, `listTexts`, `insertManySkipDuplicates` (Prisma `createMany` + `skipDuplicates`).
-3. **Seed IA** — `SeedMovieQuerySuggestionsUseCase` orquestra lotes via `IMovieQuerySuggestionBatchProvider` (`AiMovieQuerySuggestionBatchProvider`). Prompt inclui todos os textos existentes; retry 3× por lote; aceita lote parcial após insert.
-4. **CLI** — `pnpm seed:query-suggestions` (script `src/scripts/seed-query-suggestions.ts`). `db:migrate` encadeia o seed ao final (`prisma migrate dev && pnpm seed:query-suggestions`).
-5. **Constantes** — `MovieQuerySuggestionPoolConstants`: `POOL_SIZE=100`, `SEED_BATCH_SIZE=25`, `SEED_MAX_CALLS_PER_RUN=4`, `SEED_IA_MAX_RETRIES=3`.
+2. **Repositório** — `IMovieQuerySuggestionRepository`: `count`, `listTexts`, `insertManySkipDuplicates`, `pickRandomTexts(limit)` (Prisma `$queryRaw` com `ORDER BY RANDOM() LIMIT n`, retorna coluna `text`).
+3. **Seed IA** — `SeedMovieQuerySuggestionsUseCase` orquestra lotes via `IMovieQuerySuggestionBatchProvider`. CLI `pnpm seed:query-suggestions`; `db:migrate` encadeia o seed.
+4. **Leitura na API** — `MakeGetMoviesQueryExamplesUseCaseFactory` monta `PoolFirstMovieQueryExamplesProvider(repository, AiMoviesQueryExamplesProvider)`. Se `count >= 3`, `pickRandomTexts(3)` e mapeia para `{ queryExamples: [{ queryExample }] }`. Se `count < 3` ou erro de banco, fallback IA integral (ignora pool parcial) com `Logger.info` (`insufficient_pool` ou `database_error`).
+5. **Constantes** — `MovieQuerySuggestionPoolConstants`: `POOL_SIZE=100`, `SEED_BATCH_SIZE=25`, `SEED_MAX_CALLS_PER_RUN=4`, `SEED_IA_MAX_RETRIES=3`; `MOVIE_QUERY_EXAMPLES_COUNT=3` na entity.
 
 ## Decisões e porquês
 
 - **`text` + `textNormalized` separados** — exibição preserva casing; dedup só em lowercase normalizado. (origem: spec pool-persistence-seed, 2026-09-14)
-- **Porta `IMovieQuerySuggestionBatchProvider` em `domain/providers/`** — contrato de lote IA separado do use case, implementado pelo adapter infra. (origem: revisão F1.C4, 2026-09-14)
+- **Pool parcial (<3) ignora banco** — não mistura 1–2 itens do pool com IA; cai no fluxo IA inteiro como pool vazio. (origem: spec pool-read-api, 2026-09-14)
+- **Fallback por erro Postgres** — `count()` ou `pickRandomTexts` no `try/catch` delegam ao provider IA; log `database_error` em nível info. (origem: spec pool-read-api, 2026-09-14)
+- **Contrato HTTP inalterado** — `{ queries: [{ queryExample }] }` com exatamente 3 itens; controller e Zod do SPA não mudam. (origem: plan query-suggestions-pool)
 - **Seed idempotente, não destrutivo** — completa pool parcial sem apagar existentes; pool cheio encerra sem IA. (origem: plan query-suggestions-pool)
-- **Provider IA one-shot** — `systemPrompt` + `messages: []`, paridade com landing. (origem: F1.C3)
 
 ## Notas
 
-- Pool vazio ainda não é tratado na API — feature `pool-read-api` fará leitura aleatória + fallback IA.
-- Concorrência entre dois seeds simultâneos: UNIQUE evita duplicata de texto, mas não garante teto de 100 linhas (edge case documentado na spec).
+- Caminho pool não valida entity com Zod antes de retornar — confia no repositório retornar exatamente 3 textos; edge TOCTOU improvável mas sem fallback automático se vier menos (achado code review A1).
+- Concorrência entre dois seeds simultâneos: UNIQUE evita duplicata de texto, mas não garante teto de 100 linhas.
+- Duas requisições simultâneas com pool ≥ 3 podem sortear conjuntos diferentes — sem lock de leitura.
