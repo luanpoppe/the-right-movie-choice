@@ -191,6 +191,12 @@ describe("PrismaMovieQuerySuggestionRepository", () => {
 
       expect(result).toBe(operationResult);
       expect(prisma.$transaction).toHaveBeenCalledOnce();
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        {
+          timeout: MovieQuerySuggestionPoolConstants.SEED_LOCK_TRANSACTION_TIMEOUT_MS,
+        },
+      );
       expect(txExecuteRawUnsafe).toHaveBeenCalledWith(
         "SELECT pg_advisory_xact_lock(847291034)",
       );

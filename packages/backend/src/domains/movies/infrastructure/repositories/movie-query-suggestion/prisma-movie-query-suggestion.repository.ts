@@ -75,12 +75,17 @@ export class PrismaMovieQuerySuggestionRepository
 
   async withSeedLock<T>(operation: () => Promise<T>): Promise<T> {
     const lockKey = MovieQuerySuggestionPoolConstants.SEED_ADVISORY_LOCK_KEY;
+    const transactionTimeoutMs =
+      MovieQuerySuggestionPoolConstants.SEED_LOCK_TRANSACTION_TIMEOUT_MS;
 
-    return prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
-      const result = await operation();
-      return result;
-    });
+    return prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
+        const result = await operation();
+        return result;
+      },
+      { timeout: transactionTimeoutMs },
+    );
   }
 
   async rotatePoolAtomically(texts: string[]): Promise<void> {

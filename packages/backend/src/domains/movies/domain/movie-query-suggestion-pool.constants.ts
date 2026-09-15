@@ -19,4 +19,8 @@ export class MovieQuerySuggestionPoolConstants {
 
   // Postgres advisory lock key — serializes concurrent seed runs.
   static readonly SEED_ADVISORY_LOCK_KEY = 847291034;
+
+  // Interactive transaction timeout for withSeedLock — seed runs up to 4 IA batches
+  // with retries; default Prisma timeout (5s) expires before the operation finishes.
+  static readonly SEED_LOCK_TRANSACTION_TIMEOUT_MS = 5 * 60 * 1000;
 }

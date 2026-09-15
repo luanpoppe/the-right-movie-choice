@@ -28,7 +28,7 @@ Pool de sugestões de busca para a landing, persistido no Postgres (alvo 100 ite
 - **Cron só em prod** — `NODE_ENV=prod` no scheduler e no `app.ts`; dev/test não registram job. (origem: spec pool-weekly-rotation)
 - **`AiConfigBuilder`** — config OpenRouter/Gemini compartilhada entre factories que instanciam `AI`. (origem: refactor F3.C3, 2026-09-14)
 - **Guard de lote IA na rotação** — use case rejeita `texts.length !== ROTATION_BATCH_SIZE` antes de `rotatePoolAtomically`; top-up continua aceitando lote parcial. (origem: code review A1, fechamento F3, 2026-09-14)
-- **`withSeedLock` transacional** — `prisma.$transaction` + `pg_advisory_xact_lock`; liberação automática no commit/rollback, sem unlock manual em outra conexão. (origem: code review A2, fechamento F3, 2026-09-14)
+- **`withSeedLock` transacional** — `prisma.$transaction` + `pg_advisory_xact_lock` (timeout 5 min, não o default 5s do Prisma); liberação automática no commit/rollback, sem unlock manual em outra conexão. (origem: code review A2, fechamento F3, 2026-09-14)
 
 ## Notas
 
