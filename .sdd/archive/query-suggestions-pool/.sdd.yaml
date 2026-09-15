@@ -1,6 +1,8 @@
 id: query-suggestions-pool
 title: Pool persistido de sugestões de busca na landing
 created: 2026-09-14
+state: archived
+archived: 2026-09-14
 format: both
 lang: pt-BR
 chunk_size: small
