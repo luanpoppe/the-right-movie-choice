@@ -101,6 +101,54 @@ describe("RotateMovieQuerySuggestionsUseCase", () => {
     );
   });
 
+  it("REQ-2: top-up parcial (97→99) pede 3 à IA e não rotaciona", async () => {
+    const existingTexts = Array.from({ length: 97 }, (_, index) => `Existing ${index}`);
+    const topUpTexts = ["New 1", "New 2", "New 3"];
+
+    vi.mocked(movieQuerySuggestionRepository.count)
+      .mockResolvedValueOnce(97)
+      .mockResolvedValueOnce(99)
+      .mockResolvedValueOnce(99);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue(
+      existingTexts,
+    );
+    vi.mocked(batchProvider.generateBatch).mockResolvedValue(topUpTexts);
+    vi.mocked(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).mockResolvedValue(2);
+
+    await useCase.execute();
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledWith(3, existingTexts);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).toHaveBeenCalledWith(topUpTexts);
+    expect(movieQuerySuggestionRepository.rotatePoolAtomically).not.toHaveBeenCalled();
+    expect(Logger.info).toHaveBeenCalledWith(
+      "Movie query suggestion pool still below minimum size — rotation skipped",
+      expect.objectContaining({ poolCount: 99 }),
+    );
+  });
+
+  it("REQ-6: falha da IA no top-up não insere nem rotaciona", async () => {
+    const batchError = new Error("IA timeout");
+
+    vi.mocked(movieQuerySuggestionRepository.count).mockResolvedValue(99);
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch)
+      .mockRejectedValueOnce(batchError)
+      .mockRejectedValueOnce(batchError)
+      .mockRejectedValueOnce(batchError);
+
+    await expect(useCase.execute()).rejects.toThrow("IA timeout");
+
+    expect(batchProvider.generateBatch).toHaveBeenCalledTimes(3);
+    expect(
+      movieQuerySuggestionRepository.insertManySkipDuplicates,
+    ).not.toHaveBeenCalled();
+    expect(movieQuerySuggestionRepository.rotatePoolAtomically).not.toHaveBeenCalled();
+  });
+
   it("pool com 101 sugestões também rotaciona (+5/−5)", async () => {
     const existingTexts = Array.from({ length: 101 }, (_, index) => `Existing ${index}`);
     const generatedTexts = Array.from(
@@ -190,6 +238,28 @@ describe("RotateMovieQuerySuggestionsUseCase", () => {
     expect(Logger.error).toHaveBeenCalledWith(
       "Movie query suggestion rotation batch failed after all attempts",
       expect.objectContaining({ attempt: 3, maxAttempts: 3 }),
+    );
+  });
+
+  it("REQ-3: lote IA com menos de 5 textos aborta antes de rotatePoolAtomically", async () => {
+    vi.mocked(movieQuerySuggestionRepository.count).mockResolvedValue(
+      MovieQuerySuggestionPoolConstants.POOL_SIZE,
+    );
+    vi.mocked(movieQuerySuggestionRepository.listTexts).mockResolvedValue([]);
+    vi.mocked(batchProvider.generateBatch).mockResolvedValue([
+      "Suggestion one",
+      "Suggestion two",
+      "Suggestion three",
+    ]);
+
+    await expect(useCase.execute()).rejects.toThrow(
+      "Pool rotation aborted: expected 5 texts from IA, got 3",
+    );
+
+    expect(movieQuerySuggestionRepository.rotatePoolAtomically).not.toHaveBeenCalled();
+    expect(Logger.error).toHaveBeenCalledWith(
+      "Movie query suggestion rotation aborted — incomplete IA batch",
+      expect.objectContaining({ expected: 5, received: 3 }),
     );
   });
 

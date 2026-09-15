@@ -71,6 +71,30 @@ describe("MovieQuerySuggestionPoolRotationScheduler", () => {
     expect(scheduleMock).not.toHaveBeenCalled();
   });
 
+  it("não agenda o cron quando NODE_ENV é test", () => {
+    envState.NODE_ENV = "test";
+
+    const result = MovieQuerySuggestionPoolRotationScheduler.start();
+
+    expect(result).toBeNull();
+    expect(scheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("retorna null e loga warn quando cron.schedule falha ao registrar", () => {
+    envState.NODE_ENV = "prod";
+    scheduleMock.mockImplementation(() => {
+      throw new Error("invalid cron expression");
+    });
+
+    const result = MovieQuerySuggestionPoolRotationScheduler.start();
+
+    expect(result).toBeNull();
+    expect(Logger.warn).toHaveBeenCalledWith(
+      "Movie query suggestion pool rotation scheduler failed to register, HTTP will continue without weekly rotation",
+      { reason: "invalid cron expression" },
+    );
+  });
+
   it("agenda o cron com expressão e timezone corretos em prod", () => {
     envState.NODE_ENV = "prod";
     const scheduledTask = { stop: vi.fn() };

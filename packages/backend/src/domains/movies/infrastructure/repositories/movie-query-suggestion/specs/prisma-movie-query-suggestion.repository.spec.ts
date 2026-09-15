@@ -175,21 +175,24 @@ describe("PrismaMovieQuerySuggestionRepository", () => {
   });
 
   describe("withSeedLock", () => {
-    it("adquire e libera advisory lock do postgres", async () => {
+    it("adquire advisory lock transacional na mesma sessão do postgres", async () => {
+      const txExecuteRawUnsafe = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+        const transactionClient = {
+          $executeRawUnsafe: txExecuteRawUnsafe,
+        };
+        return callback(transactionClient as never);
+      });
+
       const operationResult = "ok";
       const operation = vi.fn().mockResolvedValue(operationResult);
 
       const result = await repository.withSeedLock(operation);
 
       expect(result).toBe(operationResult);
-      expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2);
-      expect(prisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
-        1,
-        "SELECT pg_advisory_lock(847291034)",
-      );
-      expect(prisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
-        2,
-        "SELECT pg_advisory_unlock(847291034)",
+      expect(prisma.$transaction).toHaveBeenCalledOnce();
+      expect(txExecuteRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(847291034)",
       );
       expect(operation).toHaveBeenCalledOnce();
     });
@@ -327,6 +330,18 @@ describe("PrismaMovieQuerySuggestionRepository", () => {
       await expect(repository.rotatePoolAtomically(rotationTexts)).rejects.toThrow(
         "connection lost",
       );
+    });
+
+    it("edge: falha do postgres no deleteMany dentro da transação propaga erro", async () => {
+      const deleteError = new Error("delete constraint violation");
+      deleteMany.mockRejectedValue(deleteError);
+
+      await expect(repository.rotatePoolAtomically(rotationTexts)).rejects.toThrow(
+        "delete constraint violation",
+      );
+
+      expect(createMany).toHaveBeenCalled();
+      expect(deleteMany).toHaveBeenCalled();
     });
   });
 });
