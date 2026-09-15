@@ -17,7 +17,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  movieEntries UserMovieEntry[]
+  movieEntries      UserMovieEntry[]
+  conversations     UserConversation[]
 }
 
 enum MovieWatchProviderKind {
@@ -106,6 +107,18 @@ model MovieQuerySuggestion {
   createdAt      DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model UserConversation {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId    String    @unique
+  title     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model UserMovieEntry {
