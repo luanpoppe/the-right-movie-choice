@@ -18,4 +18,4 @@ O núcleo do produto: o usuário descreve o que quer assistir em linguagem natur
 - Logs de modelo/`durationMs`/erro nos adapters, sem body de prompt.
 
 ## Notas
-Frontend chama via `MovieRecommendationService` (axios + header `chatId`). CORS libera `chatId` e expõe `X-Guest-Remaining`. `GET /movie/queries` usa o mesmo runtime (`AiMoviesQueryExamplesProvider`).
+Frontend chama via `MovieRecommendationService` (axios + header `chatId`). CORS libera `chatId` e expõe `X-Guest-Remaining`. `GET /movie/queries` usa pool Postgres primeiro (`PoolFirstMovieQueryExamplesProvider`); só cai em `AiMoviesQueryExamplesProvider` no fallback — ver [exemplos-de-queries.md](exemplos-de-queries.md).

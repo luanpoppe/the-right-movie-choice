@@ -7,6 +7,7 @@
 - [Agente e tool TMDB](agente-tool-tmdb.md) — lote de queries, prompt, factory do POST e strip HTTP dos ids.
 - [Cota anônima e Bearer](cota-anonima-e-bearer.md) — 2 POSTs por `guest-id`; JWT ilimitado; `GET /movie/queries` sem cota.
 - [Histórico de chat no Redis](historico-chat-redis.md) — checkpointer da lib (`threadId` = `chatid`), TTL de 20 min.
-- [Exemplos de queries](exemplos-de-queries.md) — `GET /movie/queries` gera exatamente 3 buscas em inglês para a landing (temperature 1.2).
+- [Pool de sugestões de busca](pool-sugestoes-busca.md) — 100 textos no Postgres, seed/rotate, cron semanal em prod.
+- [Exemplos de queries](exemplos-de-queries.md) — `GET /movie/queries` lê 3 aleatórias do pool; fallback IA se insuficiente.
 - [Lookup no catálogo TMDB](lookup-catalogo-tmdb.md) — serviço `MovieCatalogLookupService` sobre `IMovieCatalogProvider`; miss estruturado se o TMDB cair; tool de IA em `MovieCatalogLookupAiTool`.
 - [Pipeline exclude-watched](exclude-watched-pipeline.md) — filtro de assistidos na tool, loop no provider e wiring por request na factory.

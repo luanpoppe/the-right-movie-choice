@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { GetMoviesQueryExamplesUseCase } from "../../../application/use-cases/get-movies-query-examples.use-case";
-import { AiMoviesQueryExamplesProvider } from "../../providers/ai-movies-query-examples.provider";
+import { PoolFirstMovieQueryExamplesProvider } from "../../providers/pool-first-movie-query-examples.provider";
 import { AiModels } from "@/lib/ai/ai-models";
 
 const { envState, aiConstructorCalls } = vi.hoisted(() => ({
@@ -41,16 +41,16 @@ describe("MakeGetMoviesQueryExamplesUseCaseFactory", () => {
     envState.GEMINI_API_KEY = "gemini-key";
   });
 
-  it("cria um único AI e injeta AiMoviesQueryExamplesProvider no use case", () => {
+  it("cria um único AI e injeta PoolFirstMovieQueryExamplesProvider no use case", () => {
     const useCase = MakeGetMoviesQueryExamplesUseCaseFactory.create();
     const provider = (
       useCase as unknown as {
-        movieQueryExampleProvider: AiMoviesQueryExamplesProvider;
+        movieQueryExampleProvider: PoolFirstMovieQueryExamplesProvider;
       }
     ).movieQueryExampleProvider;
 
     expect(useCase).toBeInstanceOf(GetMoviesQueryExamplesUseCase);
-    expect(provider).toBeInstanceOf(AiMoviesQueryExamplesProvider);
+    expect(provider).toBeInstanceOf(PoolFirstMovieQueryExamplesProvider);
     expect(aiConstructorCalls).toHaveLength(1);
   });
 
@@ -140,11 +140,11 @@ describe("MakeGetMoviesQueryExamplesUseCaseFactory", () => {
     expect(factorySource).not.toMatch(/createLookupMoviesTool/);
   });
 
-  it("não injeta tool lookupMovies no provider de query examples", () => {
+  it("não injeta tool lookupMovies no provider pool-first de query examples", () => {
     const useCase = MakeGetMoviesQueryExamplesUseCaseFactory.create();
     const provider = (
       useCase as unknown as {
-        movieQueryExampleProvider: AiMoviesQueryExamplesProvider;
+        movieQueryExampleProvider: PoolFirstMovieQueryExamplesProvider;
       }
     ).movieQueryExampleProvider;
     const providerRecord = provider as unknown as Record<string, unknown>;

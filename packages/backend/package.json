@@ -9,7 +9,8 @@
     "test:tmdb-live": "vitest run --project tmdb-live",
     "test:catalog-lookup-bench": "vitest run --project catalog-lookup-bench",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && pnpm seed:query-suggestions",
+    "seed:query-suggestions": "tsx src/scripts/seed-query-suggestions.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
     "google-auth-library": "10.6.2",
     "ioredis": "5.8.0",
     "jose": "6.2.3",
+    "node-cron": "^4.6.0",
     "pg": "8.21.0",
     "pino": "9.14.0",
     "zod": "4.1.11"

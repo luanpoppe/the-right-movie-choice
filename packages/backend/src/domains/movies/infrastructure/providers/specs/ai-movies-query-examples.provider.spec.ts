@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AI, AIMessages } from "@luanpoppe/ai";
+import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { MovieQueryExamplesEntity, MovieQueryExamplesSchema } from "../../../domain/entities/movie-query-examples.entity";
@@ -71,12 +71,10 @@ describe("AiMoviesQueryExamplesProvider", () => {
   });
 
   describe("getQueryExamples", () => {
-    it("chama callStructuredOutput com PRIMARY, temperature 1.2, mensagem humana e schema", async () => {
+    it("chama callStructuredOutput com PRIMARY, temperature 1.2, systemPrompt e schema", async () => {
       const validEntity = MovieQueryExamplesFixtures.validEntity();
       callStructuredOutput.mockResolvedValue({ response: validEntity });
-      const expectedHumanMessage = AIMessages.human(
-        MovieQueryExamplesPrompts.text(),
-      );
+      const expectedSystemPrompt = MovieQueryExamplesPrompts.text();
 
       const result = await provider.getQueryExamples();
 
@@ -85,7 +83,8 @@ describe("AiMoviesQueryExamplesProvider", () => {
         aiModel: unknown;
         modelConfig: Record<string, unknown>;
         outputSchema: unknown;
-        messages: unknown;
+        systemPrompt: string;
+        messages: unknown[];
       }>(structuredCalls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
       expect(structuredCallArgs.modelConfig).toEqual({
@@ -95,8 +94,8 @@ describe("AiMoviesQueryExamplesProvider", () => {
         MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE,
       );
       expect(structuredCallArgs.outputSchema).toBe(MovieQueryExamplesSchema);
-      expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
-      expect(structuredCallArgs).not.toHaveProperty("systemPrompt");
+      expect(structuredCallArgs.systemPrompt).toBe(expectedSystemPrompt);
+      expect(structuredCallArgs.messages).toEqual([]);
       expect(structuredCallArgs).not.toHaveProperty("threadId");
       expect(structuredCallArgs).not.toHaveProperty("cache");
       expect(structuredCallArgs.modelConfig).not.toHaveProperty("cache");

@@ -144,3 +144,9 @@
   - **Por quê**: o mesmo `instanceof Error` + `String(error)` aparecia em processor, resolver e lookup
   - **Exemplo**: `ErrorUtils.message(error)` no log de falha do `CatalogPersistProcessor`
   - **Registrado em**: 2026-09-05
+
+- Não adicionar JSDoc/comentários explicativos em métodos, interfaces ou classes — só quando o usuário pedir explicitamente.
+  - **Quando**: implementar ou revisar código novo
+  - **Por quê**: nomes e tipos já devem carregar a intenção; comentários de método viram ruído no diff
+  - **Exemplo**: `insertManySkipDuplicates` sem bloco `/** ... */` na porta do repositório
+  - **Registrado em**: 2026-09-14

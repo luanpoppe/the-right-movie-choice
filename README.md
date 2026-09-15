@@ -31,7 +31,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 
 - **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão. Quando o agente resolve o catálogo via **`lookupMovies`**, cada filme pode incluir **`tmdbId`** e **`imdbId`** opcionais para o SPA marcar listas.
 - **Catálogo local (Postgres):** Fichas `Movie` + filhas persistidas via Prisma; lookup **local-first** (Redis → banco → TMDB) no agente e no `GET /debug/tmdb/movies/:id`; persistência assíncrona no miss TMDB via fila **BullMQ** (`catalog-movie-persist`).
-- **Sugestões de busca via IA:** `GET /movie/queries` gera exemplos criativos de prompts para iniciar uma conversa.
+- **Sugestões de busca (pool + IA):** pool de até **100** textos únicos no Postgres (`MovieQuerySuggestion`); `GET /movie/queries` devolve **3 aleatórios** do pool quando há pelo menos 3 itens, com fallback para IA se o pool estiver vazio, inválido ou indisponível. Seed idempotente via `pnpm seed:query-suggestions` (encadeado ao `db:migrate`). Em produção, rotação semanal automática (+5/−5, domingo 03:00 `America/Sao_Paulo`).
 - **Histórico de conversa:** Contexto por sessão no Redis, identificado pelo header `chatid`.
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
@@ -106,7 +106,8 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Testes:** Vitest
 - **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
-- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
+- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
+- **Jobs agendados:** `node-cron` para rotação do pool de sugestões (somente `NODE_ENV=prod`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
 - **HTTP:** `@fastify/cors`
@@ -194,7 +195,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `Movie` e filhas do catálogo).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -221,7 +222,8 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 | Comando | Descrição |
 |---------|-----------|
 | `pnpm db:generate` | Gera o Prisma Client |
-| `pnpm db:migrate` | Aplica migrations em desenvolvimento |
+| `pnpm db:migrate` | Aplica migrations e seed do pool de sugestões (`seed:query-suggestions`) |
+| `pnpm seed:query-suggestions` | Popula o pool até 100 sugestões via IA (idempotente; pula se já cheio) |
 | `pnpm db:studio` | Abre o Prisma Studio |
 | `pnpm test:catalog-lookup-bench` | Benchmark opt-in: batch vs unitário com Postgres + Redis reais |
 | `pnpm test:tmdb-live` | Teste live opt-in contra a API TMDB (fora do `pnpm test` da CI) |
@@ -230,7 +232,7 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variável `userEntryTmdbId` (padrão `27205`) alimenta as rotas `/movie/user-entries/:tmdbId`.
 
-Pastas: **Movies** (recomendação convidado/Bearer), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
 ## Referência da API
 
 `POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries` exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
@@ -287,12 +289,15 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
 
 ### `GET /movie/queries`
 
-- **Autenticação:** não requerida.
-- **Resposta `200`:**
+- **Autenticação:** não requerida; sem cota de convidado.
+- **Comportamento:** com **≥ 3** sugestões no pool Postgres, retorna **3 textos aleatórios** persistidos. Com pool insuficiente, resposta inválida do banco ou erro de leitura, cai no fluxo legado via IA (mesmo contrato HTTP).
+- **Resposta `200`:** sempre exatamente **3** itens em `queries`.
   ```json
   {
     "queries": [
-      { "queryExample": "Um thriller psicológico para assistir sozinho à noite" }
+      { "queryExample": "movies that feel like a cozy rainy day" },
+      { "queryExample": "thrillers that keep you guessing until the end" },
+      { "queryExample": "anime with a strong female lead and no fan service" }
     ]
   }
   ```
@@ -302,7 +307,9 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
 curl http://localhost:3333/movie/queries
 ```
 
-**Respostas:** `200`, `500` (erro interno / schema da IA).
+**Respostas:** `200`, `500` (erro interno / falha também no fallback IA).
+
+**Operação do pool (backend):** seed manual ou pós-migrate (`pnpm seed:query-suggestions`); rotação semanal em produção (+5 novas / −5 mais antigas, com top-up se `count < 100`). Detalhes em `.sdd/context/recomendacoes-filmes/pool-sugestoes-busca.md`.
 
 ### `GET /movie/user-entries`
 
@@ -466,7 +473,7 @@ curl "http://localhost:3333/debug/tmdb/movies/603?language=pt-BR"
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **442** testes cobrindo filmes (recomendação, catálogo, lookup em lote, listas do usuário), auth, users, TMDB e mappers Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **600+** testes cobrindo filmes (recomendação, catálogo, lookup em lote, pool de sugestões, listas do usuário), auth, users, TMDB e mappers Prisma.
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 

@@ -1,0 +1,18 @@
+id: query-suggestions-pool
+title: Pool persistido de sugestões de busca na landing
+created: 2026-09-14
+state: archived
+archived: 2026-09-14
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: pool-persistence-seed
+    title: Persistência e seed do pool
+    summary: Modelo Prisma, repositório e script de seed idempotente (4×25 via IA) para popular o pool de 100 sugestões únicas.
+  - slug: pool-read-api
+    title: Leitura do pool na API
+    summary: GET /movie/queries lê 3 sugestões aleatórias do pool; fallback para IA se o pool estiver vazio.
+  - slug: pool-weekly-rotation
+    title: Rotação semanal do pool
+    summary: Cron in-process semanal gera 5 novas sugestões via IA e remove as 5 mais antigas.

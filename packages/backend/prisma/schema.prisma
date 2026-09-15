@@ -99,6 +99,15 @@ model MovieWatchProvider {
   @@index([movieId])
 }
 
+model MovieQuerySuggestion {
+  id             Int      @id @default(autoincrement())
+  text           String
+  textNormalized String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model UserMovieEntry {
   id          Int       @id @default(autoincrement())
   userId      Int

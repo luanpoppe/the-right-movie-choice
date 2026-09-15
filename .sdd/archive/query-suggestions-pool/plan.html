@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — query-suggestions-pool</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>query-suggestions-pool</strong> / plan</p>
+    <h1>Pool persistido de sugestões de busca na landing</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>query-suggestions-pool</code> · <strong>criada</strong>: 2026-09-14 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-14</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Hoje <code>GET /movie/queries</code> chama a IA em cada visita à landing para gerar 3 chips de sugestão — custo, latência e variabilidade descontrolada. Esta mudança mantém um pool fixo de 100 textos únicos no Postgres, exibe 3 aleatórios por visita e renova o pool semanalmente (5 novos substituem os 5 mais antigos), com seed inicial idempotente via IA.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Pool de 100 itens</strong>: tamanho fixo em constante nomeada (<code>POOL_SIZE = 100</code>). <strong>Por quê</strong>: equilíbrio entre variedade e custo de manutenção. <strong>Alternativa descartada</strong>: pool ilimitado (crescimento sem controle).</li>
+        <li><strong>Rotação semanal +5/−5</strong>: cron in-process (<code>node-cron</code>) remove os 5 registros mais antigos (<code>createdAt</code>) e insere 5 novos. <strong>Por quê</strong>: renovação gradual sem zerar o pool. <strong>Alternativa descartada</strong>: CLI externa apenas (mais ops em deploy).</li>
+        <li><strong>3 chips aleatórios por visita</strong>: contrato HTTP inalterado (<code>queries.length === 3</code>); frontend não muda. <strong>Por quê</strong>: UX atual preservada; ganho é no backend.</li>
+        <li><strong>Seed idempotente em 4 chamadas × 25 itens</strong>: script dedicado (ex. <code>pnpm seed:query-suggestions</code>); pula se o pool já tem 100. <strong>Por quê</strong>: menos round-trips que gerar de 3 em 3. <strong>Alternativa descartada</strong>: migration SQL com textos estáticos.</li>
+        <li><strong>Unicidade</strong>: <code>UNIQUE</code> no texto + prompt informa existentes + retry em colisão. <strong>Por quê</strong>: dedup confiável sem depender só da IA.</li>
+        <li><strong>Fallback IA se pool vazio</strong>: comportamento atual temporário até o seed rodar. <strong>Por quê</strong>: landing não quebra em ambiente novo.</li>
+        <li><strong>Reuso de prompts/schema</strong>: adaptar <code>MovieQueryExamplesPrompts</code> e <code>MovieQueryExamplesSchema</code> para count variável (25 no seed, 5 no cron, 3 no fallback). <strong>Por quê</strong>: consistência de tom e critérios já validados.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>pool-persistence-seed</strong> — Modelo Prisma, repositório e script de seed idempotente (4×25 via IA) para popular o pool de 100 sugestões únicas.</li>
+        <li><strong>pool-read-api</strong> — <code>GET /movie/queries</code> lê 3 sugestões aleatórias do pool; fallback para IA se o pool estiver vazio.</li>
+        <li><strong>pool-weekly-rotation</strong> — Cron in-process semanal: gera 5 novas sugestões via IA e remove as 5 mais antigas.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: tabela + repositório; seed CLI idempotente; leitura aleatória no endpoint existente; job semanal in-process; constantes de tamanho (100/5/3/25); adaptação de prompts/schema para batch variável; logs no fluxo novo.</p>
+      <p><strong>Fora</strong>: mudar quantidade de chips na landing; rastrear exibições por usuário; validar sugestões no TMDB antes de salvar; alterar fluxo de recommendation/chat; mudanças no frontend (<code>InputSuggestions</code>).</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { AI, AIMessages } from "@luanpoppe/ai";
+import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
 import { AiModels } from "@/lib/ai/ai-models";
 import { IMovieQueryExampleProvider } from "../../application/providers/movie-query-example.provider";
@@ -12,9 +12,7 @@ export class AiMoviesQueryExamplesProvider
   constructor(private ai: AI) {}
 
   async getQueryExamples() {
-    const promptText = MovieQueryExamplesPrompts.text();
-    const humanMessage = AIMessages.human(promptText);
-    const messages = [humanMessage];
+    const systemPrompt = MovieQueryExamplesPrompts.text();
     const temperature = MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE;
     const modelConfig = { temperature };
     const startedAtMs = Date.now();
@@ -23,7 +21,8 @@ export class AiMoviesQueryExamplesProvider
       const result = await this.ai.callStructuredOutput({
         aiModel: AiModels.PRIMARY,
         modelConfig,
-        messages,
+        systemPrompt,
+        messages: [],
         outputSchema: MovieQueryExamplesSchema as never,
       });
       const parseResult = MovieQueryExamplesSchema.safeParse(result.response);

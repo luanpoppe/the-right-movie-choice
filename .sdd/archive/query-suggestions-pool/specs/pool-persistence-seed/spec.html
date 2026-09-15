@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: pool-persistence-seed — query-suggestions-pool</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">query-suggestions-pool</a> / specs / <strong>pool-persistence-seed</strong> / spec</p>
+    <h1>Spec: pool-persistence-seed</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>query-suggestions-pool</code></a> · atualizado em 2026-09-14</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Cria a tabela Postgres do pool de sugestões de busca, o repositório Prisma e o seed idempotente que popula até 100 textos via IA (lotes de 25), disparado automaticamente após <code>db:migrate</code> quando o pool estiver incompleto.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Seed automático após migrate</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem menos de 100 registros (incluindo zero)</li>
+        <li><strong>Quando</strong> o desenvolvedor roda <code>pnpm db:migrate</code> no backend</li>
+        <li><strong>Então</strong> o fluxo de migrate termina com sucesso</li>
+        <li><strong>E</strong> o seed de sugestões é executado ao final, sem comando extra</li>
+        <li><strong>E</strong> ao concluir, o pool tem no máximo 100 registros</li>
+      </ul>
+      <h3>REQ-2: Seed idempotente com pool parcial</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool já tem 37 sugestões persistidas</li>
+        <li><strong>Quando</strong> o seed roda (via migrate ou comando manual equivalente)</li>
+        <li><strong>Então</strong> ele calcula quantas faltam para 100</li>
+        <li><strong>E</strong> faz chamadas IA pedindo lotes de até 25 itens, no máximo 4 chamadas por execução</li>
+        <li><strong>E</strong> persiste apenas textos novos após normalização</li>
+        <li><strong>E</strong> não apaga nem sobrescreve os 37 existentes</li>
+      </ul>
+      <h3>REQ-3: Pool cheio não reprocessa</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool já tem exatamente 100 registros</li>
+        <li><strong>Quando</strong> o seed roda</li>
+        <li><strong>Então</strong> ele encerra imediatamente sem chamar IA</li>
+        <li><strong>E</strong> registra log informando que o pool já está completo</li>
+      </ul>
+      <h3>REQ-4: Persistência com casing original</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>&quot;  Sci-Fi movies from the 90s  &quot;</code> (resposta da IA)</li>
+        <li><strong>Saída</strong> coluna <code>text</code> persistida e usada na exibição: <code>&quot;Sci-Fi movies from the 90s&quot;</code> (trim nas pontas, casing preservado)</li>
+      </ul>
+      <h3>REQ-5: Unicidade via coluna normalizada</h3>
+      <ul>
+        <li><strong>Entrada</strong> inserção de <code>&quot;Action movies with a twist&quot;</code> quando já existe <code>textNormalized = &quot;action movies with a twist&quot;</code></li>
+        <li><strong>Saída</strong> o insert é ignorado (skip silencioso, sem erro fatal)</li>
+        <li><strong>E</strong> o contador do pool não incrementa para esse item</li>
+        <li><strong>E</strong> <code>textNormalized</code> é derivado de <code>text</code> com trim + lowercase antes do insert</li>
+      </ul>
+      <h3>REQ-6: Prompt com existentes</h3>
+      <ul>
+        <li><strong>Entrada</strong> pool com 40 textos já salvos; próxima chamada IA do seed pedindo 25 itens</li>
+        <li><strong>Saída</strong> o prompt inclui a lista completa dos 40 valores de <code>text</code> (casing original) para a IA evitar repetição</li>
+        <li><strong>E</strong> a temperatura e o tom seguem <code>MovieQueryExamplesPrompts</code> adaptado para count variável</li>
+      </ul>
+      <h3>REQ-7: Retry de lote IA</h3>
+      <ul>
+        <li><strong>Entrada</strong> chamada IA do seed falha (timeout ou schema inválido)</li>
+        <li><strong>Erro</strong> até 3 tentativas automáticas no mesmo lote</li>
+        <li><strong>E</strong> se a 3ª falhar, os lotes já salvos nesta execução permanecem no banco</li>
+        <li><strong>E</strong> o processo termina com código de erro não-zero e log da falha</li>
+      </ul>
+      <h3>REQ-8: Duplicatas dentro do lote</h3>
+      <ul>
+        <li><strong>Entrada</strong> IA retorna 25 itens, mas 4 são duplicatas entre si ou já existem no pool</li>
+        <li><strong>Saída</strong> as 21 válidas são persistidas</li>
+        <li><strong>E</strong> o lote não é reexecutado por causa das duplicatas (aceita parcial)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Duas execuções simultâneas do seed: <code>UNIQUE</code> no banco evita duplicata  ||  ambas podem chamar IA, mas inserts conflitantes são ignorados</li>
+        <li>IA retorna array vazio ou com menos de 25 itens: salva o que vier de válido  ||  próxima execução do seed continua completando</li>
+        <li>Falha de conexão Postgres durante insert: lote corrente falha  ||  lotes anteriores da mesma execução já commitados permanecem</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Modelo Prisma: <code>packages/backend/prisma/schema.prisma:MovieQuerySuggestion</code></li>
+        <li>Script npm: <code>db:migrate</code> do backend encadeia migrate + seed (<code>pnpm --filter @the-right-movie-choice/backend db:migrate</code>).</li>
+        <li>Comando manual adicional: <code>pnpm seed:query-suggestions</code> no backend, equivalente ao seed do pós-migrate.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

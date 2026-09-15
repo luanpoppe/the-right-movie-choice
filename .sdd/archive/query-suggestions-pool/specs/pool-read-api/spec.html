@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: pool-read-api — query-suggestions-pool</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">query-suggestions-pool</a> / specs / <strong>pool-read-api</strong> / spec</p>
+    <h1>Spec: pool-read-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>query-suggestions-pool</code></a> · atualizado em 2026-09-14</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p><code>GET /movie/queries</code> passa a servir 3 sugestões aleatórias do pool Postgres quando há pelo menos 3 itens persistidos. Com menos de 3 (incluindo zero) ou falha de leitura no banco, cai no comportamento atual via IA — contrato HTTP e frontend permanecem iguais.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Leitura aleatória com pool suficiente</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem 47 sugestões persistidas</li>
+        <li><strong>Quando</strong> um visitante abre a landing e o frontend chama <code>GET /movie/queries</code></li>
+        <li><strong>Então</strong> a resposta HTTP 200 traz exatamente 3 itens em <code>queries</code></li>
+        <li><strong>E</strong> cada <code>queryExample</code> vem da coluna <code>text</code> do banco (casing original)</li>
+        <li><strong>E</strong> os 3 textos são distintos entre si</li>
+        <li><strong>E</strong> nenhuma chamada à IA é feita nesse caminho</li>
+      </ul>
+      <h3>REQ-2: Pool vazio usa IA</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem 0 sugestões (ambiente novo, seed ainda não rodou)</li>
+        <li><strong>Quando</strong> o frontend chama <code>GET /movie/queries</code></li>
+        <li><strong>Então</strong> o backend gera 3 exemplos via IA com o mesmo provider/prompt/schema de hoje</li>
+        <li><strong>E</strong> a resposta HTTP 200 mantém <code>queries.length === 3</code></li>
+        <li><strong>E</strong> registra log informando fallback por pool insuficiente</li>
+      </ul>
+      <h3>REQ-3: Pool parcial ignora o banco e usa IA</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem 1 ou 2 sugestões (seed incompleto)</li>
+        <li><strong>Quando</strong> o frontend chama <code>GET /movie/queries</code></li>
+        <li><strong>Então</strong> o backend ignora os itens parciais do pool</li>
+        <li><strong>E</strong> gera 3 exemplos via IA (mesmo fluxo do REQ-2)</li>
+        <li><strong>E</strong> a resposta HTTP 200 mantém <code>queries.length === 3</code></li>
+      </ul>
+      <h3>REQ-4: Seleção sem repetição no pool</h3>
+      <ul>
+        <li><strong>Entrada</strong> pool com textos <code>[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;]</code>; pedido de 3 sugestões</li>
+        <li><strong>Saída</strong> array de 3 strings, cada uma pertencente ao conjunto de entrada</li>
+        <li><strong>E</strong> nenhum texto aparece mais de uma vez na mesma resposta</li>
+      </ul>
+      <h3>REQ-5: Contrato HTTP inalterado</h3>
+      <ul>
+        <li><strong>Entrada</strong> resposta bem-sucedida de <code>GET /movie/queries</code></li>
+        <li><strong>Saída</strong> body <code>{ queries: [{ queryExample: string }, ...] }</code> com exatamente 3 elementos</li>
+        <li><strong>E</strong> formato validado pelo schema Zod já usado no controller e no SPA</li>
+      </ul>
+      <h3>REQ-6: Falha de Postgres tenta IA</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>count()</code> ou leitura aleatória do pool lança erro de conexão/timeout Postgres</li>
+        <li><strong>Saída</strong> o backend tenta o provider IA como plano B</li>
+        <li><strong>E</strong> se a IA responder com schema válido, retorna HTTP 200 com 3 itens</li>
+        <li><strong>Erro</strong> se a IA também falhar → HTTP 500 com o mesmo envelope de erro de hoje</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Duas requisições simultâneas com pool ≥ 3: cada uma pode sortear conjuntos diferentes  ||  sem lock de leitura</li>
+        <li>Pool com exatamente 3 itens: devolve os 3 (ordem aleatória), sem IA</li>
+        <li>IA no fallback retorna schema inválido: HTTP 500 (<code>WrongMovieSchemaFromLlmException</code> ou erro genérico), como hoje</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>GET /movie/queries</code> — body validado por <code>packages/backend/src/domains/movies/infrastructure/http/dto/movies-query-examples.dto.ts:MoviesQueryExamplesResponseDTOSchema</code></li>
+        <li>OpenAPI: <code>packages/backend/src/domains/movies/infrastructure/http/docs/movies-query-examples.docs.ts:MoviesQueryExamplesDocs</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
