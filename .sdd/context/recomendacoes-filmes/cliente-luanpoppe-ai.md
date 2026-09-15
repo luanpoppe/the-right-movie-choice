@@ -7,7 +7,7 @@ Dependência `@luanpoppe/ai` no backend + slugs de modelo. Não há classe wrapp
 ## Como funciona
 - Env: `OPENROUTER_API_KEY` obrigatória fora de `test`; `GEMINI_API_KEY` opcional (`""` default).
 - `AiModels.PRIMARY` / `GEMINI_FALLBACK` para `aiModel` e lista de fallback.
-- Providers de filme: recommendation e query examples fazem `new AI()` nas respectivas factories. Só recommendation passa `memory` Redis.
+- Providers de filme: recommendation e fallback de query examples (`AiMoviesQueryExamplesProvider`) fazem `new AI()` nas respectivas factories. `GET /movie/queries` lê o pool Postgres primeiro (`PoolFirstMovieQueryExamplesProvider`); só chama IA se pool insuficiente ou erro. Só recommendation passa `memory` Redis.
 
 ## Decisões e porquês
 - Sem singleton — a lib já é facade; wrapper gerou atrito de tipos.

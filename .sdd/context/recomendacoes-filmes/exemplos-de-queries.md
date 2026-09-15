@@ -1,20 +1,20 @@
 # Exemplos de queries
-> Atualizado em 2026-09-05 · fontes: `GetMoviesQueryExamplesUseCase`, `AiMoviesQueryExamplesProvider`, `MovieQueryExamplesPrompts`, `MovieQueryExamplesSchema`, `movies-query-examples.controller.ts`
+> Atualizado em 2026-09-14 · fontes: `GetMoviesQueryExamplesUseCase`, `PoolFirstMovieQueryExamplesProvider`, `AiMoviesQueryExamplesProvider`, `movies-query-examples.controller.ts`
 
 ## O que é
-Endpoint que pede à IA uma lista criativa de prompts de busca, usada na landing para o usuário começar a conversa sem inventar o texto do zero.
+Endpoint que devolve **3** prompts de busca para a landing. A fonte preferencial é o pool persistido no Postgres; se o pool não tiver dados suficientes ou falhar, cai na geração via IA.
 
 ## Como funciona
-- `GET /movie/queries` → `moviesQueryExamplesController` → `GetMoviesQueryExamplesUseCase` → `AiMoviesQueryExamplesProvider`.
-- Factory: `MakeGetMoviesQueryExamplesUseCaseFactory` faz um `new AI(config)` por request (`buildAiConfig` privado, duplicado da recommendation, sem Redis).
-- Provider: uma `callStructuredOutput` em `AiModels.PRIMARY`, temperature constante `1.2`, prompt humano (não system). Schema `MovieQueryExamplesSchema`: exatamente 3 itens (`MOVIE_QUERY_EXAMPLES_COUNT`); o DTO HTTP `queries` tem o mesmo length. Falha → `WrongMovieSchemaFromLlmException`.
-- Prompt: três buscas curtas em inglês, variadas, para a landing; só filme/série/anime no sentido de “algo para assistir”.
+- `GET /movie/queries` → `moviesQueryExamplesController` → `GetMoviesQueryExamplesUseCase` → `PoolFirstMovieQueryExamplesProvider`.
+- Factory: `MakeGetMoviesQueryExamplesUseCaseFactory` monta `PoolFirstMovieQueryExamplesProvider(repository, AiMoviesQueryExamplesProvider)` com `AiConfigBuilder` compartilhado.
+- **Pool-first:** se `count >= 3`, `pickRandomTexts(3)` e mapeia para `{ queryExamples: [{ queryExample }] }`. Resposta validada com `MovieQueryExamplesSchema`; inválida → fallback IA (`invalid_pool_response`).
+- **Fallback IA:** pool com menos de 3 itens, erro Postgres ou parse inválido → `AiMoviesQueryExamplesProvider` (uma `callStructuredOutput`, temperature `1.2`, exatamente 3 itens). Falha → `WrongMovieSchemaFromLlmException`.
 - No frontend: `MoviesQueryExamplesService` alimenta `InputSuggestions` na welcome.
 
 ## Decisões e porquês
-- Endpoint separado da recomendação — geração de exemplos não precisa de `chatid` nem grava histórico.
-- Mesmo runtime `@luanpoppe/ai` da recommendation; `buildAiConfig` não foi extraído para util compartilhado nesta feature.
-- Temperature `1.2` e `.length(3)` no Zod — o prompt pede 3 chips; o parse rejeita outro tamanho. (origem: ajuste de prompt, 2026-09-05)
+- Endpoint separado da recomendação — não precisa de `chatid` nem grava histórico.
+- Pool parcial (< 3) não mistura com IA — cai no fluxo IA inteiro como pool vazio. (origem: spec pool-read-api)
+- Contrato HTTP inalterado — sempre 3 `queryExample` no JSON. (origem: query-suggestions-pool)
 
 ## Notas
-Rota pública. Falha da LLM cai no error handler global do Fastify (`app.ts`). Logs de modelo/`durationMs` sem body.
+Rota pública, sem cota. Popule o pool com `pnpm seed:query-suggestions` (ou `pnpm db:migrate`, que encadeia o seed). Detalhes do pool em [pool-sugestoes-busca.md](pool-sugestoes-busca.md).

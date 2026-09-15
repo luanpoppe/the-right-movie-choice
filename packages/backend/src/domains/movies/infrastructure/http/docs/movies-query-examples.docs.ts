@@ -6,7 +6,8 @@ import { MoviesQueryExamplesResponseDTOSchema } from "../dto/movies-query-exampl
 export const MoviesQueryExamplesDocs: RouteShorthandOptions = {
   schema: {
     tags: ["movies"],
-    description: "Get creative query examples to search for movies",
+    description:
+      "Get 3 query examples for the landing. Serves 3 random texts from the persisted suggestion pool when count >= 3; falls back to AI generation otherwise. Public, no auth.",
     response: {
       200: MoviesQueryExamplesResponseDTOSchema.describe("Success"),
       500: z
