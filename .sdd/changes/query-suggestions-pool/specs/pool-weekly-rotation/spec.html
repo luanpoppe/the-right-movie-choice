@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: pool-weekly-rotation — query-suggestions-pool</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">query-suggestions-pool</a> / specs / <strong>pool-weekly-rotation</strong> / spec</p>
+    <h1>Spec: pool-weekly-rotation</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>query-suggestions-pool</code></a> · atualizado em 2026-09-15</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Job in-process (<code>node-cron</code>) roda todo domingo às 03:00 (America/Sao_Paulo): se <code>count &lt; POOL_SIZE</code>, completa o pool via IA (<code>POOL_SIZE - count</code> inserções, sem delete)  ||  se <code>count &gt;= POOL_SIZE</code>, gera 5 textos novos e aplica <strong>+5 inserções e −5 remoções na mesma transação Postgres</strong> — ou não altera nada na rotação. Se a IA falhar, a dedup não inserir os 5, ou qualquer erro no meio, a transação é revertida e o pool permanece intacto.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Disparo semanal agendado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o backend está em <code>NODE_ENV=prod</code> com o servidor HTTP ativo</li>
+        <li><strong>Quando</strong> chega domingo às 03:00 no fuso <code>America/Sao_Paulo</code></li>
+        <li><strong>Então</strong> o job de rotação do pool é executado automaticamente</li>
+        <li><strong>E</strong> registra log informando início da rotação</li>
+      </ul>
+      <h3>REQ-2: Pool abaixo do mínimo é completado antes da rotação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem 97 sugestões persistidas</li>
+        <li><strong>Quando</strong> o job de rotação dispara no horário agendado</li>
+        <li><strong>Então</strong> ele pede à IA exatamente 3 sugestões (<code>POOL_SIZE - count</code>)</li>
+        <li><strong>E</strong> insere via <code>insertManySkipDuplicates</code> (sem remover registros antigos)</li>
+        <li><strong>E</strong> se o pool atinge pelo menos <code>POOL_SIZE</code>, segue para a rotação (+5/−5) na mesma execução</li>
+        <li><strong>E</strong> se ainda ficar abaixo de <code>POOL_SIZE</code> (ex.: duplicatas), encerra sem rotação e registra log</li>
+      </ul>
+      <h3>REQ-2-bis: Pool acima do tamanho alvo também roda</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem 101 sugestões persistidas</li>
+        <li><strong>Quando</strong> o job de rotação dispara</li>
+        <li><strong>Então</strong> ele executa a rotação (+5/−5) como no caminho feliz</li>
+        <li><strong>E</strong> ao concluir com commit, o pool permanece com 101 registros (renova conteúdo, não normaliza o count)</li>
+      </ul>
+      <h3>REQ-3: Rotação feliz com 5 novos únicos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem pelo menos 100 sugestões</li>
+        <li><strong>Quando</strong> o job de rotação dispara</li>
+        <li><strong>Então</strong> ele pede 5 sugestões à IA (mesmo provider/prompt/schema de lote do seed, <code>count=5</code>)</li>
+        <li><strong>E</strong> em uma única transação Postgres insere os 5 textos novos após normalização</li>
+        <li><strong>E</strong> na mesma transação remove os 5 registros com <code>createdAt</code> mais antigo</li>
+        <li><strong>E</strong> ao concluir com commit, o total de registros permanece o mesmo (ex.: 100→100, 101→101)</li>
+      </ul>
+      <h3>REQ-4: Transação atômica — tudo ou nada</h3>
+      <ul>
+        <li><strong>Entrada</strong> pool com 100 registros; rotação tenta aplicar lote de 5</li>
+        <li><strong>Saída</strong> insert de 5 novos e delete dos 5 mais antigos ocorrem na <strong>mesma</strong> transação Prisma</li>
+        <li><strong>E</strong> o commit só acontece se exatamente 5 textos foram inseridos com sucesso</li>
+        <li><strong>Erro</strong> qualquer falha (IA, insert incompleto, delete, timeout) → rollback  ||  pool permanece com os 100 originais</li>
+      </ul>
+      <h3>REQ-5: Inserção incompleta aborta a rotação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem exatamente 100 sugestões</li>
+        <li><strong>Quando</strong> a IA retorna 5 textos mas apenas 3 são inseridos (2 já existiam no pool)</li>
+        <li><strong>Então</strong> a transação é revertida</li>
+        <li><strong>E</strong> nenhum registro é removido</li>
+        <li><strong>E</strong> o pool permanece com 100 itens inalterados</li>
+        <li><strong>E</strong> registra log informando rotação abortada por lote incompleto</li>
+      </ul>
+      <h3>REQ-6: Falha da IA não altera o pool</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem exatamente 100 sugestões</li>
+        <li><strong>Quando</strong> a IA falha após 3 retries (mesmo limite do seed)</li>
+        <li><strong>Então</strong> nenhuma transação é aberta para mutação do pool</li>
+        <li><strong>E</strong> nenhum registro é inserido nem removido</li>
+        <li><strong>E</strong> registra log de falha da rotação</li>
+      </ul>
+      <h3>REQ-7: Zero inserções após dedup aborta a rotação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o pool tem exatamente 100 sugestões</li>
+        <li><strong>Quando</strong> a IA responde mas todos os 5 textos são duplicatas (<code>insertedCount === 0</code>)</li>
+        <li><strong>Então</strong> a transação é revertida ou nem chega a commitar delete</li>
+        <li><strong>E</strong> nenhum registro é removido</li>
+        <li><strong>E</strong> registra log informando rotação abortada por ausência de textos novos</li>
+      </ul>
+      <h3>REQ-8: Textos existentes no prompt da IA</h3>
+      <ul>
+        <li><strong>Entrada</strong> pool com 100 textos; job pede lote de 5</li>
+        <li><strong>Saída</strong> chamada ao batch provider inclui a lista completa de textos existentes (via <code>listTexts()</code>), como no seed</li>
+        <li><strong>E</strong> temperature 1.2 e modelo PRIMARY do fluxo atual</li>
+      </ul>
+      <h3>REQ-9: Exclusão dos mais antigos</h3>
+      <ul>
+        <li><strong>Entrada</strong> pool com <code>createdAt</code> ascendente <code>t1</code> … <code>t100</code>; rotação commitou com 5 inserções</li>
+        <li><strong>Saída</strong> registros <code>t1</code>–<code>t5</code> removidos na mesma transação do insert</li>
+        <li><strong>E</strong> <code>t6</code> em diante permanecem</li>
+      </ul>
+      <h3>REQ-10: Serialização com seed</h3>
+      <ul>
+        <li><strong>Entrada</strong> seed CLI e job de rotação tentam mutar o pool ao mesmo tempo</li>
+        <li><strong>Saída</strong> apenas uma operação roda por vez via <code>pg_advisory_lock</code> (mesma chave do seed)</li>
+        <li><strong>E</strong> a segunda espera a primeira terminar</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Dois processos backend em prod no mesmo horário: advisory lock garante uma rotação por vez  ||  o segundo pode encerrar sem trabalho se o pool já foi atualizado</li>
+        <li><code>NODE_ENV=dev</code> ou <code>test</code>: cron <strong>não</strong> é registrado — rotação manual via use case/CLI de teste se necessário</li>
+        <li>Falha Postgres no delete após insert na mesma transação: rollback automático  ||  pool permanece em 100</li>
+        <li>IA retorna 5 textos válidos mas 1 duplicata: rotação inteira abortada (não remove 4 e insere 4)</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
