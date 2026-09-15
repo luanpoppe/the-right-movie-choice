@@ -1,12 +1,10 @@
 import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
-import { AiModels } from "@/lib/ai/ai-models";
+import { AiConfigBuilder } from "@/lib/ai/ai-config.builder";
 import { Logger } from "@/lib/logger/logger";
 import { Redis } from "@/lib/redis/redis";
 import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
 import { TmdbMovieDetailsCache } from "@/modules/tmdb/infrastructure/cache/tmdb-movie-details.cache";
-import { StringUtils } from "@/shared/utils/string.utils";
-
 import {
   GetMovieRecommendationUseCase,
   GetMovieRecommendationUseCaseOptions,
@@ -96,24 +94,14 @@ export class MakeGetMovieRecommendationUseCaseFactory {
   }
 
   private static buildAiConfig(): AiConstructorConfig {
-    const openRouterApiKey = env.OPENROUTER_API_KEY;
-    const geminiApiKey = env.GEMINI_API_KEY;
     const redisUrl = env.REDIS_URL;
     const checkpointerRedisUrl =
       MakeGetMovieRecommendationUseCaseFactory.toCheckpointerRedisUrl(
         redisUrl,
       );
-    const hasOpenRouterApiKey = !StringUtils.isEmptyString(openRouterApiKey);
-    const hasGeminiApiKey = !StringUtils.isEmptyString(geminiApiKey);
 
     return {
-      ...(hasOpenRouterApiKey ? { openRouterApiKey } : {}),
-      ...(hasGeminiApiKey
-        ? {
-            googleGeminiToken: geminiApiKey,
-            aiModelsFallback: [AiModels.GEMINI_FALLBACK],
-          }
-        : {}),
+      ...AiConfigBuilder.buildFromEnv(),
       memory: {
         type: "redis",
         url: checkpointerRedisUrl,
