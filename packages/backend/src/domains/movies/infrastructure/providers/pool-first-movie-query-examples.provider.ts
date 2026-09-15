@@ -3,6 +3,7 @@ import { IMovieQueryExampleProvider } from "../../application/providers/movie-qu
 import {
   MOVIE_QUERY_EXAMPLES_COUNT,
   MovieQueryExamplesEntity,
+  MovieQueryExamplesSchema,
 } from "../../domain/entities/movie-query-examples.entity";
 import { IMovieQuerySuggestionRepository } from "../../domain/repositories/movie-query-suggestion.repository";
 
@@ -27,7 +28,15 @@ export class PoolFirstMovieQueryExamplesProvider
       const limit = MOVIE_QUERY_EXAMPLES_COUNT;
       const texts = await this.repository.pickRandomTexts(limit);
       const entity = PoolFirstMovieQueryExamplesProvider.mapTextsToEntity(texts);
-      return entity;
+      const parseResult = MovieQueryExamplesSchema.safeParse(entity);
+      const isValidPoolEntity = parseResult.success;
+
+      if (!isValidPoolEntity) {
+        this.logInvalidPoolResponseFallback(texts.length);
+        return this.getQueryExamplesFromAi();
+      }
+
+      return parseResult.data;
     } catch (error) {
       this.logDatabaseErrorFallback(error);
       return this.getQueryExamplesFromAi();
@@ -43,6 +52,14 @@ export class PoolFirstMovieQueryExamplesProvider
       poolCount,
       requiredCount: MOVIE_QUERY_EXAMPLES_COUNT,
       fallbackReason: "insufficient_pool",
+    });
+  }
+
+  private logInvalidPoolResponseFallback(returnedCount: number) {
+    Logger.info("Movie query examples pool response invalid, falling back to AI", {
+      returnedCount,
+      requiredCount: MOVIE_QUERY_EXAMPLES_COUNT,
+      fallbackReason: "invalid_pool_response",
     });
   }
 
