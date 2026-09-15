@@ -24,6 +24,6 @@ Pool fixo de até 100 textos de sugestão de busca para a landing, persistidos n
 
 ## Notas
 
-- Caminho pool não valida entity com Zod antes de retornar — confia no repositório retornar exatamente 3 textos; edge TOCTOU improvável mas sem fallback automático se vier menos (achado code review A1).
+- Resposta do pool validada com `MovieQueryExamplesSchema.safeParse` — se inválida (ex.: menos de 3 textos), fallback IA com log `invalid_pool_response`. (origem: code review A1, 2026-09-14)
 - Concorrência entre dois seeds simultâneos: UNIQUE evita duplicata de texto, mas não garante teto de 100 linhas.
 - Duas requisições simultâneas com pool ≥ 3 podem sortear conjuntos diferentes — sem lock de leitura.
