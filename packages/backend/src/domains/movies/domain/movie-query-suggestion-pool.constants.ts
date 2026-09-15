@@ -5,6 +5,9 @@ export class MovieQuerySuggestionPoolConstants {
   // How many suggestions each IA batch call asks for.
   static readonly SEED_BATCH_SIZE = 25;
 
+  // How many suggestions each weekly rotation inserts and removes.
+  static readonly ROTATION_BATCH_SIZE = 5;
+
   // Max distinct IA batch calls per seed run — not retries.
   static readonly SEED_MAX_CALLS_PER_RUN = Math.ceil(
     MovieQuerySuggestionPoolConstants.POOL_SIZE /

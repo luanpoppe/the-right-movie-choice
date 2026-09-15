@@ -85,4 +85,58 @@ export class PrismaMovieQuerySuggestionRepository
       await prisma.$executeRawUnsafe(`SELECT pg_advisory_unlock(${lockKey})`);
     }
   }
+
+  async rotatePoolAtomically(texts: string[]): Promise<void> {
+    const data = texts
+      .map((rawText) => MovieQuerySuggestionNormalizeUtils.normalize(rawText))
+      .filter((fields) => fields.text.length > 0);
+
+    const expectedCount = texts.length;
+    const hasInvalidTexts = data.length !== expectedCount;
+    if (hasInvalidTexts) {
+      Logger.warn("Pool rotation aborted — empty texts after normalization", {
+        expected: expectedCount,
+        valid: data.length,
+      });
+      throw new Error(
+        `Pool rotation aborted: expected ${expectedCount} valid texts, got ${data.length}`,
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const insertResult = await tx.movieQuerySuggestion.createMany({
+        data,
+        skipDuplicates: true,
+      });
+
+      const insertedCount = insertResult.count;
+      const isInsertIncomplete = insertedCount !== expectedCount;
+      if (isInsertIncomplete) {
+        Logger.warn("Pool rotation aborted — incomplete batch insert", {
+          expected: expectedCount,
+          inserted: insertedCount,
+        });
+        throw new Error(
+          `Pool rotation aborted: expected ${expectedCount} inserts, got ${insertedCount}`,
+        );
+      }
+
+      const oldestRows = await tx.movieQuerySuggestion.findMany({
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+        take: expectedCount,
+      });
+
+      const oldestIds = oldestRows.map((row) => row.id);
+
+      await tx.movieQuerySuggestion.deleteMany({
+        where: { id: { in: oldestIds } },
+      });
+    });
+
+    Logger.info("Movie query suggestion pool rotated", {
+      inserted: expectedCount,
+      removed: expectedCount,
+    });
+  }
 }

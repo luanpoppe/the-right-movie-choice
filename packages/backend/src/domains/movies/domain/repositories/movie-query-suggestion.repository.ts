@@ -8,4 +8,6 @@ export interface IMovieQuerySuggestionRepository {
   pickRandomTexts(limit: number): Promise<string[]>;
 
   withSeedLock<T>(operation: () => Promise<T>): Promise<T>;
+
+  rotatePoolAtomically(texts: string[]): Promise<void>;
 }
