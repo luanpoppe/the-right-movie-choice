@@ -253,12 +253,12 @@ describe("RotateMovieQuerySuggestionsUseCase", () => {
     ]);
 
     await expect(useCase.execute()).rejects.toThrow(
-      "Pool rotation aborted: expected 5 texts from IA, got 3",
+      "Pool rotation aborted: expected 5 texts from AI, got 3",
     );
 
     expect(movieQuerySuggestionRepository.rotatePoolAtomically).not.toHaveBeenCalled();
     expect(Logger.error).toHaveBeenCalledWith(
-      "Movie query suggestion rotation aborted — incomplete IA batch",
+      "Movie query suggestion rotation aborted — incomplete AI batch",
       expect.objectContaining({ expected: 5, received: 3 }),
     );
   });
