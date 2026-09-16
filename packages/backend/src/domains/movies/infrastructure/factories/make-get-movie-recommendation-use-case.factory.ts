@@ -26,7 +26,8 @@ const CHAT_MEMORY_TTL_SECONDS = 1200;
 
 export class MakeGetMovieRecommendationUseCaseFactory {
   static create(options?: GetMovieRecommendationUseCaseOptions) {
-    const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
+    const config =
+      MakeGetMovieRecommendationUseCaseFactory.buildAiConfig(options);
     const ai = new AI(config);
 
     const catalog = MakeTmdbHttpClientFactory.create();
@@ -93,12 +94,37 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     };
   }
 
-  private static buildAiConfig(): AiConstructorConfig {
+  private static buildAiConfig(
+    options?: GetMovieRecommendationUseCaseOptions,
+  ): AiConstructorConfig {
+    const userId = options?.userId;
+    const hasValidUserId = userId !== undefined && userId > 0;
+
+    if (hasValidUserId) {
+      const connectionString = env.DATABASE_URL;
+      Logger.debug(
+        "Movie recommendation AI memory backend selected: postgres",
+        { userId },
+      );
+
+      return {
+        ...AiConfigBuilder.buildFromEnv(),
+        memory: {
+          type: "postgres",
+          connectionString,
+        },
+      };
+    }
+
     const redisUrl = env.REDIS_URL;
     const checkpointerRedisUrl =
       MakeGetMovieRecommendationUseCaseFactory.toCheckpointerRedisUrl(
         redisUrl,
       );
+    Logger.debug("Movie recommendation AI memory backend selected: redis", {
+      defaultTTL: CHAT_MEMORY_TTL_SECONDS,
+      refreshOnRead: true,
+    });
 
     return {
       ...AiConfigBuilder.buildFromEnv(),
