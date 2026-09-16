@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: conversation-sidebar-ui — user-chat-history</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-chat-history</a> / specs / <strong>conversation-sidebar-ui</strong> / spec</p>
+    <h1>Spec: conversation-sidebar-ui</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-chat-history</code></a> · atualizado em 2026-09-16</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Para usuários logados, adiciona navegação de histórico no SPA: Home permanece focada em iniciar chat (sem lista); header leva a uma página de listagem com CRUD; ao conversar, rota <code>/conversations/:id</code> mostra chat com sidebar de conversas. Primeira mensagem na Home cria conversa na API e navega para o chat. Guests mantêm fluxo atual sem listagem nem sidebar.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Home sem sidebar para logado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado na rota <code>/</code></li>
+        <li><strong>Quando</strong> a Home renderiza o Welcome ou inicia um chat novo a partir dela</li>
+        <li><strong>Então</strong> não exibe sidebar de conversas</li>
+        <li><strong>E</strong> o layout permanece focado em começar uma conversa</li>
+      </ul>
+      <h3>REQ-2: Link de listagem no header</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado</li>
+        <li><strong>Quando</strong> qualquer página com header renderiza</li>
+        <li><strong>Então</strong> exibe link no header para a listagem de conversas</li>
+        <li><strong>E</strong> o link não aparece para usuário anônimo</li>
+      </ul>
+      <h3>REQ-3: Página de listagem com CRUD</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado acessa <code>/conversations</code></li>
+        <li><strong>Quando</strong> a página carrega</li>
+        <li><strong>Então</strong> busca <code>GET /movie/conversations</code> e lista itens por <code>updatedAt</code> descendente</li>
+        <li><strong>E</strong> cada item permite abrir, renomear inline e excluir (com confirmação)</li>
+        <li><strong>E</strong> título <code>null</code> exibe <code>New Conversation</code> seguido de data/hora relativa em inglês</li>
+      </ul>
+      <h3>REQ-4: Primeira mensagem cria conversa e abre chat com sidebar</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado envia a primeira mensagem no Welcome da Home</li>
+        <li><strong>Quando</strong> o submit é processado</li>
+        <li><strong>Então</strong> chama <code>POST /movie/conversations</code> antes de <code>POST /movie/recommendation</code></li>
+        <li><strong>E</strong> usa o <code>chatId</code> retornado no header <code>chatId</code> da recommendation</li>
+        <li><strong>E</strong> navega para <code>/conversations/:id</code> da conversa criada</li>
+        <li><strong>E</strong> a tela de chat exibe sidebar de conversas para o usuário logado</li>
+      </ul>
+      <h3>REQ-5: Retomar conversa na rota dedicada</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário logado</li>
+        <li><strong>Quando</strong> o usuário abre <code>/conversations/12</code> (da listagem ou da sidebar)</li>
+        <li><strong>Então</strong> carrega <code>GET /movie/conversations/12</code> com histórico de mensagens</li>
+        <li><strong>E</strong> renderiza mensagens no chat</li>
+        <li><strong>E</strong> exibe sidebar com a conversa ativa destacada</li>
+      </ul>
+      <h3>REQ-6: Sidebar no chat — trocar, renomear e excluir</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado está em <code>/conversations/:id</code></li>
+        <li><strong>Quando</strong> interage com a sidebar</li>
+        <li><strong>Então</strong> pode abrir outra conversa da lista</li>
+        <li><strong>E</strong> pode renomear inline (PATCH) o item selecionado</li>
+        <li><strong>E</strong> excluir exige dialog de confirmação antes do DELETE</li>
+        <li><strong>E</strong> botão &quot;Nova conversa&quot; redireciona para <code>/</code> no estado Welcome (sem sidebar)</li>
+      </ul>
+      <h3>REQ-7: Excluir conversa aberta</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário confirma exclusão da conversa atualmente aberta em <code>/conversations/:id</code></li>
+        <li><strong>Quando</strong> o DELETE conclui com sucesso</li>
+        <li><strong>Então</strong> redireciona para <code>/</code> no estado Welcome</li>
+      </ul>
+      <h3>REQ-8: Guest inalterado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário é anônimo</li>
+        <li><strong>Quando</strong> usa a Home</li>
+        <li><strong>Então</strong> não vê link de listagem nem sidebar</li>
+        <li><strong>E</strong> mantém <code>chatId</code> gerado no cliente e fluxo de cota/lock existente</li>
+      </ul>
+      <h3>REQ-9: Mapeamento de histórico para o chat</h3>
+      <ul>
+        <li><strong>Entrada</strong> resposta de <code>GET /movie/conversations/:id</code> com <code>messages</code> no formato <code>ChatHistoryEntity</code></li>
+        <li><strong>Saída</strong> array <code>ChatEntity</code> compatível com o componente <code>Chat</code> atual (<code>from: &quot;user&quot;|&quot;ai&quot;</code>, texto e <code>movies</code> quando houver)</li>
+      </ul>
+      <h3>REQ-10: Erros de API na UI</h3>
+      <ul>
+        <li><strong>Entrada</strong> falha em listar, carregar, renomear ou excluir conversa</li>
+        <li><strong>Saída</strong> toast de erro em inglês (padrão do SPA)  ||  estado de loading desligado</li>
+        <li><strong>Erro</strong> <code>404</code> ao abrir <code>/conversations/:id</code> inexistente → redireciona para <code>/conversations</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Listagem vazia em <code>/conversations</code> → estado vazio com CTA para voltar à Home e iniciar conversa</li>
+        <li>Falha no <code>POST /movie/conversations</code> na primeira mensagem → não chama recommendation  ||  toast de erro</li>
+        <li>Renomear com título vazio → não envia PATCH (ou validação local equivalente)</li>
+        <li>Sidebar e listagem devem refletir <code>updatedAt</code> após novo turno no chat aberto (re-fetch ou atualização local após recommendation)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Rotas SPA: <code>/conversations</code>, <code>/conversations/:id</code> (param <code>id</code> numérico da conversa)</li>
+        <li><code>packages/backend/src/domains/movies/infrastructure/http/controllers/user-conversation.controller.ts:UserConversationControllerHandlers</code></li>
+        <li><code>packages/frontend/src/features/movies/services/movie-recommendation.service.ts:MovieRecommendationService.getRecommendations</code> (header <code>chatId</code> inalterado)</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
