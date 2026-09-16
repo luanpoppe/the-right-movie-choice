@@ -20,12 +20,25 @@ import {
 } from "../providers/movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
 import { CatalogPersistEnqueuer } from "../workers/catalog-persist.enqueuer";
+import { PrismaUserConversationRepository } from "../repositories/user-conversation/prisma-user-conversation.repository";
+import { ConversationTitleGenerator } from "../providers/conversation-title.generator";
+import type { IUserConversationRepository } from "../../domain/repositories/user-conversation.repository";
 
 type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
 const CHAT_MEMORY_TTL_SECONDS = 1200;
 
 export class MakeGetMovieRecommendationUseCaseFactory {
+  static createUserConversationRepository(): IUserConversationRepository {
+    return new PrismaUserConversationRepository();
+  }
+
+  static createConversationTitleGenerator(): ConversationTitleGenerator {
+    const config = AiConfigBuilder.buildFromEnv();
+    const ai = new AI(config);
+    return new ConversationTitleGenerator(ai);
+  }
+
   static create(options?: GetMovieRecommendationUseCaseOptions) {
     const config =
       MakeGetMovieRecommendationUseCaseFactory.buildAiConfig(options);

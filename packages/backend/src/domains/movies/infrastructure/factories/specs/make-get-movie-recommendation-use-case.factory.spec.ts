@@ -74,6 +74,8 @@ vi.mock("../../providers/movie-catalog-lookup.ai-tool", () => ({
 }));
 
 import { MakeGetMovieRecommendationUseCaseFactory } from "../make-get-movie-recommendation-use-case.factory";
+import { ConversationTitleGenerator } from "../../providers/conversation-title.generator";
+import { PrismaUserConversationRepository } from "../../repositories/user-conversation/prisma-user-conversation.repository";
 
 describe("MakeGetMovieRecommendationUseCaseFactory", () => {
   beforeEach(() => {
@@ -506,5 +508,19 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(useCaseRecord.userMovieEntryRepository).toBeInstanceOf(
       PrismaUserMovieEntryRepository,
     );
+  });
+
+  it("createConversationTitleGenerator retorna ConversationTitleGenerator", () => {
+    const titleGenerator =
+      MakeGetMovieRecommendationUseCaseFactory.createConversationTitleGenerator();
+
+    expect(titleGenerator).toBeInstanceOf(ConversationTitleGenerator);
+  });
+
+  it("createUserConversationRepository retorna PrismaUserConversationRepository", () => {
+    const repository =
+      MakeGetMovieRecommendationUseCaseFactory.createUserConversationRepository();
+
+    expect(repository).toBeInstanceOf(PrismaUserConversationRepository);
   });
 });

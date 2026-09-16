@@ -3,15 +3,32 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
 import { SingleMovieReccomendationInternalEntity } from "@/domains/movies/domain/entities/movie-recommendation.entity";
+import type { UserConversationEntity } from "@/domains/movies/domain/entities/user-conversation.entity";
+import { UserConversationByChatIdNotFoundException } from "@/domains/movies/domain/exceptions/user-conversation-by-chat-id-not-found.exception";
 import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
 import { MovieRecommendationRequest } from "../../dto/movie-recommendation.dto";
 import { MovieRecommendationController } from "../movie-recommendation.controller";
 
-const { mockExecute, mockFactoryCreate } = vi.hoisted(() => ({
+const {
+  mockExecute,
+  mockFactoryCreate,
+  mockFindByChatId,
+  mockTouchUpdatedAt,
+  mockUpdateTitle,
+  mockGenerateFromUserMessage,
+  mockCreateUserConversationRepository,
+  mockCreateConversationTitleGenerator,
+} = vi.hoisted(() => ({
   mockExecute: vi.fn(),
   mockFactoryCreate: vi.fn(() => ({
     execute: mockExecute,
   })),
+  mockFindByChatId: vi.fn(),
+  mockTouchUpdatedAt: vi.fn(),
+  mockUpdateTitle: vi.fn(),
+  mockGenerateFromUserMessage: vi.fn(),
+  mockCreateUserConversationRepository: vi.fn(),
+  mockCreateConversationTitleGenerator: vi.fn(),
 }));
 
 vi.mock(
@@ -19,6 +36,8 @@ vi.mock(
   () => ({
     MakeGetMovieRecommendationUseCaseFactory: {
       create: mockFactoryCreate,
+      createUserConversationRepository: mockCreateUserConversationRepository,
+      createConversationTitleGenerator: mockCreateConversationTitleGenerator,
     },
   }),
 );
@@ -44,6 +63,20 @@ function createReply(): FastifyReply {
     setCookie: vi.fn().mockReturnThis(),
     header: vi.fn().mockReturnThis(),
   } as unknown as FastifyReply;
+}
+
+function createConversation(
+  overrides?: Partial<UserConversationEntity>,
+): UserConversationEntity {
+  return {
+    id: 10,
+    userId: 42,
+    chatId: "chat-123",
+    title: "Existing title",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    ...overrides,
+  };
 }
 
 function createRequest(overrides?: {
@@ -74,6 +107,25 @@ describe("MovieRecommendationController", () => {
   beforeEach(() => {
     mockExecute.mockReset();
     mockFactoryCreate.mockClear();
+    mockFindByChatId.mockReset();
+    mockTouchUpdatedAt.mockReset();
+    mockUpdateTitle.mockReset();
+    mockGenerateFromUserMessage.mockReset();
+    mockCreateUserConversationRepository.mockReset();
+    mockCreateConversationTitleGenerator.mockReset();
+
+    mockFindByChatId.mockResolvedValue(createConversation());
+    mockTouchUpdatedAt.mockResolvedValue(createConversation());
+    mockUpdateTitle.mockResolvedValue(createConversation());
+    mockGenerateFromUserMessage.mockResolvedValue("Sci-fi picks");
+    mockCreateUserConversationRepository.mockReturnValue({
+      findByChatId: mockFindByChatId,
+      touchUpdatedAt: mockTouchUpdatedAt,
+      updateTitle: mockUpdateTitle,
+    });
+    mockCreateConversationTitleGenerator.mockReturnValue({
+      generateFromUserMessage: mockGenerateFromUserMessage,
+    });
     guestQuotaService = {
       incrementAfterSuccess: vi.fn(),
     } as unknown as GuestQuotaService;
@@ -358,6 +410,147 @@ describe("MovieRecommendationController", () => {
         excludeWatched: true,
       },
     );
+  });
+
+  it("REQ-6: retorna 404 quando conversa não existe e não executa recommendation", async () => {
+    mockFindByChatId.mockResolvedValue(null);
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+    });
+    const reply = createReply();
+
+    await expect(handler(request, reply)).rejects.toBeInstanceOf(
+      UserConversationByChatIdNotFoundException,
+    );
+
+    expect(mockFindByChatId).toHaveBeenCalledWith(42, "chat-123");
+    expect(mockExecute).not.toHaveBeenCalled();
+    expect(mockTouchUpdatedAt).not.toHaveBeenCalled();
+  });
+
+  it("REQ-6: chama touchUpdatedAt após recommendation autenticada com sucesso", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Done.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockTouchUpdatedAt).toHaveBeenCalledWith(42, "chat-123");
+    expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("REQ-7: gera título em paralelo quando title é null e salva via updateTitle", async () => {
+    mockFindByChatId.mockResolvedValue(
+      createConversation({ title: null, id: 99, userId: 55 }),
+    );
+    mockExecute.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              movies: [INTERNAL_MOVIE],
+              response: "Parallel recommendation.",
+            });
+          }, 50);
+        }),
+    );
+    mockGenerateFromUserMessage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve("Filmes de ficção");
+          }, 10);
+        }),
+    );
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 55 },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockCreateConversationTitleGenerator).toHaveBeenCalled();
+    expect(mockGenerateFromUserMessage).toHaveBeenCalledWith(
+      "recommend a sci-fi movie",
+    );
+    expect(mockUpdateTitle).toHaveBeenCalledWith(
+      55,
+      99,
+      "Filmes de ficção",
+    );
+    expect(mockTouchUpdatedAt).toHaveBeenCalledWith(55, "chat-123");
+    expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("REQ-7: falha na geração de título não bloqueia recommendation", async () => {
+    mockFindByChatId.mockResolvedValue(
+      createConversation({ title: null, userId: 77 }),
+    );
+    mockGenerateFromUserMessage.mockResolvedValue(null);
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Recommendation without title.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 77 },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockUpdateTitle).not.toHaveBeenCalled();
+    expect(mockTouchUpdatedAt).toHaveBeenCalledWith(77, "chat-123");
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        response: "Recommendation without title.",
+      }),
+    );
+  });
+
+  it("autenticado com título existente não gera título via IA", async () => {
+    mockFindByChatId.mockResolvedValue(
+      createConversation({ title: "Já definido" }),
+    );
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Skip title generation.",
+    });
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockCreateConversationTitleGenerator).not.toHaveBeenCalled();
+    expect(mockGenerateFromUserMessage).not.toHaveBeenCalled();
+    expect(mockUpdateTitle).not.toHaveBeenCalled();
+    expect(mockTouchUpdatedAt).toHaveBeenCalledWith(42, "chat-123");
+  });
+
+  it("guest anônimo não valida conversa nem toca updatedAt", async () => {
+    mockExecute.mockResolvedValue({
+      movies: [INTERNAL_MOVIE],
+      response: "Guest flow.",
+    });
+    vi.mocked(guestQuotaService.incrementAfterSuccess).mockResolvedValue(2);
+    const request = createRequest({
+      movieAuth: { kind: "anonymous", guestId: "guest-abc" },
+    });
+    const reply = createReply();
+
+    await handler(request, reply);
+
+    expect(mockCreateUserConversationRepository).not.toHaveBeenCalled();
+    expect(mockFindByChatId).not.toHaveBeenCalled();
+    expect(mockTouchUpdatedAt).not.toHaveBeenCalled();
+    expect(mockUpdateTitle).not.toHaveBeenCalled();
+    expect(mockCreateConversationTitleGenerator).not.toHaveBeenCalled();
   });
 
   it("returns an empty movies array without error", async () => {

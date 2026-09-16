@@ -7,17 +7,45 @@ import {
   HeadersDTO,
   HeadersDTOSchema,
 } from "@/infrastructure/http/dto/headers.dto";
-import { GetMovieRecommendationUseCaseOptions } from "@/domains/movies/application/use-cases/get-movie-recommendation.use-case";
+import {
+  GetMovieRecommendationUseCase,
+  GetMovieRecommendationUseCaseOptions,
+} from "@/domains/movies/application/use-cases/get-movie-recommendation.use-case";
 import { MakeGetMovieRecommendationUseCaseFactory } from "../../factories/make-get-movie-recommendation-use-case.factory";
 import { GuestQuotaService } from "@/domains/movies/application/guest-quota.service";
 import { GuestQuotaConstants } from "@/domains/movies/domain/guest-quota.constants";
 import { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
+import { IUserConversationRepository } from "@/domains/movies/domain/repositories/user-conversation.repository";
+import { UserConversationEntity } from "@/domains/movies/domain/entities/user-conversation.entity";
+import { UserConversationByChatIdNotFoundException } from "@/domains/movies/domain/exceptions/user-conversation-by-chat-id-not-found.exception";
+import { Logger } from "@/lib/logger/logger";
 import { env } from "@/env";
 import { MovieRecommendationResponseMapper } from "../mappers/movie-recommendation-response.mapper";
 
 type MovieRecommendationControllerDeps = {
   guestQuotaService: GuestQuotaService;
   catalogRepository: IMovieCatalogRepository;
+};
+
+type MovieRecommendationHandlerRequest = FastifyRequest<{
+  Body: MovieRecommendationRequest;
+  Headers: HeadersDTO;
+}>;
+
+type AuthenticatedConversationContext = {
+  repository: IUserConversationRepository;
+  conversation: UserConversationEntity;
+  userId: number;
+};
+
+type RecommendationExecutionResult = {
+  movies: Awaited<
+    ReturnType<GetMovieRecommendationUseCase["execute"]>
+  >["movies"];
+  response: Awaited<
+    ReturnType<GetMovieRecommendationUseCase["execute"]>
+  >["response"];
+  generatedTitle: string | null;
 };
 
 export class MovieRecommendationController {
@@ -28,55 +56,192 @@ export class MovieRecommendationController {
     );
 
     return async (
-      request: FastifyRequest<{
-        Body: MovieRecommendationRequest;
-        Headers: HeadersDTO;
-      }>,
+      request: MovieRecommendationHandlerRequest,
       reply: FastifyReply,
     ) => {
       const { userMessage } = request.body;
+      const chatId = MovieRecommendationController.parseChatId(request);
+      const movieAuth = request.movieAuth;
 
-      const parsed = HeadersDTOSchema.safeParse(request.headers);
-      if (!parsed.success) throw new MissingHeaderException("chatid");
-      const { chatid } = parsed.data;
+      const authContext =
+        await MovieRecommendationController.loadAuthenticatedConversationContext(
+          movieAuth,
+          chatId,
+        );
 
       const useCaseOptions =
         MovieRecommendationController.resolveUseCaseOptions(request);
       const useCase =
         MakeGetMovieRecommendationUseCaseFactory.create(useCaseOptions);
 
-      const { movies, response } = await useCase.execute(
-        userMessage,
-        chatid,
-        useCaseOptions,
+      const executionResult =
+        await MovieRecommendationController.executeRecommendation(
+          useCase,
+          userMessage,
+          chatId,
+          useCaseOptions,
+          authContext,
+        );
+
+      const responseBody = await responseMapper.toResponse(
+        executionResult.movies,
+        executionResult.response,
       );
-      const responseBody = await responseMapper.toResponse(movies, response);
 
-      const movieAuth = request.movieAuth;
-      const isAnonymous =
-        movieAuth !== undefined && movieAuth.kind === "anonymous";
-
-      if (!isAnonymous) {
-        return reply.status(200).send(responseBody);
+      if (authContext) {
+        await MovieRecommendationController.persistConversationAfterRecommendation(
+          authContext,
+          chatId,
+          executionResult.generatedTitle,
+        );
       }
 
-      const remaining = await guestQuotaService.incrementAfterSuccess(
-        movieAuth.guestId,
+      return MovieRecommendationController.sendResponse(
+        reply,
+        guestQuotaService,
+        movieAuth,
+        responseBody,
       );
-
-      reply.setCookie(
-        GuestQuotaConstants.COOKIE_NAME,
-        movieAuth.guestId,
-        MovieRecommendationController.guestIdCookieOptions(),
-      );
-
-      reply.header(
-        GuestQuotaConstants.RESPONSE_HEADER_REMAINING,
-        String(remaining),
-      );
-
-      return reply.status(200).send(responseBody);
     };
+  }
+
+  private static parseChatId(
+    request: MovieRecommendationHandlerRequest,
+  ): string {
+    const parsed = HeadersDTOSchema.safeParse(request.headers);
+    if (!parsed.success) throw new MissingHeaderException("chatid");
+
+    const chatId = parsed.data.chatid;
+    return chatId;
+  }
+
+  private static async loadAuthenticatedConversationContext(
+    movieAuth: MovieRecommendationHandlerRequest["movieAuth"],
+    chatId: string,
+  ): Promise<AuthenticatedConversationContext | null> {
+    const isAuthenticated =
+      MovieRecommendationController.isAuthenticated(movieAuth);
+    if (!isAuthenticated) return null;
+
+    const userId = movieAuth.userId;
+    const repository =
+      MakeGetMovieRecommendationUseCaseFactory.createUserConversationRepository();
+    const conversation = await repository.findByChatId(userId, chatId);
+
+    if (!conversation) {
+      Logger.debug("User conversation not found for recommendation", {
+        userId,
+        chatId,
+      });
+      throw new UserConversationByChatIdNotFoundException(chatId);
+    }
+
+    return { repository, conversation, userId };
+  }
+
+  private static async executeRecommendation(
+    useCase: GetMovieRecommendationUseCase,
+    userMessage: string,
+    chatId: string,
+    useCaseOptions: GetMovieRecommendationUseCaseOptions | undefined,
+    authContext: AuthenticatedConversationContext | null,
+  ): Promise<RecommendationExecutionResult> {
+    const shouldGenerateTitle =
+      authContext !== null && authContext.conversation.title === null;
+
+    if (!shouldGenerateTitle) {
+      const recommendationResult = await useCase.execute(
+        userMessage,
+        chatId,
+        useCaseOptions,
+      );
+      return {
+        movies: recommendationResult.movies,
+        response: recommendationResult.response,
+        generatedTitle: null,
+      };
+    }
+
+    const titleGenerator =
+      MakeGetMovieRecommendationUseCaseFactory.createConversationTitleGenerator();
+    const executePromise = useCase.execute(userMessage, chatId, useCaseOptions);
+    const titlePromise = titleGenerator.generateFromUserMessage(userMessage);
+
+    const parallelResults = await Promise.all([executePromise, titlePromise]);
+    const recommendationResult = parallelResults[0];
+    const generatedTitle = parallelResults[1];
+
+    return {
+      movies: recommendationResult.movies,
+      response: recommendationResult.response,
+      generatedTitle,
+    };
+  }
+
+  private static async persistConversationAfterRecommendation(
+    authContext: AuthenticatedConversationContext,
+    chatId: string,
+    generatedTitle: string | null,
+  ): Promise<void> {
+    const { repository, conversation, userId } = authContext;
+    const conversationId = conversation.id;
+
+    if (generatedTitle !== null) {
+      await repository.updateTitle(userId, conversationId, generatedTitle);
+      Logger.debug("Conversation title saved from recommendation turn", {
+        userId,
+        conversationId,
+        chatId,
+      });
+    }
+
+    await repository.touchUpdatedAt(userId, chatId);
+    Logger.debug("Conversation updatedAt touched after recommendation", {
+      userId,
+      chatId,
+    });
+  }
+
+  private static async sendResponse(
+    reply: FastifyReply,
+    guestQuotaService: GuestQuotaService,
+    movieAuth: MovieRecommendationHandlerRequest["movieAuth"],
+    responseBody: unknown,
+  ): Promise<FastifyReply> {
+    const isAnonymous =
+      movieAuth !== undefined && movieAuth.kind === "anonymous";
+
+    if (!isAnonymous) {
+      return reply.status(200).send(responseBody);
+    }
+
+    const guestId = movieAuth.guestId;
+    const remaining = await guestQuotaService.incrementAfterSuccess(guestId);
+
+    reply.setCookie(
+      GuestQuotaConstants.COOKIE_NAME,
+      guestId,
+      MovieRecommendationController.guestIdCookieOptions(),
+    );
+
+    reply.header(
+      GuestQuotaConstants.RESPONSE_HEADER_REMAINING,
+      String(remaining),
+    );
+
+    return reply.status(200).send(responseBody);
+  }
+
+  private static isAuthenticated(
+    movieAuth: MovieRecommendationHandlerRequest["movieAuth"],
+  ): movieAuth is Extract<
+    NonNullable<MovieRecommendationHandlerRequest["movieAuth"]>,
+    { kind: "authenticated" }
+  > {
+    if (movieAuth === undefined) return false;
+    if (movieAuth.kind !== "authenticated") return false;
+
+    return true;
   }
 
   private static resolveUseCaseOptions(
@@ -84,7 +249,7 @@ export class MovieRecommendationController {
   ): GetMovieRecommendationUseCaseOptions | undefined {
     const movieAuth = request.movieAuth;
     const isAuthenticated =
-      movieAuth !== undefined && movieAuth.kind === "authenticated";
+      MovieRecommendationController.isAuthenticated(movieAuth);
 
     if (!isAuthenticated) {
       return undefined;
