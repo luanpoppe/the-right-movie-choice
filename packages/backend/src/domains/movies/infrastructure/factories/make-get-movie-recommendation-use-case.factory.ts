@@ -1,6 +1,7 @@
 import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
 import { AiConfigBuilder } from "@/lib/ai/ai-config.builder";
+import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
 import { Logger } from "@/lib/logger/logger";
 import { Redis } from "@/lib/redis/redis";
 import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
@@ -101,7 +102,7 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const hasValidUserId = userId !== undefined && userId > 0;
 
     if (hasValidUserId) {
-      const connectionString = env.DATABASE_URL;
+      const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
       Logger.debug(
         "Movie recommendation AI memory backend selected: postgres",
         { userId },
@@ -109,10 +110,7 @@ export class MakeGetMovieRecommendationUseCaseFactory {
 
       return {
         ...AiConfigBuilder.buildFromEnv(),
-        memory: {
-          type: "postgres",
-          connectionString,
-        },
+        memory: sharedPostgresMemory,
       };
     }
 
