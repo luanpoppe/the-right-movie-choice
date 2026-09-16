@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — user-chat-history</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>user-chat-history</strong> / plan</p>
+    <h1>Histórico de conversas por usuário</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>user-chat-history</code> · <strong>criada</strong>: 2026-09-14 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-15</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Hoje o chat de recomendações persiste turnos só no checkpointer Redis da <code>@luanpoppe/ai</code> (TTL 20 min, <code>threadId</code> = header <code>chatId</code>), sem vínculo com usuário logado e sem forma de listar ou retomar conversas antigas. Esta mudança introduz histórico durável para autenticados: metadados em Postgres (Prisma), mensagens no checkpointer Postgres da lib, API CRUD e sidebar no SPA para navegar entre conversas.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: Histórico persistido só para usuários autenticados; guests mantêm sessão efêmera no Redis com TTL atual. <strong>Por quê</strong>: escopo MVP alinhado ao pedido; guests já têm cota/lock sem conta. <strong>Alternativa descartada</strong>: persistir guests com limite.</li>
+        <li><strong>Decisão</strong>: Memória híbrida — Postgres checkpointer (<code>@luanpoppe/ai</code>) para logados, Redis para anônimos; mesma regra de <code>invoke</code> + <code>threadId</code> sem dual-write. <strong>Por quê</strong>: reúso da lib e da factory existente; evita duplicar estado. <strong>Alternativa descartada</strong>: Postgres para todos ou schema Prisma só para mensagens.</li>
+        <li><strong>Decisão</strong>: Tabela Prisma de conversa (<code>userId</code>, <code>chatId</code>, título, timestamps) para listagem/CRUD; checkpointer guarda o conteúdo das mensagens. <strong>Por quê</strong>: <code>thread_id</code> do LangGraph não carrega <code>userId</code>. <strong>Alternativa descartada</strong>: listar só via API interna do checkpointer.</li>
+        <li><strong>Decisão</strong>: Título gerado por IA barata/rápida (OpenRouter) no primeiro turno, em paralelo à recommendation (<code>Promise.all</code>); rename manual via API. <strong>Por quê</strong>: títulos legíveis sem bloquear a resposta principal. <strong>Alternativa descartada</strong>: truncar primeira mensagem ou título genérico numerado.</li>
+        <li><strong>Decisão</strong>: Sem limite de quantidade nem TTL para conversas de logados. <strong>Por quê</strong>: MVP simples. <strong>Alternativa descartada</strong>: cap de 50 ou expiração em dias.</li>
+        <li><strong>Decisão</strong>: Reutilizar factory/provider de recommendation, porta <code>IChatHistoryRepository</code>, header <code>chatId</code> e auth JWT — sem wrapper em <code>@luanpoppe/ai</code>. <strong>Por quê</strong>: memória e convenções do projeto. <strong>Alternativa descartada</strong>: módulo isolado recriando o pipeline de IA.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>conversation-model</strong> — Modelo Prisma <code>UserConversation</code> (userId, chatId, title, timestamps) e migração idempotente.</li>
+        <li><strong>auth-postgres-checkpointer</strong> — Memory híbrida na factory de recommendation: Postgres para JWT, Redis TTL para guest.</li>
+        <li><strong>conversation-api</strong> — API CRUD (listar, retomar, nova, excluir, renomear), geração de título IA no primeiro turno e leitura de histórico ao retomar.</li>
+        <li><strong>conversation-sidebar-ui</strong> — Sidebar na Home: listar, retomar, nova conversa, excluir e renomear (após API estável em local).</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: modelo + migração; checkpointer Postgres para logados; endpoints REST autenticados; título IA concorrente no primeiro POST; sidebar no SPA; reúso de <code>chatId</code>/<code>threadId</code>; CRUD completo; sem TTL/cap para logados.</p>
+      <p><strong>Fora</strong>: persistência de histórico para guests; migração de chats Redis antigos; busca full-text nas conversas; compartilhamento entre usuários; export; paginação avançada além do necessário para listagem; mudança no contrato público de <code>POST /movie/recommendation</code> além do que o fluxo autenticado exigir.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
