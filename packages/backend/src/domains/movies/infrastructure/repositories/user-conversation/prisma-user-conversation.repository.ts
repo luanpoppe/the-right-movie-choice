@@ -148,6 +148,48 @@ export class PrismaUserConversationRepository
     return entity;
   }
 
+  async touchUpdatedAt(
+    userId: number,
+    chatId: string,
+  ): Promise<UserConversationEntity | null> {
+    UserConversationValidationUtils.assertValidUserId(userId);
+    UserConversationValidationUtils.assertValidChatId(chatId);
+
+    const updateWhere = { chatId, userId };
+    const updatedAt = new Date();
+    const updateResult = await prisma.userConversation.updateMany({
+      where: updateWhere,
+      data: { updatedAt },
+    });
+
+    const wasUpdated = updateResult.count > 0;
+    if (!wasUpdated) {
+      Logger.debug("User conversation touch updatedAt miss", { userId, chatId });
+      return null;
+    }
+
+    const row = await prisma.userConversation.findFirst({
+      where: updateWhere,
+    });
+
+    if (!row) {
+      Logger.debug("User conversation touch updatedAt miss after update", {
+        userId,
+        chatId,
+      });
+      return null;
+    }
+
+    Logger.info("User conversation updatedAt touched", {
+      userId,
+      chatId,
+      conversationId: row.id,
+    });
+
+    const entity = UserConversationPrismaMapper.toEntity(row);
+    return entity;
+  }
+
   async deleteById(userId: number, id: number): Promise<boolean> {
     UserConversationValidationUtils.assertValidUserId(userId);
 

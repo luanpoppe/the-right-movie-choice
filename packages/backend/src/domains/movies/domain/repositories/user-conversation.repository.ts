@@ -24,5 +24,10 @@ export interface IUserConversationRepository {
     title: string,
   ): Promise<UserConversationEntity | null>;
 
+  touchUpdatedAt(
+    userId: number,
+    chatId: string,
+  ): Promise<UserConversationEntity | null>;
+
   deleteById(userId: number, id: number): Promise<boolean>;
 }

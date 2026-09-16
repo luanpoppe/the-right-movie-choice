@@ -335,6 +335,73 @@ describe("PrismaUserConversationRepository", () => {
     });
   });
 
+  describe("touchUpdatedAt", () => {
+    it("atualiza updatedAt quando conversa pertence ao usuário", async () => {
+      const chatId = "a1b2c3d4-e5f6-4789-abcd-ef1234567890";
+      const updatedRow = UserConversationRepositoryFixtures.prismaRow({
+        updatedAt: new Date("2026-05-05T00:00:00.000Z"),
+      });
+      vi.mocked(prisma.userConversation.updateMany).mockResolvedValue({
+        count: 1,
+      });
+      vi.mocked(prisma.userConversation.findFirst).mockResolvedValue(
+        updatedRow as never,
+      );
+
+      const result = await repository.touchUpdatedAt(7, chatId);
+
+      expect(prisma.userConversation.updateMany).toHaveBeenCalledWith({
+        where: { chatId, userId: 7 },
+        data: { updatedAt: expect.any(Date) },
+      });
+      expect(prisma.userConversation.findFirst).toHaveBeenCalledWith({
+        where: { chatId, userId: 7 },
+      });
+      expect(result).toEqual(
+        UserConversationRepositoryFixtures.entityFromRow(updatedRow),
+      );
+      expect(Logger.info).toHaveBeenCalledWith(
+        "User conversation updatedAt touched",
+        { userId: 7, chatId, conversationId: 12 },
+      );
+    });
+
+    it("retorna null quando conversa não pertence ao usuário", async () => {
+      const chatId = "a1b2c3d4-e5f6-4789-abcd-ef1234567890";
+      vi.mocked(prisma.userConversation.updateMany).mockResolvedValue({
+        count: 0,
+      });
+
+      const result = await repository.touchUpdatedAt(99, chatId);
+
+      expect(prisma.userConversation.findFirst).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User conversation touch updatedAt miss",
+        { userId: 99, chatId },
+      );
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(
+        repository.touchUpdatedAt(
+          0,
+          "a1b2c3d4-e5f6-4789-abcd-ef1234567890",
+        ),
+      ).rejects.toThrow(UserConversationValidationException);
+
+      expect(prisma.userConversation.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejeita chatId inválido antes do Prisma", async () => {
+      await expect(repository.touchUpdatedAt(7, "not-a-uuid")).rejects.toThrow(
+        UserConversationValidationException,
+      );
+
+      expect(prisma.userConversation.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("deleteById", () => {
     it("retorna true quando remove linha do usuário", async () => {
       vi.mocked(prisma.userConversation.deleteMany).mockResolvedValue({
