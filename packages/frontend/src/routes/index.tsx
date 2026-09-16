@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import { Root } from "../Root";
 import { Home } from "../pages/Home";
 import { MyMoviesPage } from "../pages/MyMoviesPage";
+import { ConversationsListPage } from "../pages/ConversationsListPage";
 import { LoginPage } from "../features/auth/pages/LoginPage";
 import { RegisterPage } from "../features/auth/pages/RegisterPage";
 
@@ -25,6 +26,10 @@ export const routers = createBrowserRouter([
       {
         path: "my-movies",
         Component: MyMoviesPage,
+      },
+      {
+        path: "conversations",
+        Component: ConversationsListPage,
       },
     ],
   },

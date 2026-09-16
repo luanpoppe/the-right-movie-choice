@@ -52,6 +52,9 @@ function AuthActions() {
     return (
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
+          <Link to="/conversations">Conversations</Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/my-movies">My movies</Link>
         </Button>
         <Button variant="outline" size="sm" onClick={handleLogout}>
