@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma/prisma";
 import { Logger } from "@/lib/logger/logger";
+import { PrismaErrorMapper } from "@/shared/mappers/prisma-error.mapper";
 import type {
   CreateUserConversationInput,
   UserConversationEntity,
 } from "../../../domain/entities/user-conversation.entity";
+import { UserConversationChatIdConflictException } from "../../../domain/exceptions/user-conversation-chat-id-conflict.exception";
 import type { IUserConversationRepository } from "../../../domain/repositories/user-conversation.repository";
 import { UserConversationValidationUtils } from "../../../domain/user-conversation-validation.utils";
 import { UserConversationPrismaMapper } from "../../mappers/user-conversation-prisma.mapper";
@@ -24,13 +26,21 @@ export class PrismaUserConversationRepository
       UserConversationValidationUtils.assertValidTitle(input.title as string);
     }
 
-    const row = await prisma.userConversation.create({
-      data: {
-        userId: input.userId,
-        chatId: input.chatId,
-        title: input.title ?? null,
-      },
-    });
+    let row;
+    try {
+      row = await prisma.userConversation.create({
+        data: {
+          userId: input.userId,
+          chatId: input.chatId,
+          title: input.title ?? null,
+        },
+      });
+    } catch (error) {
+      const conflictException = new UserConversationChatIdConflictException(
+        input.chatId,
+      );
+      PrismaErrorMapper.mapUniqueViolationOrRethrow(error, conflictException);
+    }
 
     Logger.info("User conversation created", {
       userId: input.userId,
@@ -105,20 +115,29 @@ export class PrismaUserConversationRepository
     UserConversationValidationUtils.assertValidUserId(userId);
     UserConversationValidationUtils.assertValidTitle(title);
 
-    const existingWhere = { id, userId };
-    const existingRow = await prisma.userConversation.findFirst({
-      where: existingWhere,
+    const updateWhere = { id, userId };
+    const updateResult = await prisma.userConversation.updateMany({
+      where: updateWhere,
+      data: { title },
     });
 
-    if (!existingRow) {
+    const wasUpdated = updateResult.count > 0;
+    if (!wasUpdated) {
       Logger.debug("User conversation update title miss", { userId, id });
       return null;
     }
 
-    const row = await prisma.userConversation.update({
-      where: { id },
-      data: { title },
+    const row = await prisma.userConversation.findFirst({
+      where: updateWhere,
     });
+
+    if (!row) {
+      Logger.debug("User conversation update title miss after update", {
+        userId,
+        id,
+      });
+      return null;
+    }
 
     Logger.info("User conversation title updated", {
       userId,

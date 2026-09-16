@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { prisma } from "@/lib/prisma/prisma";
 import { Logger } from "@/lib/logger/logger";
+import { UserConversationChatIdConflictException } from "../../../../domain/exceptions/user-conversation-chat-id-conflict.exception";
 import { UserConversationValidationException } from "../../../../domain/exceptions/user-conversation-validation.exception";
+import { PrismaUtil } from "@/shared/utils/prisma.util";
 import { PrismaUserConversationRepository } from "../prisma-user-conversation.repository";
 
 vi.mock("@/lib/prisma/prisma", () => ({
@@ -10,7 +12,7 @@ vi.mock("@/lib/prisma/prisma", () => ({
       create: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
-      update: vi.fn(),
+      updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
   },
@@ -92,6 +94,52 @@ describe("PrismaUserConversationRepository", () => {
 
       expect(prisma.userConversation.create).not.toHaveBeenCalled();
     });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(
+        repository.create({
+          userId: 0,
+          chatId: "a1b2c3d4-e5f6-4789-abcd-ef1234567890",
+        }),
+      ).rejects.toThrow(UserConversationValidationException);
+
+      expect(prisma.userConversation.create).not.toHaveBeenCalled();
+    });
+
+    it("cria conversa com título opcional válido", async () => {
+      const row = UserConversationRepositoryFixtures.prismaRow({
+        title: "Filmes de ficção dos anos 90",
+      });
+      vi.mocked(prisma.userConversation.create).mockResolvedValue(row as never);
+
+      const result = await repository.create({
+        userId: 7,
+        chatId: "a1b2c3d4-e5f6-4789-abcd-ef1234567890",
+        title: "Filmes de ficção dos anos 90",
+      });
+
+      expect(prisma.userConversation.create).toHaveBeenCalledWith({
+        data: {
+          userId: 7,
+          chatId: "a1b2c3d4-e5f6-4789-abcd-ef1234567890",
+          title: "Filmes de ficção dos anos 90",
+        },
+      });
+      expect(result).toEqual(UserConversationRepositoryFixtures.entityFromRow(row));
+    });
+
+    it("P2002 lança UserConversationChatIdConflictException", async () => {
+      const chatId = "a1b2c3d4-e5f6-4789-abcd-ef1234567890";
+      const prismaError = { code: PrismaUtil.UNIQUE_CONSTRAINT_CODE };
+      vi.mocked(prisma.userConversation.create).mockRejectedValue(prismaError);
+
+      await expect(
+        repository.create({ userId: 7, chatId }),
+      ).rejects.toThrow(UserConversationChatIdConflictException);
+      await expect(
+        repository.create({ userId: 7, chatId }),
+      ).rejects.toThrow(`User conversation with chatId "${chatId}" already exists`);
+    });
   });
 
   describe("findById", () => {
@@ -120,6 +168,25 @@ describe("PrismaUserConversationRepository", () => {
         { userId: 7, id: 99 },
       );
     });
+
+    it("retorna null quando conversa pertence a outro usuário", async () => {
+      vi.mocked(prisma.userConversation.findFirst).mockResolvedValue(null);
+
+      const result = await repository.findById(99, 12);
+
+      expect(prisma.userConversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 12, userId: 99 },
+      });
+      expect(result).toBeNull();
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(repository.findById(0, 12)).rejects.toThrow(
+        UserConversationValidationException,
+      );
+
+      expect(prisma.userConversation.findFirst).not.toHaveBeenCalled();
+    });
   });
 
   describe("findByChatId", () => {
@@ -133,6 +200,30 @@ describe("PrismaUserConversationRepository", () => {
         where: { chatId, userId: 99 },
       });
       expect(result).toBeNull();
+    });
+
+    it("retorna entidade quando chatId pertence ao usuário", async () => {
+      const row = UserConversationRepositoryFixtures.prismaRow();
+      vi.mocked(prisma.userConversation.findFirst).mockResolvedValue(
+        row as never,
+      );
+
+      const chatId = "a1b2c3d4-e5f6-4789-abcd-ef1234567890";
+      const result = await repository.findByChatId(7, chatId);
+
+      expect(result).toEqual(UserConversationRepositoryFixtures.entityFromRow(row));
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User conversation find by chatId hit",
+        { userId: 7, chatId },
+      );
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(
+        repository.findByChatId(0, "a1b2c3d4-e5f6-4789-abcd-ef1234567890"),
+      ).rejects.toThrow(UserConversationValidationException);
+
+      expect(prisma.userConversation.findFirst).not.toHaveBeenCalled();
     });
   });
 
@@ -162,19 +253,37 @@ describe("PrismaUserConversationRepository", () => {
         UserConversationRepositoryFixtures.entityFromRow(rowB),
       ]);
     });
+
+    it("filtra apenas conversas do userId informado", async () => {
+      vi.mocked(prisma.userConversation.findMany).mockResolvedValue([] as never);
+
+      await repository.listByUserId(7);
+
+      expect(prisma.userConversation.findMany).toHaveBeenCalledWith({
+        where: { userId: 7 },
+        orderBy: { updatedAt: "desc" },
+      });
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(repository.listByUserId(-1)).rejects.toThrow(
+        UserConversationValidationException,
+      );
+
+      expect(prisma.userConversation.findMany).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateTitle", () => {
     it("atualiza título quando conversa pertence ao usuário", async () => {
-      const existingRow = UserConversationRepositoryFixtures.prismaRow();
       const updatedRow = UserConversationRepositoryFixtures.prismaRow({
         title: "Filmes de ficção dos anos 90",
         updatedAt: new Date("2026-04-04T00:00:00.000Z"),
       });
+      vi.mocked(prisma.userConversation.updateMany).mockResolvedValue({
+        count: 1,
+      });
       vi.mocked(prisma.userConversation.findFirst).mockResolvedValue(
-        existingRow as never,
-      );
-      vi.mocked(prisma.userConversation.update).mockResolvedValue(
         updatedRow as never,
       );
 
@@ -184,9 +293,12 @@ describe("PrismaUserConversationRepository", () => {
         "Filmes de ficção dos anos 90",
       );
 
-      expect(prisma.userConversation.update).toHaveBeenCalledWith({
-        where: { id: 12 },
+      expect(prisma.userConversation.updateMany).toHaveBeenCalledWith({
+        where: { id: 12, userId: 7 },
         data: { title: "Filmes de ficção dos anos 90" },
+      });
+      expect(prisma.userConversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 12, userId: 7 },
       });
       expect(result).toEqual(
         UserConversationRepositoryFixtures.entityFromRow(updatedRow),
@@ -194,11 +306,13 @@ describe("PrismaUserConversationRepository", () => {
     });
 
     it("retorna null quando conversa não pertence ao usuário", async () => {
-      vi.mocked(prisma.userConversation.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.userConversation.updateMany).mockResolvedValue({
+        count: 0,
+      });
 
       const result = await repository.updateTitle(99, 12, "Novo título");
 
-      expect(prisma.userConversation.update).not.toHaveBeenCalled();
+      expect(prisma.userConversation.findFirst).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
 
@@ -209,7 +323,15 @@ describe("PrismaUserConversationRepository", () => {
         UserConversationValidationException,
       );
 
-      expect(prisma.userConversation.findFirst).not.toHaveBeenCalled();
+      expect(prisma.userConversation.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(repository.updateTitle(0, 12, "Novo título")).rejects.toThrow(
+        UserConversationValidationException,
+      );
+
+      expect(prisma.userConversation.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -235,6 +357,14 @@ describe("PrismaUserConversationRepository", () => {
       const result = await repository.deleteById(99, 12);
 
       expect(result).toBe(false);
+    });
+
+    it("rejeita userId inválido antes do Prisma", async () => {
+      await expect(repository.deleteById(0, 12)).rejects.toThrow(
+        UserConversationValidationException,
+      );
+
+      expect(prisma.userConversation.deleteMany).not.toHaveBeenCalled();
     });
   });
 });
