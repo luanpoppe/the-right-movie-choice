@@ -77,5 +77,22 @@ describe("UserConversationValidationUtils", () => {
         UserConversationValidationUtils.assertValidCreateInput(7, "bad-id"),
       ).toThrow(UserConversationValidationException);
     });
+
+    it("falha quando userId é inválido", () => {
+      expect(() =>
+        UserConversationValidationUtils.assertValidCreateInput(0, validChatId),
+      ).toThrow("userId must be a positive integer, received 0");
+    });
+  });
+
+  describe("assertValidTitle boundary", () => {
+    it("aceita título com exatamente o limite máximo", () => {
+      const maxTitleLength = UserConversationConstants.MAX_TITLE_LENGTH;
+      const titleAtLimit = "a".repeat(maxTitleLength);
+
+      expect(() =>
+        UserConversationValidationUtils.assertValidTitle(titleAtLimit),
+      ).not.toThrow();
+    });
   });
 });
