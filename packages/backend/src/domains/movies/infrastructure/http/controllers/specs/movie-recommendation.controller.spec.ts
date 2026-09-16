@@ -428,7 +428,7 @@ describe("MovieRecommendationController", () => {
     expect(mockTouchUpdatedAt).not.toHaveBeenCalled();
   });
 
-  it("REQ-6: chama touchUpdatedAt após recommendation autenticada com sucesso", async () => {
+  it("REQ-6: chama touchUpdatedAt antes da recommendation autenticada", async () => {
     mockExecute.mockResolvedValue({
       movies: [INTERNAL_MOVIE],
       response: "Done.",
@@ -441,7 +441,26 @@ describe("MovieRecommendationController", () => {
     await handler(request, reply);
 
     expect(mockTouchUpdatedAt).toHaveBeenCalledWith(42, "chat-123");
+    const touchOrder = mockTouchUpdatedAt.mock.invocationCallOrder[0];
+    const executeOrder = mockExecute.mock.invocationCallOrder[0];
+    expect(touchOrder).toBeDefined();
+    expect(executeOrder).toBeDefined();
+    expect(touchOrder as number).toBeLessThan(executeOrder as number);
     expect(reply.status).toHaveBeenCalledWith(200);
+  });
+
+  it("REQ-6: lança 404 quando touchUpdatedAt não encontra conversa antes da recommendation", async () => {
+    mockTouchUpdatedAt.mockResolvedValue(null);
+    const request = createRequest({
+      movieAuth: { kind: "authenticated", userId: 42 },
+    });
+    const reply = createReply();
+
+    await expect(handler(request, reply)).rejects.toBeInstanceOf(
+      UserConversationByChatIdNotFoundException,
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
   });
 
   it("REQ-7: gera título em paralelo quando title é null e salva via updateTitle", async () => {

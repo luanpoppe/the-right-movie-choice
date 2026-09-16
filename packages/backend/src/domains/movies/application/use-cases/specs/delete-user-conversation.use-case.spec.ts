@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DeleteUserConversationUseCase } from "../delete-user-conversation.use-case";
 import type { UserConversationEntity } from "../../../domain/entities/user-conversation.entity";
+import { UserConversationDeleteAfterPurgeFailedException } from "../../../domain/exceptions/user-conversation-delete-after-purge-failed.exception";
 import { UserConversationNotFoundException } from "../../../domain/exceptions/user-conversation-not-found.exception";
 import type { IChatThreadRepository } from "../../../domain/repositories/chat-thread.repository";
 import type { IUserConversationRepository } from "../../../domain/repositories/user-conversation.repository";
@@ -80,11 +81,11 @@ describe("DeleteUserConversationUseCase", () => {
     expect(userConversationRepository.deleteById).not.toHaveBeenCalled();
   });
 
-  it("should throw UserConversationNotFoundException when deleteById returns false after purge", async () => {
+  it("should throw UserConversationDeleteAfterPurgeFailedException when deleteById returns false after purge", async () => {
     vi.mocked(userConversationRepository.deleteById).mockResolvedValue(false);
 
     await expect(useCase.execute(userId, conversationId)).rejects.toThrow(
-      UserConversationNotFoundException,
+      UserConversationDeleteAfterPurgeFailedException,
     );
     expect(chatThreadRepository.deleteThread).toHaveBeenCalledWith(chatId);
   });

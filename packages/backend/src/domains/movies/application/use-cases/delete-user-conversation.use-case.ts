@@ -1,4 +1,5 @@
 import { Logger } from "@/lib/logger/logger";
+import { UserConversationDeleteAfterPurgeFailedException } from "../../domain/exceptions/user-conversation-delete-after-purge-failed.exception";
 import { UserConversationNotFoundException } from "../../domain/exceptions/user-conversation-not-found.exception";
 import type { IChatThreadRepository } from "../../domain/repositories/chat-thread.repository";
 import type { IUserConversationRepository } from "../../domain/repositories/user-conversation.repository";
@@ -24,6 +25,7 @@ export class DeleteUserConversationUseCase {
     }
 
     const chatId = conversation.chatId;
+    // Purge primeiro: EC-03 exige que metadados não sumam se o checkpointer falhar.
     await this.chatThreadRepository.deleteThread(chatId);
 
     const deleted = await this.userConversationRepository.deleteById(
@@ -32,12 +34,12 @@ export class DeleteUserConversationUseCase {
     );
 
     if (!deleted) {
-      Logger.debug("User conversation not found during delete after purge", {
+      Logger.error("User conversation metadata delete failed after thread purge", {
         userId,
         conversationId: id,
         chatId,
       });
-      throw new UserConversationNotFoundException(id);
+      throw new UserConversationDeleteAfterPurgeFailedException(id, chatId);
     }
 
     Logger.info("User conversation deleted", {

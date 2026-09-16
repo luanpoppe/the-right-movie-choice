@@ -69,6 +69,13 @@ export class MovieRecommendationController {
           chatId,
         );
 
+      if (authContext) {
+        await MovieRecommendationController.touchConversationBeforeRecommendation(
+          authContext,
+          chatId,
+        );
+      }
+
       const useCaseOptions =
         MovieRecommendationController.resolveUseCaseOptions(request);
       const useCase =
@@ -89,7 +96,7 @@ export class MovieRecommendationController {
       );
 
       if (authContext) {
-        await MovieRecommendationController.persistConversationAfterRecommendation(
+        await MovieRecommendationController.saveGeneratedTitleIfAny(
           authContext,
           chatId,
           executionResult.generatedTitle,
@@ -178,26 +185,41 @@ export class MovieRecommendationController {
     };
   }
 
-  private static async persistConversationAfterRecommendation(
+  private static async touchConversationBeforeRecommendation(
+    authContext: AuthenticatedConversationContext,
+    chatId: string,
+  ): Promise<void> {
+    const { repository, userId } = authContext;
+    const touchedConversation = await repository.touchUpdatedAt(userId, chatId);
+
+    if (!touchedConversation) {
+      Logger.debug("User conversation missing before recommendation turn", {
+        userId,
+        chatId,
+      });
+      throw new UserConversationByChatIdNotFoundException(chatId);
+    }
+
+    Logger.debug("Conversation updatedAt touched before recommendation", {
+      userId,
+      chatId,
+    });
+  }
+
+  private static async saveGeneratedTitleIfAny(
     authContext: AuthenticatedConversationContext,
     chatId: string,
     generatedTitle: string | null,
   ): Promise<void> {
+    if (generatedTitle === null) return;
+
     const { repository, conversation, userId } = authContext;
     const conversationId = conversation.id;
 
-    if (generatedTitle !== null) {
-      await repository.updateTitle(userId, conversationId, generatedTitle);
-      Logger.debug("Conversation title saved from recommendation turn", {
-        userId,
-        conversationId,
-        chatId,
-      });
-    }
-
-    await repository.touchUpdatedAt(userId, chatId);
-    Logger.debug("Conversation updatedAt touched after recommendation", {
+    await repository.updateTitle(userId, conversationId, generatedTitle);
+    Logger.debug("Conversation title saved from recommendation turn", {
       userId,
+      conversationId,
       chatId,
     });
   }
