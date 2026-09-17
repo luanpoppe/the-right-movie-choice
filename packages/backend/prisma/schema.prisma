@@ -17,8 +17,31 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  movieEntries      UserMovieEntry[]
-  conversations     UserConversation[]
+  movieEntries           UserMovieEntry[]
+  conversations          UserConversation[]
+  friendRequestsSent     FriendRequest[]    @relation("FriendRequestRequester")
+  friendRequestsReceived FriendRequest[]    @relation("FriendRequestAddressee")
+}
+
+enum FriendRequestStatus {
+  pending
+  accepted
+  rejected
+}
+
+model FriendRequest {
+  id          Int                 @id @default(autoincrement())
+  requesterId Int
+  requester   User                @relation("FriendRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId Int
+  addressee   User                @relation("FriendRequestAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendRequestStatus @default(pending)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@index([requesterId, addresseeId, createdAt])
 }
 
 enum MovieWatchProviderKind {
