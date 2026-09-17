@@ -136,16 +136,10 @@
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
       <ul>
-        <li><code>POST /social/friend-requests</code> — body <code>{ email: string }</code>  ||  <code>201</code> solicitação  ||  auth JWT</li>
-        <li><code>POST /social/friend-requests/:id/accept</code> — <code>200</code> solicitação aceita</li>
-        <li><code>POST /social/friend-requests/:id/reject</code> — <code>200</code> solicitação recusada</li>
-        <li><code>DELETE /social/friend-requests/:id</code> — <code>204</code> cancela pendente enviada pelo autenticado</li>
-        <li><code>DELETE /social/friends/:userId</code> — <code>204</code> remove amizade</li>
-        <li><code>GET /social/friends</code> — <code>200</code> <code>{ friends: UserPublic[] }</code> onde <code>UserPublic = { id, name, email }</code></li>
-        <li><code>GET /social/friend-requests/incoming</code> — <code>200</code> lista pendentes recebidas</li>
-        <li><code>GET /social/friend-requests/outgoing</code> — <code>200</code> lista pendentes enviadas</li>
-        <li><code>GET /social/users/search?email=</code> — <code>200</code> <code>{ id, name, email, relationshipStatus }</code></li>
-        <li>Auth: reutilizar padrão JWT de <code>UserMovieEntryAuthHook</code> (ou hook equivalente renomeado para uso social)</li>
+        <li>Rotas <code>/social/*</code>: <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts:socialControllers</code></li>
+        <li>DTOs (body, params, query, responses): <code>packages/backend/src/modules/social/infrastructure/http/dto/friendship.dto.ts</code></li>
+        <li>Swagger: <code>packages/backend/src/modules/social/infrastructure/http/docs/friendship.docs.ts</code></li>
+        <li>Auth JWT: reutilizar <code>UserMovieEntryAuthHook</code> (<code>packages/backend/src/domains/movies/infrastructure/http/hooks/user-movie-entry-auth.hook.ts</code>)</li>
         <li>Descoberta: reutilizar <code>IUserRepository.findByEmail</code> do módulo users</li>
       </ul>
     </details>

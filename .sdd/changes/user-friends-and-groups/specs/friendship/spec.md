@@ -107,14 +107,8 @@ Expõe API REST autenticada para amizades bilaterais: enviar, aceitar, recusar e
 
 ## Contratos expostos
 
-- `POST /social/friend-requests` — body `{ email: string }`  ||  `201` solicitação  ||  auth JWT
-- `POST /social/friend-requests/:id/accept` — `200` solicitação aceita
-- `POST /social/friend-requests/:id/reject` — `200` solicitação recusada
-- `DELETE /social/friend-requests/:id` — `204` cancela pendente enviada pelo autenticado
-- `DELETE /social/friends/:userId` — `204` remove amizade
-- `GET /social/friends` — `200` `{ friends: UserPublic[] }` onde `UserPublic = { id, name, email }`
-- `GET /social/friend-requests/incoming` — `200` lista pendentes recebidas
-- `GET /social/friend-requests/outgoing` — `200` lista pendentes enviadas
-- `GET /social/users/search?email=` — `200` `{ id, name, email, relationshipStatus }`
-- Auth: reutilizar padrão JWT de `UserMovieEntryAuthHook` (ou hook equivalente renomeado para uso social)
+- Rotas `/social/*`: `packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts:socialControllers`
+- DTOs (body, params, query, responses): `packages/backend/src/modules/social/infrastructure/http/dto/friendship.dto.ts`
+- Swagger: `packages/backend/src/modules/social/infrastructure/http/docs/friendship.docs.ts`
+- Auth JWT: reutilizar `UserMovieEntryAuthHook` (`packages/backend/src/domains/movies/infrastructure/http/hooks/user-movie-entry-auth.hook.ts`)
 - Descoberta: reutilizar `IUserRepository.findByEmail` do módulo users
