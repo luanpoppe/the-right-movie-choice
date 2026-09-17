@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: user-groups — user-friends-and-groups</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-friends-and-groups</a> / specs / <strong>user-groups</strong> / spec</p>
+    <h1>Spec: user-groups</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-friends-and-groups</code></a> · atualizado em 2026-09-17</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>API REST autenticada para grupos com dono e membros: criar, listar, convidar por e-mail (qualquer membro), aceitar/recusar/cancelar convites, sair, remover membro (dono), excluir grupo e sugerir amigos ainda fora do grupo. Amizade não é pré-requisito para entrar. Rotas sob <code>/social/groups/*</code> e <code>/social/group-invites/*</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Criar grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 7</code> envia <code>POST /social/groups</code> com <code>{ &quot;name&quot;: &quot;Sábado cinema&quot;, &quot;description&quot;: &quot;Filmes do fim de semana&quot; }</code></li>
+        <li><strong>Quando</strong> <code>name</code> é string não vazia (até 100 caracteres) e <code>description</code> é omitida ou string (até 500)</li>
+        <li><strong>Então</strong> retorna <code>201</code> com <code>{ id, name, description, ownerId: 7, createdAt, updatedAt }</code></li>
+        <li><strong>E</strong> o usuário 7 passa a ser dono e membro do grupo</li>
+      </ul>
+      <h3>REQ-2: Listar meus grupos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é membro dos grupos <code>id = 3</code> e <code>id = 8</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array <code>{ id, name, description, ownerId, memberCount, joinedAt }</code></li>
+        <li><strong>E</strong> inclui somente grupos em que 7 é membro</li>
+      </ul>
+      <h3>REQ-3: Convidar por e-mail</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é membro do grupo <code>id = 3</code> e envia <code>POST /social/groups/3/invites</code> com <code>{ &quot;email&quot;: &quot;maria@example.com&quot; }</code></li>
+        <li><strong>Quando</strong> existe usuário <code>id = 12</code> com esse e-mail, 12 não é membro e não há convite <code>pending</code> para 12 no grupo 3</li>
+        <li><strong>Então</strong> retorna <code>201</code> com convite <code>{ id, groupId: 3, inviterId: 7, inviteeId: 12, status: &quot;pending&quot;, createdAt }</code></li>
+      </ul>
+      <h3>REQ-4: Aceitar convite</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe convite <code>pending</code> <code>id = 40</code> para <code>inviteeId = 12</code> no grupo <code>id = 3</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 12</code> envia <code>POST /social/group-invites/40/accept</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>status: &quot;accepted&quot;</code></li>
+        <li><strong>E</strong> 12 passa a ser membro do grupo 3</li>
+      </ul>
+      <h3>REQ-5: Recusar convite</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe convite <code>pending</code> <code>id = 40</code> para <code>inviteeId = 12</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 12</code> envia <code>POST /social/group-invites/40/reject</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>status: &quot;rejected&quot;</code></li>
+        <li><strong>E</strong> 12 não entra no grupo</li>
+      </ul>
+      <h3>REQ-6: Cancelar convite enviado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o convite <code>pending</code> <code>id = 41</code> foi enviado por <code>inviterId = 7</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 7</code> envia <code>DELETE /social/group-invites/41</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> o convite deixa de estar pendente</li>
+      </ul>
+      <h3>REQ-7: Sair do grupo (membro)</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 12</code> é membro não-dono do grupo <code>id = 3</code></li>
+        <li><strong>Quando</strong> envia <code>DELETE /social/groups/3/members/me</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> 12 deixa de ser membro do grupo 3</li>
+      </ul>
+      <h3>REQ-8: Dono sai — transferência de ownership</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é dono do grupo <code>id = 3</code> com membros <code>7</code>, <code>12</code> (joinedAt mais antigo após 7) e <code>15</code></li>
+        <li><strong>Quando</strong> 7 envia <code>DELETE /social/groups/3/members/me</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> <code>ownerId</code> passa a ser <code>12</code></li>
+        <li><strong>E</strong> 7 deixa de ser membro</li>
+      </ul>
+      <h3>REQ-9: Dono remove membro</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é dono do grupo <code>id = 3</code> e <code>id = 15</code> é membro</li>
+        <li><strong>Quando</strong> 7 envia <code>DELETE /social/groups/3/members/15</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> 15 deixa de ser membro</li>
+      </ul>
+      <h3>REQ-10: Excluir grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é dono do grupo <code>id = 3</code></li>
+        <li><strong>Quando</strong> envia <code>DELETE /social/groups/3</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> o grupo, membros e convites pendentes deixam de existir</li>
+      </ul>
+      <h3>REQ-11: Sugerir amigos fora do grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é membro do grupo <code>id = 3</code>, amigo aceito <code>id = 12</code>, e <code>id = 20</code> já é membro do grupo 3</li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups/3/suggestions</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array <code>{ id, name, email }</code></li>
+        <li><strong>E</strong> inclui 12 e exclui 7 (próprio usuário) e 20 (já membro)</li>
+      </ul>
+      <h3>REQ-12: Listar convites recebidos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 12</code> tem convites <code>pending</code> para os grupos <code>3</code> e <code>5</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/group-invites/incoming</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array <code>{ id, group: { id, name }, inviter: { id, name, email }, status, createdAt }</code></li>
+      </ul>
+      <h3>REQ-13: Reenvio após recusa</h3>
+      <ul>
+        <li><strong>Entrada</strong> convite anterior de 7 para 12 no grupo 3 está <code>rejected</code></li>
+        <li><strong>Quando</strong> 7 envia novo convite para <code>maria@example.com</code> (usuário 12)</li>
+        <li><strong>Saída</strong> cria novo convite <code>pending</code> com <code>201</code></li>
+      </ul>
+      <h3>REQ-14: Acesso autenticado</h3>
+      <ul>
+        <li><strong>Entrada</strong> qualquer rota <code>/social/groups/*</code> ou <code>/social/group-invites/*</code> sem JWT válido</li>
+        <li><strong>Saída</strong> <code>401</code>  ||  nenhuma leitura/escrita de grupo</li>
+      </ul>
+      <h3>REQ-15: Isolamento por usuário</h3>
+      <ul>
+        <li><strong>Entrada</strong> convite <code>id = 40</code> pertence a <code>inviteeId = 12</code></li>
+        <li><strong>Saída</strong> aceitar/recusar/cancelar com JWT de outro usuário → <code>404</code>  ||  não expõe nem altera dados alheios</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Convidar e-mail inexistente → <code>404</code></li>
+        <li>Convidar a si mesmo → <code>400</code></li>
+        <li>Convidar membro existente ou convite <code>pending</code> duplicado no mesmo grupo → <code>409</code></li>
+        <li>Usuário não-membro tenta convidar ou ver sugestões → <code>404</code></li>
+        <li>Não-dono tenta excluir grupo ou remover membro → <code>404</code></li>
+        <li>Dono único sai do grupo → grupo dissolvido (mesmo efeito de DELETE grupo)</li>
+        <li>Grupo atinge limite de 100 membros → <code>409</code> ao aceitar convite ou convidar</li>
+        <li>Concorrência em aceite duplo do mesmo convite → um membro único  ||  sem duplicata</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Rotas novas sob <code>/social/groups/*</code> e <code>/social/group-invites/*</code> (a definir em <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts</code>)</li>
+        <li>DTOs Zod: <code>packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts</code> (provisório)</li>
+        <li>Auth JWT: reutilizar <code>UserMovieEntryAuthHook</code></li>
+        <li>Descoberta por e-mail: reutilizar <code>IUserRepository.findByEmailCaseInsensitive</code></li>
+        <li>Sugestões: reutilizar <code>IFriendRequestRepository</code> / listagem de amigos aceitos da feature friendship</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
