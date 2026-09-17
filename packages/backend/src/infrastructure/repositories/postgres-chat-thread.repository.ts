@@ -3,6 +3,7 @@ import { UserConversationValidationUtils } from "@/domains/movies/domain/user-co
 import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
 import { Logger } from "@/lib/logger/logger";
 import { ErrorUtils } from "@/shared/utils/error.utils";
+import { ChatHistoryThreadIdUtils } from "./chat-history-thread-id.utils";
 
 interface PostgresCheckpointerWithDeleteThread {
   deleteThread(threadId: string): Promise<void>;
@@ -18,8 +19,12 @@ export class PostgresChatThreadRepository implements IChatThreadRepository {
     const checkpointer = await memory.getCheckpointer();
     const postgresSaver = checkpointer as PostgresCheckpointerWithDeleteThread;
 
+    const threadIds = ChatHistoryThreadIdUtils.buildDeletionThreadIds(chatId);
+
     try {
-      await postgresSaver.deleteThread(chatId);
+      for (const threadId of threadIds) {
+        await postgresSaver.deleteThread(threadId);
+      }
     } catch (error) {
       const reason = ErrorUtils.message(error);
       Logger.error("Failed to delete chat thread from checkpointer", {
@@ -29,6 +34,9 @@ export class PostgresChatThreadRepository implements IChatThreadRepository {
       throw error;
     }
 
-    Logger.info("Chat thread deleted from checkpointer", { chatId });
+    Logger.info("Chat thread deleted from checkpointer", {
+      chatId,
+      deletedThreadCount: threadIds.length,
+    });
   }
 }

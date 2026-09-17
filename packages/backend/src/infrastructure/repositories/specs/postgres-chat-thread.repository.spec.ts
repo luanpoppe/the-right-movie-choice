@@ -49,13 +49,15 @@ describe("PostgresChatThreadRepository", () => {
     expect(deleteThread).not.toHaveBeenCalled();
   });
 
-  it("apaga thread via checkpointer compartilhado com chatId como threadId", async () => {
+  it("apaga thread base e threads exclude-watched derivados", async () => {
     await repository.deleteThread(validChatId);
 
     expect(MovieRecommendationPostgresMemory.getShared).toHaveBeenCalledTimes(1);
     expect(getCheckpointer).toHaveBeenCalledTimes(1);
-    expect(deleteThread).toHaveBeenCalledTimes(1);
-    expect(deleteThread).toHaveBeenCalledWith(validChatId);
+    expect(deleteThread).toHaveBeenCalledTimes(6);
+    expect(deleteThread).toHaveBeenNthCalledWith(1, validChatId);
+    expect(deleteThread).toHaveBeenNthCalledWith(2, `${validChatId}:exclude:1`);
+    expect(deleteThread).toHaveBeenNthCalledWith(6, `${validChatId}:exclude:5`);
   });
 
   it("loga debug antes e info após purge bem-sucedida", async () => {
@@ -67,7 +69,7 @@ describe("PostgresChatThreadRepository", () => {
     );
     expect(Logger.info).toHaveBeenCalledWith(
       "Chat thread deleted from checkpointer",
-      { chatId: validChatId },
+      { chatId: validChatId, deletedThreadCount: 6 },
     );
   });
 

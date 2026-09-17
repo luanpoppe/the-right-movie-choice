@@ -40,13 +40,51 @@ describe("ChatHistoryAiMemoryRepository", () => {
     repository = new ChatHistoryAiMemoryRepository(ai);
   });
 
-  it("chama ai.memory.getHistory com o chatId", async () => {
-    getHistory.mockResolvedValue({ messages: [] });
+  it("chama ai.memory.getHistory com o chatId quando o thread base tem mensagens", async () => {
+    getHistory.mockResolvedValue({
+      messages: [MemoryHistoryFixtures.human("oi")],
+    });
 
     await repository.getHistory(chatId);
 
     expect(getHistory).toHaveBeenCalledTimes(1);
     expect(getHistory).toHaveBeenCalledWith(chatId);
+  });
+
+  it("resolve histórico em thread exclude-watched quando o chatId base está vazio", async () => {
+    const excludeThreadId = `${chatId}:exclude:1`;
+    getHistory.mockImplementation(async (threadId: string) => {
+      if (threadId === chatId) {
+        return { messages: [] };
+      }
+      if (threadId === excludeThreadId) {
+        return {
+          messages: [
+            MemoryHistoryFixtures.human("horror movies set in daylight"),
+            MemoryHistoryFixtures.ai("Try The Descent"),
+          ],
+        };
+      }
+      return { messages: [] };
+    });
+
+    const history = await repository.getHistory(chatId);
+
+    expect(history).toEqual([
+      ["user", "horror movies set in daylight"],
+      ["ai", "Try The Descent"],
+    ]);
+    expect(getHistory).toHaveBeenCalledWith(chatId);
+    expect(getHistory).toHaveBeenCalledWith(`${chatId}:exclude:5`);
+    expect(getHistory).toHaveBeenCalledWith(excludeThreadId);
+    expect(Logger.debug).toHaveBeenCalledWith(
+      "Resolved chat history from derived thread",
+      {
+        chatId,
+        resolvedThreadId: excludeThreadId,
+        messageCount: 2,
+      },
+    );
   });
 
   it("extrai movies de conteúdo ai em JSON estruturado", async () => {
@@ -107,6 +145,57 @@ describe("ChatHistoryAiMemoryRepository", () => {
     expect(history).toEqual([
       ["user", "oi"],
       ["ai", "olá"],
+    ]);
+  });
+
+  it("ignora mensagens ai vazias do fluxo com tool-calling", async () => {
+    getHistory.mockResolvedValue({
+      messages: [
+        MemoryHistoryFixtures.human("horror movies set in daylight"),
+        MemoryHistoryFixtures.ai(""),
+        MemoryHistoryFixtures.tool("tool-payload"),
+        MemoryHistoryFixtures.ai(
+          JSON.stringify({
+            response: "Try Midsommar",
+            movies: [
+              {
+                title: "Midsommar",
+                director: "Ari Aster",
+                actors: ["Florence Pugh"],
+                releaseYear: 2019,
+                streamingPlatform: "Netflix",
+                imdbRating: 7.1,
+                synopsis: "Synopsis",
+                whySuggestion: "Why",
+                durationInMinutes: 148,
+              },
+            ],
+          }),
+        ),
+      ],
+    });
+
+    const history = await repository.getHistory(chatId);
+
+    expect(history).toEqual([
+      ["user", "horror movies set in daylight"],
+      [
+        "ai",
+        "Try Midsommar",
+        [
+          {
+            title: "Midsommar",
+            director: "Ari Aster",
+            actors: ["Florence Pugh"],
+            releaseYear: 2019,
+            streamingPlatform: "Netflix",
+            imdbRating: 7.1,
+            synopsis: "Synopsis",
+            whySuggestion: "Why",
+            durationInMinutes: 148,
+          },
+        ],
+      ],
     ]);
   });
 
