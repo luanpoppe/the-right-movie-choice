@@ -21,10 +21,24 @@ jest.mock("@/features/auth/context/AuthContext", () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock("@/features/conversations/services/user-conversation.service", () => ({
+  UserConversationService: {
+    create: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
+
 jest.mock("@/features/movies/services/movie-recommendation.service", () => ({
   MovieRecommendationService: {
     getRecommendations: jest.fn(),
   },
+}));
+
+const mockedNavigate = jest.fn();
+
+jest.mock("react-router", () => ({
+  ...jest.requireActual<typeof import("react-router")>("react-router"),
+  useNavigate: () => mockedNavigate,
 }));
 
 jest.mock("@/features/movies/services/movies-query-examples.service", () => ({
@@ -145,13 +159,24 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { UserConversationService } from "@/features/conversations/services/user-conversation.service";
 import { MovieRecommendationService } from "@/features/movies/services/movie-recommendation.service";
 import { Home } from "../Home";
 
 const mockedUseAuth = jest.mocked(useAuth);
+const mockedCreateConversation = jest.mocked(UserConversationService.create);
+const mockedDeleteConversation = jest.mocked(UserConversationService.delete);
 const mockedGetRecommendations = jest.mocked(
   MovieRecommendationService.getRecommendations,
 );
+
+const createdConversation = {
+  id: 42,
+  chatId: "11111111-1111-4111-8111-111111111111",
+  title: null,
+  createdAt: "2026-03-15T12:00:00.000Z",
+  updatedAt: "2026-03-15T12:00:00.000Z",
+};
 
 const recommendationResponse = {
   movies: [],
@@ -219,24 +244,12 @@ describe("Home exclude-watched toggle", () => {
         setAccessToken: jest.fn(),
         clearSession: jest.fn(),
       });
+      mockedCreateConversation.mockResolvedValue(createdConversation);
+      mockedDeleteConversation.mockResolvedValue(undefined);
     });
 
     it("REQ-1: exibe toggle ligado na welcome", () => {
       renderHome();
-
-      const checkbox = getExcludeWatchedCheckbox();
-      expect(checkbox).toBeInTheDocument();
-      expect(checkbox).toBeChecked();
-    });
-
-    it("REQ-1: exibe toggle ligado no chat após iniciar conversa", async () => {
-      renderHome();
-
-      await submitWelcomeMessage("sci-fi thriller");
-
-      await waitFor(() => {
-        expect(mockedGetRecommendations).toHaveBeenCalled();
-      });
 
       const checkbox = getExcludeWatchedCheckbox();
       expect(checkbox).toBeInTheDocument();
@@ -251,7 +264,7 @@ describe("Home exclude-watched toggle", () => {
       await waitFor(() => {
         expect(mockedGetRecommendations).toHaveBeenCalledWith(
           { userMessage: "sci-fi thriller", excludeWatched: true },
-          expect.any(String),
+          createdConversation.chatId,
         );
       });
     });
@@ -266,29 +279,26 @@ describe("Home exclude-watched toggle", () => {
       await waitFor(() => {
         expect(mockedGetRecommendations).toHaveBeenCalledWith(
           { userMessage: "comedy night", excludeWatched: false },
-          expect.any(String),
+          createdConversation.chatId,
         );
       });
     });
 
-    it("REQ-6: reset restaura toggle ligado na welcome", async () => {
-      const user = userEvent.setup();
+    it("REQ-4: navega para /conversations/:id após criar conversa", async () => {
       renderHome();
 
-      await submitWelcomeMessage("first message");
+      await submitWelcomeMessage("sci-fi thriller");
 
       await waitFor(() => {
-        expect(mockedGetRecommendations).toHaveBeenCalledTimes(1);
+        expect(mockedNavigate).toHaveBeenCalledWith("/conversations/42", {
+          state: {
+            conversationBootstrap: {
+              response: recommendationResponse.response,
+              movies: recommendationResponse.movies,
+            },
+          },
+        });
       });
-
-      await user.click(getExcludeWatchedCheckbox());
-      expect(getExcludeWatchedCheckbox()).not.toBeChecked();
-
-      await user.click(screen.getByRole("button", { name: /start again/i }));
-
-      const checkbox = getExcludeWatchedCheckbox();
-      expect(checkbox).toBeInTheDocument();
-      expect(checkbox).toBeChecked();
     });
 
     it("REQ-7: toggle desabilitado durante loading", async () => {

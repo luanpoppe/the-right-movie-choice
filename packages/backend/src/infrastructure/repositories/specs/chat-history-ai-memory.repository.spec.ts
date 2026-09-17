@@ -49,6 +49,51 @@ describe("ChatHistoryAiMemoryRepository", () => {
     expect(getHistory).toHaveBeenCalledWith(chatId);
   });
 
+  it("extrai movies de conteúdo ai em JSON estruturado", async () => {
+    const structuredContent = JSON.stringify({
+      response: "Try Blade Runner",
+      movies: [
+        {
+          title: "Blade Runner",
+          director: "Ridley Scott",
+          actors: ["Harrison Ford"],
+          releaseYear: 1982,
+          streamingPlatform: "Netflix",
+          imdbRating: 8.1,
+          synopsis: "Neo-noir sci-fi.",
+          whySuggestion: "Classic.",
+          durationInMinutes: 117,
+        },
+      ],
+    });
+
+    getHistory.mockResolvedValue({
+      messages: [MemoryHistoryFixtures.ai(structuredContent)],
+    });
+
+    const history = await repository.getHistory(chatId);
+
+    expect(history).toEqual([
+      [
+        "ai",
+        "Try Blade Runner",
+        [
+          {
+            title: "Blade Runner",
+            director: "Ridley Scott",
+            actors: ["Harrison Ford"],
+            releaseYear: 1982,
+            streamingPlatform: "Netflix",
+            imdbRating: 8.1,
+            synopsis: "Neo-noir sci-fi.",
+            whySuggestion: "Classic.",
+            durationInMinutes: 117,
+          },
+        ],
+      ],
+    ]);
+  });
+
   it("mapeia human para user e ai para ai", async () => {
     getHistory.mockResolvedValue({
       messages: [
