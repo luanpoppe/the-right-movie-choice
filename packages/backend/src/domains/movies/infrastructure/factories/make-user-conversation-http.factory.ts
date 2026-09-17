@@ -1,5 +1,6 @@
 import { AI } from "@luanpoppe/ai";
 import { AiConfigBuilder } from "@/lib/ai/ai-config.builder";
+import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
 import { ChatHistoryAiMemoryRepository } from "@/infrastructure/repositories/chat-history-ai-memory.repository";
 import { PostgresChatThreadRepository } from "@/infrastructure/repositories/postgres-chat-thread.repository";
 import { JoseAccessTokenProvider } from "@/modules/auth/infrastructure/providers/jose-access-token.provider";
@@ -18,7 +19,11 @@ export class MakeUserConversationHttpFactory {
     const userConversationRepository = new PrismaUserConversationRepository();
     const chatThreadRepository = new PostgresChatThreadRepository();
 
-    const aiConfig = AiConfigBuilder.buildFromEnv();
+    const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
+    const aiConfig = {
+      ...AiConfigBuilder.buildFromEnv(),
+      memory: sharedPostgresMemory,
+    };
     const ai = new AI(aiConfig);
     const chatHistoryRepository = new ChatHistoryAiMemoryRepository(ai);
 
