@@ -32,7 +32,8 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Recomendações via IA:** Sugestões baseadas em linguagem natural; cada resposta retorna até **3 filmes** com título, diretor, elenco, ano, nota IMDb, duração, sinopse, plataforma de streaming e motivo da sugestão. Quando o agente resolve o catálogo via **`lookupMovies`**, cada filme pode incluir **`tmdbId`** e **`imdbId`** opcionais para o SPA marcar listas.
 - **Catálogo local (Postgres):** Fichas `Movie` + filhas persistidas via Prisma; lookup **local-first** (Redis → banco → TMDB) no agente e no `GET /debug/tmdb/movies/:id`; persistência assíncrona no miss TMDB via fila **BullMQ** (`catalog-movie-persist`).
 - **Sugestões de busca (pool + IA):** pool de até **100** textos únicos no Postgres (`MovieQuerySuggestion`); `GET /movie/queries` devolve **3 aleatórios** do pool quando há pelo menos 3 itens, com fallback para IA se o pool estiver vazio, inválido ou indisponível. Seed idempotente via `pnpm seed:query-suggestions` (encadeado ao `db:migrate`). Em produção, rotação semanal automática (+5/−5, domingo 03:00 `America/Sao_Paulo`).
-- **Histórico de conversa:** Contexto por sessão no Redis, identificado pelo header `chatid`.
+- **Histórico de conversa:** Convidados usam sessão anônima no Redis via header `chatid` (UUID gerado no cliente). Usuários autenticados têm **conversas persistidas** (`UserConversation` no Postgres + histórico no Redis/LangGraph), com `chatId` UUID gerado no servidor.
+- **Conversas do usuário (autenticado):** CRUD em `/movie/conversations` — criar conversa, listar (ordenado por `updatedAt` desc), obter com histórico de mensagens, renomear título e excluir (remove metadados e histórico). Título `null` na criação; na **primeira** recomendação autenticada o backend gera título via IA em paralelo à resposta.
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
 - **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
@@ -48,6 +49,9 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 ### Frontend
 
 - **Interface de chat** para pedir recomendações e ver filmes sugeridos.
+- **Fluxo autenticado com conversas:** na Home, a primeira mensagem cria conversa (`POST /movie/conversations`), pede recomendação com o `chatId` retornado e navega para `/conversations/:id`. Convidados continuam com chat inline na Home (fluxo legado).
+- **Página `/conversations/:id`:** chat com **sidebar** de conversas (listar, renomear inline, excluir, nova conversa); retoma histórico via `GET /movie/conversations/:id`; 404 redireciona para `/conversations`; excluir a conversa ativa redireciona para `/`.
+- **Link "Conversations"** no header quando autenticado (`/conversations`).
 - **Toggle "Exclude watched movies":** visível só para usuário autenticado (welcome e chat); padrão ligado; envia `excludeWatched` no POST de recomendação.
 - **Ações nos cards:** marcar assistido (nota/data opcionais), favorito e watchlist com PATCH otimista.
 - **Biblioteca `/my-movies`:** abas Assistidos, Quero ver e Favoritos; link no header quando autenticado.
@@ -106,7 +110,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Testes:** Vitest
 - **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
-- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
+- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion` + `UserConversation`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
 - **Jobs agendados:** `node-cron` para rotação do pool de sugestões (somente `NODE_ENV=prod`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
@@ -195,7 +199,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `UserConversation`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -230,20 +234,23 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variável `userEntryTmdbId` (padrão `27205`) alimenta as rotas `/movie/user-entries/:tmdbId`.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**.
 
-Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+
+**Fluxo autenticado no Postman:** Login → **Create conversation** (salva `conversationId` e `chatId`) → **Movie recommendation (Bearer)** com `chatid: {{chatId}}`.
 ## Referência da API
 
-`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries` exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries` e todas as rotas `/movie/conversations` exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
 
 > Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
 
 ### `POST /movie/recommendation`
 
-- **Header obrigatório:** `chatid` (string) — ID da sessão de conversa no Redis.
+- **Header obrigatório:** `chatid` (string) — ID da sessão de chat.
 - **Header opcional:** `Authorization: Bearer <accessToken>` — usuário logado; pula a cota de convidado.
-- **Convidado (sem Bearer):** cookie `guest-id` (httpOnly) + header de resposta `X-Guest-Remaining` com tentativas restantes.
+- **Convidado (sem Bearer):** `chatid` é um UUID gerado no cliente; histórico no Redis. Cookie `guest-id` (httpOnly) + header de resposta `X-Guest-Remaining` com tentativas restantes.
+- **Autenticado (com Bearer):** `chatid` deve ser o `chatId` de uma conversa do usuário (retornado por `POST /movie/conversations`). Caso contrário, `404`. Na primeira mensagem de uma conversa sem título, o backend gera o título via IA e atualiza `updatedAt` a cada turno.
 - **Body:**
   ```json
   {
@@ -285,7 +292,7 @@ curl --location 'http://164.152.61.119:8080/movie/recommendation' \
   --data '{"userMessage": "Sugira um filme de ficção científica com uma boa história."}'
 ```
 
-**Respostas:** `200`, `400` (validação / header ausente), `500` (erro interno / schema da IA).
+**Respostas:** `200`, `400` (validação / header ausente), `404` (autenticado com `chatid` que não pertence ao usuário), `500` (erro interno / schema da IA).
 
 ### `GET /movie/queries`
 
@@ -381,6 +388,100 @@ curl -X PATCH "http://localhost:3333/movie/user-entries/27205" \
 ```
 
 **Respostas:** `200`, `400`, `401`.
+
+### `POST /movie/conversations`
+
+- **Autenticação:** Bearer obrigatório.
+- **Body:** nenhum.
+- **Resposta `201`:**
+  ```json
+  {
+    "id": 1,
+    "chatId": "550e8400-e29b-41d4-a716-446655440000",
+    "title": null,
+    "createdAt": "2026-09-17T00:00:00.000Z",
+    "updatedAt": "2026-09-17T00:00:00.000Z"
+  }
+  ```
+  Use o `chatId` retornado no header `chatid` das recomendações autenticadas.
+
+**Exemplo (local):**
+```bash
+curl -X POST http://localhost:3333/movie/conversations \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+**Respostas:** `201`, `400`, `401`.
+
+### `GET /movie/conversations`
+
+- **Autenticação:** Bearer obrigatório.
+- **Resposta `200`:** array de conversas ordenadas por `updatedAt` descendente (mesmo formato do item de criação).
+
+**Exemplo (local):**
+```bash
+curl http://localhost:3333/movie/conversations \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+**Respostas:** `200`, `400`, `401`.
+
+### `GET /movie/conversations/:id`
+
+- **Autenticação:** Bearer obrigatório.
+- **Path:** `id` — inteiro positivo.
+- **Resposta `200`:**
+  ```json
+  {
+    "id": 1,
+    "chatId": "550e8400-e29b-41d4-a716-446655440000",
+    "title": "Filmes de ficção científica",
+    "createdAt": "2026-09-17T00:00:00.000Z",
+    "updatedAt": "2026-09-17T01:00:00.000Z",
+    "messages": [
+      ["user", "Quero um filme de ficção científica"],
+      ["ai", "Aqui vão três sugestões...", [{ "title": "...", "tmdbId": 27205 }]]
+    ]
+  }
+  ```
+  `messages` segue `ChatHistoryEntity`: tuplas `["user"|"system"|"ai", texto]` ou, para respostas da IA com filmes estruturados, `["ai", texto, movies[]]`.
+
+**Respostas:** `200`, `400`, `401`, `404`.
+
+### `PATCH /movie/conversations/:id`
+
+- **Autenticação:** Bearer obrigatório.
+- **Path:** `id` — inteiro positivo.
+- **Body** (`strict`):
+  ```json
+  { "title": "Meu título personalizado" }
+  ```
+  `title` — string, máximo 200 caracteres.
+- **Resposta `200`:** objeto da conversa atualizado (mesmo formato do item de criação).
+
+**Exemplo (local):**
+```bash
+curl -X PATCH "http://localhost:3333/movie/conversations/1" \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"title\": \"Comédias leves\"}"
+```
+
+**Respostas:** `200`, `400`, `401`, `404`.
+
+### `DELETE /movie/conversations/:id`
+
+- **Autenticação:** Bearer obrigatório.
+- **Path:** `id` — inteiro positivo.
+- **Resposta:** `204` (remove a conversa e o histórico de chat associado).
+
+**Exemplo (local):**
+```bash
+curl -X DELETE "http://localhost:3333/movie/conversations/1" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+**Respostas:** `204`, `400`, `401`, `404`.
 
 ### `POST /users/register`
 

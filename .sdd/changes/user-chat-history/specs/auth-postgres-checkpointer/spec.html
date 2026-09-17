@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: auth-postgres-checkpointer — user-chat-history</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-chat-history</a> / specs / <strong>auth-postgres-checkpointer</strong> / spec</p>
+    <h1>Spec: auth-postgres-checkpointer</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-chat-history</code></a> · atualizado em 2026-09-16</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Torna a memória do agente de recommendation híbrida: requisições autenticadas (JWT válido) persistem turnos no checkpointer Postgres da <code>@luanpoppe/ai</code>  ||  guests continuam no Redis com TTL de 20 minutos. A escolha acontece na <code>MakeGetMovieRecommendationUseCaseFactory</code> a cada request, reutilizando o mesmo <code>chatId</code> como <code>threadId</code> — sem dual-write nem migração de histórico Redis.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Memória durável para usuário autenticado</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente envia <code>POST /movie/recommendation</code> com header <code>chatid = &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;</code> e <code>Authorization: Bearer &lt;JWT válido&gt;</code> do usuário <code>id = 7</code></li>
+        <li><strong>Quando</strong> a factory monta o <code>AI</code> para esse request</li>
+        <li><strong>Então</strong> o config inclui <code>memory: { type: &quot;postgres&quot;, connectionString: &lt;DATABASE_URL&gt; }</code></li>
+        <li><strong>E</strong> não define <code>options.defaultTTL</code> nem <code>refreshOnRead</code> (sem expiração automática)</li>
+      </ul>
+      <h3>REQ-2: Memória efêmera para guest</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente envia <code>POST /movie/recommendation</code> com header <code>chatid</code> e <strong>sem</strong> <code>Authorization</code></li>
+        <li><strong>Quando</strong> a factory monta o <code>AI</code> para esse request</li>
+        <li><strong>Então</strong> o config inclui <code>memory: { type: &quot;redis&quot;, url: &lt;REDIS_URL normalizado&gt;, options: { defaultTTL: 1200, refreshOnRead: true } }</code></li>
+        <li><strong>E</strong> o comportamento atual de TTL de 20 minutos e refresh-on-read permanece inalterado</li>
+      </ul>
+      <h3>REQ-3: Critério de seleção na factory</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>MakeGetMovieRecommendationUseCaseFactory.create(options)</code> com <code>options.userId</code> inteiro positivo (fluxo autenticado do controller)</li>
+        <li><strong>Saída</strong> <code>buildAiConfig</code> escolhe backend <code>postgres</code></li>
+        <li><strong>Entrada</strong> <code>create()</code> sem <code>userId</code> (guest ou chamada sem auth)</li>
+        <li><strong>Saída</strong> <code>buildAiConfig</code> escolhe backend <code>redis</code></li>
+      </ul>
+      <h3>REQ-4: Setup das tabelas LangGraph no Postgres</h3>
+      <ul>
+        <li><strong>Entrada</strong> primeiro uso do checkpointer Postgres em runtime (lazy, via <code>AIMemory.getCheckpointer()</code> da lib)</li>
+        <li><strong>Saída</strong> <code>PostgresSaver.setup()</code> roda de forma idempotente no mesmo <code>DATABASE_URL</code> do Prisma</li>
+        <li><strong>Erro</strong> pacote <code>@langchain/langgraph-checkpoint-postgres</code> ausente → falha explícita na subida do checkpointer  ||  não silencia</li>
+      </ul>
+      <h3>REQ-5: Mesmo AI por request, sem dual-write</h3>
+      <ul>
+        <li><strong>Entrada</strong> request autenticado com <code>chatId</code> conhecido</li>
+        <li><strong>Saída</strong> um único <code>AI</code> por request grava e lê só no Postgres para aquele <code>threadId</code></li>
+        <li><strong>Erro</strong> não grava turno simultaneamente em Redis e Postgres para o mesmo <code>chatId</code></li>
+      </ul>
+      <h3>REQ-6: Demais factories de AI intactas</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>MakeGetMoviesQueryExamplesUseCaseFactory</code> (e demais que não são recommendation)</li>
+        <li><strong>Saída</strong> config do <code>AI</code> <strong>sem</strong> bloco <code>memory</code>  ||  comportamento atual preservado</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Guest faz turnos no Redis e depois loga reutilizando o mesmo <code>chatId</code> → histórico Redis é ignorado  ||  Postgres começa vazio para aquele <code>threadId</code> (sem migração — fora de escopo do plano)</li>
+        <li>Postgres indisponível em request autenticado → request falha (erro propagado)  ||  <strong>não</strong> faz fallback silencioso para Redis</li>
+        <li><code>REDIS_URL</code> sem protocolo (<code>host:porta</code>) → continua prefixando <code>redis://</code> só para o checkpointer guest (regra já existente)</li>
+        <li>JWT inválido → rejeitado no hook de auth antes da factory  ||  esta feature não altera esse fluxo</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

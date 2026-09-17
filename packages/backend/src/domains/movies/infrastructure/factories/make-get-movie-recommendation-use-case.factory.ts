@@ -1,6 +1,7 @@
 import { AI } from "@luanpoppe/ai";
 import { env } from "@/env";
 import { AiConfigBuilder } from "@/lib/ai/ai-config.builder";
+import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
 import { Logger } from "@/lib/logger/logger";
 import { Redis } from "@/lib/redis/redis";
 import { MakeTmdbHttpClientFactory } from "@/modules/tmdb/infrastructure/factories/make-tmdb-http-client.factory";
@@ -19,14 +20,28 @@ import {
 } from "../providers/movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
 import { CatalogPersistEnqueuer } from "../workers/catalog-persist.enqueuer";
+import { PrismaUserConversationRepository } from "../repositories/user-conversation/prisma-user-conversation.repository";
+import { ConversationTitleGenerator } from "../providers/conversation-title.generator";
+import type { IUserConversationRepository } from "../../domain/repositories/user-conversation.repository";
 
 type AiConstructorConfig = ConstructorParameters<typeof AI>[0];
 
 const CHAT_MEMORY_TTL_SECONDS = 1200;
 
 export class MakeGetMovieRecommendationUseCaseFactory {
+  static createUserConversationRepository(): IUserConversationRepository {
+    return new PrismaUserConversationRepository();
+  }
+
+  static createConversationTitleGenerator(): ConversationTitleGenerator {
+    const config = AiConfigBuilder.buildFromEnv();
+    const ai = new AI(config);
+    return new ConversationTitleGenerator(ai);
+  }
+
   static create(options?: GetMovieRecommendationUseCaseOptions) {
-    const config = MakeGetMovieRecommendationUseCaseFactory.buildAiConfig();
+    const config =
+      MakeGetMovieRecommendationUseCaseFactory.buildAiConfig(options);
     const ai = new AI(config);
 
     const catalog = MakeTmdbHttpClientFactory.create();
@@ -93,12 +108,34 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     };
   }
 
-  private static buildAiConfig(): AiConstructorConfig {
+  private static buildAiConfig(
+    options?: GetMovieRecommendationUseCaseOptions,
+  ): AiConstructorConfig {
+    const userId = options?.userId;
+    const hasValidUserId = userId !== undefined && userId > 0;
+
+    if (hasValidUserId) {
+      const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
+      Logger.debug(
+        "Movie recommendation AI memory backend selected: postgres",
+        { userId },
+      );
+
+      return {
+        ...AiConfigBuilder.buildFromEnv(),
+        memory: sharedPostgresMemory,
+      };
+    }
+
     const redisUrl = env.REDIS_URL;
     const checkpointerRedisUrl =
       MakeGetMovieRecommendationUseCaseFactory.toCheckpointerRedisUrl(
         redisUrl,
       );
+    Logger.debug("Movie recommendation AI memory backend selected: redis", {
+      defaultTTL: CHAT_MEMORY_TTL_SECONDS,
+      refreshOnRead: true,
+    });
 
     return {
       ...AiConfigBuilder.buildFromEnv(),

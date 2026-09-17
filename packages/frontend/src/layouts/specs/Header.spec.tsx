@@ -40,6 +40,19 @@ describe("Header", () => {
     jest.clearAllMocks();
   });
 
+  it("REQ-2: usuário autenticado vê link Conversations para /conversations", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: "token",
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    const conversationsLink = screen.getByRole("link", { name: "Conversations" });
+    expect(conversationsLink).toHaveAttribute("href", "/conversations");
+  });
+
   it("REQ-7: usuário autenticado vê link Meus filmes para /my-movies", () => {
     mockedUseAuth.mockReturnValue({
       accessToken: "token",
@@ -52,6 +65,20 @@ describe("Header", () => {
     const myMoviesLink = screen.getByRole("link", { name: "My movies" });
     expect(myMoviesLink).toHaveAttribute("href", "/my-movies");
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  it("REQ-2: visitante não vê link Conversations", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: null,
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    expect(
+      screen.queryByRole("link", { name: "Conversations" }),
+    ).not.toBeInTheDocument();
   });
 
   it("REQ-7: visitante não vê link Meus filmes", () => {

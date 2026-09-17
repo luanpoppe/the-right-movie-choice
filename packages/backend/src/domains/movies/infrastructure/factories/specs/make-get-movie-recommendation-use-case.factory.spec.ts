@@ -5,6 +5,7 @@ import { GetMovieRecommendationUseCase } from "../../../application/use-cases/ge
 import { AiMovieRecommendationProvider } from "../../providers/ai-movie-recommendation.provider";
 import { AiModels } from "@/lib/ai/ai-models";
 import { PrismaUserMovieEntryRepository } from "../../repositories/user-movie-entry/prisma-user-movie-entry.repository";
+import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
 
 const { envState, aiConstructorCalls, lookupAiToolConstructorCalls } =
   vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const { envState, aiConstructorCalls, lookupAiToolConstructorCalls } =
       OPENROUTER_API_KEY: "openrouter-key",
       GEMINI_API_KEY: "gemini-key",
       REDIS_URL: "redis://localhost:6379",
+      DATABASE_URL: "postgresql://user:pass@localhost:5432/app",
     },
     aiConstructorCalls: [] as unknown[],
     lookupAiToolConstructorCalls: [] as unknown[],
@@ -28,6 +30,9 @@ vi.mock("@/env", () => ({
     get REDIS_URL() {
       return envState.REDIS_URL;
     },
+    get DATABASE_URL() {
+      return envState.DATABASE_URL;
+    },
   },
 }));
 
@@ -36,6 +41,9 @@ vi.mock("@luanpoppe/ai", () => ({
     constructor(config: unknown) {
       aiConstructorCalls.push(config);
     }
+  },
+  AIMemory: class AIMemory {
+    constructor(public config: { type: string; connectionString?: string }) {}
   },
   AITools: class AITools {
     createTool() {
@@ -66,14 +74,18 @@ vi.mock("../../providers/movie-catalog-lookup.ai-tool", () => ({
 }));
 
 import { MakeGetMovieRecommendationUseCaseFactory } from "../make-get-movie-recommendation-use-case.factory";
+import { ConversationTitleGenerator } from "../../providers/conversation-title.generator";
+import { PrismaUserConversationRepository } from "../../repositories/user-conversation/prisma-user-conversation.repository";
 
 describe("MakeGetMovieRecommendationUseCaseFactory", () => {
   beforeEach(() => {
     aiConstructorCalls.length = 0;
     lookupAiToolConstructorCalls.length = 0;
+    MovieRecommendationPostgresMemory.resetForTests();
     envState.OPENROUTER_API_KEY = "openrouter-key";
     envState.GEMINI_API_KEY = "gemini-key";
     envState.REDIS_URL = "redis://localhost:6379";
+    envState.DATABASE_URL = "postgresql://user:pass@localhost:5432/app";
   });
 
   it("cria um único AI e injeta AiMovieRecommendationProvider no use case", () => {
@@ -155,7 +167,76 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(config.memory.url).toBe("redis://localhost:6379");
   });
 
-  it("passa memory redis no mesmo AI do provider com TTL de 20 minutos", () => {
+  it("mantém REDIS_URL inalterada quando já inclui protocolo redis://", () => {
+    envState.REDIS_URL = "redis://already-prefixed:6379";
+
+    MakeGetMovieRecommendationUseCaseFactory.create();
+
+    const config = aiConstructorCalls[0] as {
+      memory: { url: string };
+    };
+
+    expect(config.memory.url).toBe("redis://already-prefixed:6379");
+  });
+
+  it("REQ-3: userId zero usa memory redis em vez de postgres", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: 0 });
+
+    const config = aiConstructorCalls[0] as {
+      memory: { type: string; url: string };
+    };
+
+    expect(config.memory.type).toBe("redis");
+    expect(config.memory.url).toBe("redis://localhost:6379");
+    expect(config.memory).not.toHaveProperty("connectionString");
+  });
+
+  it("REQ-3: userId negativo usa memory redis em vez de postgres", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: -3 });
+
+    const config = aiConstructorCalls[0] as {
+      memory: { type: string; url: string };
+    };
+
+    expect(config.memory.type).toBe("redis");
+    expect(config.memory).not.toHaveProperty("connectionString");
+  });
+
+  it("REQ-5: buildAiConfig escolhe um único backend por request via if/else (sem dual-write)", () => {
+    const factoryPath = path.join(
+      process.cwd(),
+      "src/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory.ts",
+    );
+    const factorySource = readFileSync(factoryPath, "utf8");
+    const redisMemoryIndex = factorySource.indexOf('type: "redis"');
+
+    expect(factorySource).toMatch(/if \(hasValidUserId\)/);
+    expect(factorySource).toMatch(/userId !== undefined && userId > 0/);
+    expect(factorySource).toMatch(
+      /MovieRecommendationPostgresMemory\.getShared\(\)/,
+    );
+    expect(redisMemoryIndex).toBeGreaterThan(-1);
+    expect(factorySource).not.toMatch(/memory:\s*\[[\s\S]*postgres[\s\S]*redis/);
+  });
+
+  it("edge: sequência guest depois autenticado seleciona backends distintos por request", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create();
+
+    const guestConfig = aiConstructorCalls[0] as {
+      memory: { type: string };
+    };
+
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: 7 });
+
+    const authConfig = aiConstructorCalls[1] as {
+      memory: { config: { type: string } };
+    };
+
+    expect(guestConfig.memory.type).toBe("redis");
+    expect(authConfig.memory.config.type).toBe("postgres");
+  });
+
+  it("REQ-2, REQ-3: guest sem userId mantém memory redis com TTL de 20 minutos", () => {
     envState.REDIS_URL = "redis://memory-host:6380";
 
     MakeGetMovieRecommendationUseCaseFactory.create();
@@ -180,6 +261,35 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
       "defaultTTL",
       "refreshOnRead",
     ]);
+    expect(config.memory).not.toHaveProperty("connectionString");
+  });
+
+  it("REQ-1, REQ-3: userId válido usa AIMemory postgres compartilhado com DATABASE_URL", () => {
+    envState.DATABASE_URL =
+      "postgresql://postgres:secret@db-host:5432/the_right_movie";
+
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: 7 });
+
+    const config = aiConstructorCalls[0] as {
+      memory: {
+        config: { type: string; connectionString: string };
+      };
+    };
+
+    expect(config.memory.config).toEqual({
+      type: "postgres",
+      connectionString: "postgresql://postgres:secret@db-host:5432/the_right_movie",
+    });
+  });
+
+  it("reutiliza a mesma instância AIMemory postgres entre requests autenticados", () => {
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: 1 });
+    MakeGetMovieRecommendationUseCaseFactory.create({ userId: 7 });
+
+    const firstConfig = aiConstructorCalls[0] as { memory: unknown };
+    const secondConfig = aiConstructorCalls[1] as { memory: unknown };
+
+    expect(firstConfig.memory).toBe(secondConfig.memory);
   });
 
   it("permite Redis para TmdbMovieDetailsCache e não injeta ChatHistoryAiMemoryRepository no use case", () => {
@@ -209,6 +319,17 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
 
     expect(packageJson.dependencies).toHaveProperty(
       "@langchain/langgraph-checkpoint-redis",
+    );
+  });
+
+  it("declara @langchain/langgraph-checkpoint-postgres no package.json do backend", () => {
+    const packageJsonPath = path.join(process.cwd(), "package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      dependencies: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies).toHaveProperty(
+      "@langchain/langgraph-checkpoint-postgres",
     );
   });
 
@@ -387,5 +508,19 @@ describe("MakeGetMovieRecommendationUseCaseFactory", () => {
     expect(useCaseRecord.userMovieEntryRepository).toBeInstanceOf(
       PrismaUserMovieEntryRepository,
     );
+  });
+
+  it("createConversationTitleGenerator retorna ConversationTitleGenerator", () => {
+    const titleGenerator =
+      MakeGetMovieRecommendationUseCaseFactory.createConversationTitleGenerator();
+
+    expect(titleGenerator).toBeInstanceOf(ConversationTitleGenerator);
+  });
+
+  it("createUserConversationRepository retorna PrismaUserConversationRepository", () => {
+    const repository =
+      MakeGetMovieRecommendationUseCaseFactory.createUserConversationRepository();
+
+    expect(repository).toBeInstanceOf(PrismaUserConversationRepository);
   });
 });

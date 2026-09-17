@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "The Right Movie Choice API",
-    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `userEntryTmdbId` — TMDB id usado em GET/PATCH `/movie/user-entries/:tmdbId` (ex.: 27205 = Inception)\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro para rotas com Bearer. Use \"Movie recommendation (Bearer)\" ou a pasta **User movie entries** com `Authorization: Bearer {{accessToken}}`.\n\n**GET /movie/queries**\nRota pública, sem cota. Com pool Postgres ≥ 3 itens, retorna 3 sugestões aleatórias do pool; caso contrário, fallback IA (mesmo JSON). Popule o pool com `pnpm seed:query-suggestions` no backend.\n\n**Resposta da recomendação**\nCada filme pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo via `lookupMovies`.\n\n**excludeWatched (recomendação autenticada)**\nBody opcional `excludeWatched: boolean` — padrão `true` se omitido. Filtra filmes já assistidos do usuário após lookup no catálogo. Convidado ignora o campo.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
+    "description": "Coleção com todas as rotas expostas pelo backend Fastify.\n\n**Variáveis**\n- `baseUrl` — URL da API (environment **Local** usa `http://localhost:3333`, padrão do `.env.example`; ajuste se `PORT` no seu `.env` for outro)\n- `chatId` — ID da sessão de chat (header obrigatório `chatid` na recomendação). Convidado: UUID arbitrário. Autenticado: use o `chatId` retornado por **Create conversation**.\n- `conversationId` — preenchido após **Create conversation** (path `GET/PATCH/DELETE /movie/conversations/:id`)\n- `accessToken` / `refreshToken` — preenchidos após Login, Google Auth e Refresh (test script). Refresh/Logout enviam `Cookie: refreshToken={{refreshToken}}`.\n- `userEntryTmdbId` — TMDB id usado em GET/PATCH `/movie/user-entries/:tmdbId` (ex.: 27205 = Inception)\n- `tmdbQuery`, `tmdbPage`, `tmdbMovieId`, `tmdbLanguage` — rotas TMDB debug (somente dev). `tmdbLanguage` opcional (ex. `pt-BR`); vazio omite o parâmetro no resolver.\n\n**Cookies (Cookie Jar)**\n- `refreshToken` — httpOnly, definido no Login/Google Auth\n- `guest-id` — httpOnly, definido na recomendação como convidado; resposta traz `X-Guest-Remaining`\n\n**Auth**\nLogin ou Google Auth primeiro para rotas com Bearer.\n\n**Fluxo autenticado (conversas)**\n1. Login ou Google Auth\n2. **Create conversation** → salva `conversationId` e `chatId`\n3. **Movie recommendation (Bearer)** com `chatid: {{chatId}}`\n4. **Get conversation by id** para ver histórico (`messages`)\n\n**GET /movie/queries**\nRota pública, sem cota. Com pool Postgres ≥ 3 itens, retorna 3 sugestões aleatórias do pool; caso contrário, fallback IA (mesmo JSON). Popule o pool com `pnpm seed:query-suggestions` no backend.\n\n**Resposta da recomendação**\nCada filme pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo via `lookupMovies`.\n\n**excludeWatched (recomendação autenticada)**\nBody opcional `excludeWatched: boolean` — padrão `true` se omitido. Filtra filmes já assistidos do usuário após lookup no catálogo. Convidado ignora o campo.\n\n**TMDB debug**\n`NODE_ENV !== prod` e origem loopback. Search chama TMDB direto; `GET /movies/:id` usa lookup local-first (Redis → Postgres → TMDB) e enfileira persistência no miss.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -41,6 +41,10 @@
     {
       "key": "userEntryTmdbId",
       "value": "27205"
+    },
+    {
+      "key": "conversationId",
+      "value": ""
     }
   ],
   "item": [
@@ -113,7 +117,7 @@
               }
             },
             "url": "{{baseUrl}}/movie/recommendation",
-            "description": "Igual à recomendação de convidado, mas com usuário autenticado.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório)\n- `Authorization`: Bearer {{accessToken}} (obrigatório nesta request) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)\n- `excludeWatched` (boolean, opcional) — padrão `true` se omitido; `false` desliga o filtro de filmes já assistidos\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo"
+            "description": "Recomendação com usuário autenticado e conversa persistida.\n\n**Pré-requisito:** execute **Create conversation** antes — o `chatId` retornado deve ser usado em `chatid`. UUID arbitrário retorna `404`.\n\n**Headers**\n- `chatid`: {{chatId}} (obrigatório — vem de POST /movie/conversations)\n- `Authorization`: Bearer {{accessToken}} (obrigatório) — pula a cota de convidado\n\nExecute Login ou Google Auth antes; o test script salva `accessToken` automaticamente.\n\n**Body**\n- `userMessage` (string, não vazia)\n- `excludeWatched` (boolean, opcional) — padrão `true` se omitido; `false` desliga o filtro de filmes já assistidos\n\n**Comportamento**\n- Primeira mensagem de conversa sem título: backend gera título via IA em paralelo\n- `updatedAt` da conversa é atualizado a cada turno\n\n**Resposta**\n- Cada item em `movies` pode incluir `tmdbId` e `imdbId` opcionais quando o agente resolve o catálogo\n\n**Respostas:** 200, 400, 401, 404 (chatId não pertence ao usuário)"
           },
           "response": []
         }
@@ -221,6 +225,121 @@
             },
             "url": "{{baseUrl}}/movie/user-entries/{{userEntryTmdbId}}",
             "description": "Marca como assistido com nota e data opcionais (mesmo fluxo do modal no SPA)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User conversations",
+      "description": "Conversas persistidas do usuário autenticado. **Bearer obrigatório** — execute Login ou Google Auth antes. Fluxo típico: Create → Movie recommendation (Bearer) com `chatid` retornado → Get by id para ver `messages`.",
+      "item": [
+        {
+          "name": "Create conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code !== 201) return;",
+                  "const json = pm.response.json();",
+                  "if (json.id !== undefined) {",
+                  "    const id = String(json.id);",
+                  "    pm.collectionVariables.set('conversationId', id);",
+                  "    pm.environment.set('conversationId', id);",
+                  "}",
+                  "if (json.chatId) {",
+                  "    pm.collectionVariables.set('chatId', json.chatId);",
+                  "    pm.environment.set('chatId', json.chatId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/conversations",
+            "description": "Cria uma nova conversa para o usuário autenticado.\n\n**Body:** nenhum.\n\n**Resposta `201`**\n- `id`, `chatId` (UUID), `title` (`null` na criação), `createdAt`, `updatedAt`\n\nO test script salva `conversationId` e `chatId` nas variáveis da coleção/environment. Use `chatId` no header `chatid` da recomendação autenticada.\n\nRespostas: 201, 400, 401."
+          },
+          "response": []
+        },
+        {
+          "name": "List conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/conversations",
+            "description": "Lista conversas do usuário ordenadas por `updatedAt` descendente.\n\n**Resposta `200`:** array de objetos `{ id, chatId, title, createdAt, updatedAt }`.\n\nRespostas: 200, 400, 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Get conversation by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/conversations/{{conversationId}}",
+            "description": "Retorna uma conversa com histórico de mensagens.\n\n**Path:** `id` — {{conversationId}} (preenchido após Create conversation).\n\n**Resposta `200`**\n- Metadados da conversa + `messages` (`ChatHistoryEntity`)\n- Tuplas: `[\"user\"|\"system\"|\"ai\", texto]` ou `[\"ai\", texto, movies[]]` quando a IA retornou filmes estruturados\n\nRespostas: 200, 400, 401, 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Patch conversation title",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Comédias leves\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/movie/conversations/{{conversationId}}",
+            "description": "Renomeia uma conversa.\n\n**Path:** `id` — {{conversationId}}.\n\n**Body** (`strict`)\n- `title` (string, máx. 200 caracteres)\n\n**Resposta `200`:** objeto da conversa atualizado.\n\nRespostas: 200, 400, 401, 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete conversation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/movie/conversations/{{conversationId}}",
+            "description": "Exclui a conversa e o histórico de chat associado.\n\n**Path:** `id` — {{conversationId}}.\n\n**Resposta:** `204`.\n\nRespostas: 204, 400, 401, 404."
           },
           "response": []
         }

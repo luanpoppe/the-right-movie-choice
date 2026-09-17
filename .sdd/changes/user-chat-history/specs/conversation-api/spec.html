@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: conversation-api — user-chat-history</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-chat-history</a> / specs / <strong>conversation-api</strong> / spec</p>
+    <h1>Spec: conversation-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-chat-history</code></a> · atualizado em 2026-09-16</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Expõe CRUD REST autenticado de conversas (<code>UserConversation</code>): o servidor gera <code>chatId</code>, lista/retoma/renomeia/exclui metadados e, ao retomar, devolve também o histórico do checkpointer Postgres. Integra com <code>POST /movie/recommendation</code>: no 1º turno gera título IA em paralelo (<code>Promise.all</code>) quando <code>title</code> é null; em todo turno autenticado atualiza <code>updatedAt</code>. Exclusão remove metadados e apaga o thread no checkpointer.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Criar nova conversa</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente envia <code>POST /movie/conversations</code> com <code>Authorization: Bearer &lt;JWT válido&gt;</code> do usuário <code>id = 7</code></li>
+        <li><strong>Quando</strong> a API processa a criação</li>
+        <li><strong>Então</strong> retorna <code>201</code> com <code>id</code>, <code>chatId</code> (UUID v4 gerado pelo servidor) e <code>title = null</code></li>
+        <li><strong>E</strong> persiste linha <code>UserConversation</code> com <code>userId = 7</code> e timestamps preenchidos</li>
+      </ul>
+      <h3>REQ-2: Listar conversas do usuário</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> tem conversas com <code>updatedAt</code> distintos</li>
+        <li><strong>Quando</strong> o cliente envia <code>GET /movie/conversations</code> com JWT válido</li>
+        <li><strong>Então</strong> retorna <code>200</code> com array ordenado por <code>updatedAt</code> descendente</li>
+        <li><strong>E</strong> cada item inclui <code>id</code>, <code>chatId</code>, <code>title</code>, <code>createdAt</code>, <code>updatedAt</code></li>
+        <li><strong>E</strong> não inclui conversas de outros usuários</li>
+      </ul>
+      <h3>REQ-3: Retomar conversa com histórico</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário <code>id = 7</code> com <code>chatId = &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;</code> e mensagens no checkpointer Postgres</li>
+        <li><strong>Quando</strong> o cliente envia <code>GET /movie/conversations/12</code> com JWT válido</li>
+        <li><strong>Então</strong> retorna <code>200</code> com metadados da conversa</li>
+        <li><strong>E</strong> inclui <code>messages</code> mapeadas via <code>IChatHistoryRepository.getHistory(chatId)</code> no formato <code>ChatHistoryEntity</code> (<code>[&quot;user&quot;|&quot;ai&quot;, conteúdo]</code>)</li>
+      </ul>
+      <h3>REQ-4: Renomear conversa</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário <code>id = 7</code></li>
+        <li><strong>Quando</strong> o cliente envia <code>PATCH /movie/conversations/12</code> com body <code>{ &quot;title&quot;: &quot;Filmes de ficção dos anos 90&quot; }</code> e JWT válido</li>
+        <li><strong>Então</strong> retorna <code>200</code> com conversa atualizada</li>
+        <li><strong>E</strong> <code>updatedAt</code> é atualizado</li>
+      </ul>
+      <h3>REQ-5: Excluir conversa e histórico</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário <code>id = 7</code> com <code>chatId</code> conhecido</li>
+        <li><strong>Quando</strong> o cliente envia <code>DELETE /movie/conversations/12</code> com JWT válido</li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> remove a linha <code>UserConversation</code></li>
+        <li><strong>E</strong> apaga o thread correspondente no checkpointer Postgres daquele <code>chatId</code></li>
+      </ul>
+      <h3>REQ-6: Atualizar recência a cada mensagem</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>POST /movie/recommendation</code> autenticado com header <code>chatId</code> de conversa existente do usuário</li>
+        <li><strong>Saída</strong> após processar o turno, <code>updatedAt</code> da conversa com aquele <code>chatId</code> reflete o momento do request</li>
+        <li><strong>Erro</strong> <code>chatId</code> sem linha <code>UserConversation</code> do usuário → <code>404</code>  ||  recommendation não executa</li>
+      </ul>
+      <h3>REQ-7: Título IA no primeiro turno</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>POST /movie/recommendation</code> autenticado com <code>chatId</code> cuja conversa tem <code>title = null</code> e primeira mensagem do usuário no body</li>
+        <li><strong>Saída</strong> recommendation e geração de título rodam em paralelo (<code>Promise.all</code>)</li>
+        <li><strong>E</strong> título retornado pela IA (string ≤ 200 chars) é salvo na conversa se a chamada de título concluir com sucesso</li>
+        <li><strong>Erro</strong> falha só na IA de título → recommendation segue normalmente  ||  <code>title</code> permanece <code>null</code> até rename manual</li>
+      </ul>
+      <h3>REQ-8: Acesso somente autenticado</h3>
+      <ul>
+        <li><strong>Entrada</strong> qualquer rota <code>/movie/conversations*</code> sem JWT válido</li>
+        <li><strong>Saída</strong> <code>401</code>  ||  nenhuma leitura/escrita de conversa</li>
+      </ul>
+      <h3>REQ-9: Isolamento por usuário nos endpoints</h3>
+      <ul>
+        <li><strong>Entrada</strong> conversa <code>id = 12</code> pertence ao usuário <code>id = 7</code></li>
+        <li><strong>Saída</strong> GET/PATCH/DELETE com JWT do usuário <code>id = 99</code> → <code>404</code>  ||  não expõe nem altera dados do usuário 7</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Título IA retorna string vazia ou &gt; 200 chars → rejeição no domínio  ||  <code>title</code> permanece <code>null</code></li>
+        <li>Checkpointer Postgres indisponível em GET retomar → erro propagado (<code>5xx</code>)  ||  sem fallback silencioso</li>
+        <li>DELETE com falha ao purgar checkpointer → operação falha  ||  metadados não ficam removidos sem confirmação (transação lógica ou ordem reversível documentada na implementação)</li>
+        <li>Listagem sem paginação: retorna todas as conversas do usuário (MVP)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>POST /movie/conversations</code> — <code>201</code> corpo <code>{ id, chatId, title, createdAt, updatedAt }</code>  ||  auth JWT obrigatória (padrão <code>UserMovieEntryAuthHook</code>)</li>
+        <li><code>GET /movie/conversations</code> — <code>200</code> array de conversas resumidas</li>
+        <li><code>GET /movie/conversations/:id</code> — <code>200</code> metadados + <code>messages: ChatHistoryEntity</code>  ||  referência <code>packages/backend/src/core/entities/chat-history.entity.ts:ChatHistoryEntity</code></li>
+        <li><code>PATCH /movie/conversations/:id</code> — body <code>{ title: string }</code>  ||  <code>200</code> conversa atualizada</li>
+        <li><code>DELETE /movie/conversations/:id</code> — <code>204</code></li>
+        <li>Integração: <code>packages/backend/src/domains/movies/infrastructure/http/controllers/movie-recommendation.controller.ts:MovieRecommendationController</code> — passa a validar conversa existente, atualizar <code>updatedAt</code> e disparar título no 1º turno</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

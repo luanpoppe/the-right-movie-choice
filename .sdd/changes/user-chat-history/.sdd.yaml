@@ -1,0 +1,19 @@
+id: user-chat-history
+title: Histórico de conversas por usuário
+created: 2026-09-14
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: conversation-model
+    title: Modelo de conversa
+    summary: Modelo Prisma UserConversation (userId, chatId, title, timestamps) e migração idempotente.
+  - slug: auth-postgres-checkpointer
+    title: Checkpointer Postgres para logados
+    summary: Memory híbrida na factory de recommendation — Postgres para JWT, Redis TTL para guest.
+  - slug: conversation-api
+    title: API de conversas
+    summary: CRUD REST, título IA no primeiro turno em paralelo e leitura de histórico ao retomar.
+  - slug: conversation-sidebar-ui
+    title: Sidebar de conversas
+    summary: Sidebar na Home para listar, retomar, nova, excluir e renomear conversas.

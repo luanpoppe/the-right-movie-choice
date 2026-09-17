@@ -13,3 +13,7 @@
 - [Listas do usuário](listas-usuario/persistencia-status-filme.md) — `UserMovieEntry`: flags watched/favorite/watchlist e repositório Prisma.
 - [API de listas do usuário](listas-usuario/api-listas-usuario.md) — endpoints JWT `/movie/user-entries` (GET list/get, PATCH parcial).
 - [Ações nos cards do chat](frontend/acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist nos `MovieCard` do chat via contexto otimista.
+- [Histórico de conversas](historico-conversas/modelo-conversa.md) — metadados `UserConversation` (userId, chatId, title) no Postgres; porta de domínio e adapter Prisma; mensagens ficam no checkpointer (features seguintes).
+- [Checkpointer Postgres logados](historico-conversas/checkpointer-postgres-logados.md) — memória híbrida na factory de recommendation: Postgres sem TTL para JWT, Redis TTL 1200s para guest; sem dual-write nem migração de histórico Redis.
+- [API de conversas](historico-conversas/api-conversas.md) — CRUD `/movie/conversations*`, integração recommendation (touchUpdatedAt, título IA paralelo), purge de thread no DELETE.
+- [Sidebar de conversas (UI)](historico-conversas/sidebar-conversas-ui.md) — listagem `/conversations`, chat com sidebar `/conversations/:id`, Home cria conversa na 1ª mensagem; guest inalterado.

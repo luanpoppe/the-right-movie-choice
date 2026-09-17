@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: conversation-model — user-chat-history</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-chat-history</a> / specs / <strong>conversation-model</strong> / spec</p>
+    <h1>Spec: conversation-model</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-chat-history</code></a> · atualizado em 2026-09-15</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Cria a tabela <code>UserConversation</code> no Postgres (metadados por usuário + <code>chatId</code>), a entidade de domínio, a porta <code>IUserConversationRepository</code> e o adapter Prisma. Esta feature não expõe HTTP nem toca o checkpointer — só o contrato interno que a API e o fluxo de recommendation vão consumir nas features seguintes.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Persistir nova conversa de um usuário</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado tem <code>id = 7</code> e ainda não existe conversa com <code>chatId = &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;</code></li>
+        <li><strong>Quando</strong> o repositório cria <code>{ userId: 7, chatId: &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot; }</code> sem título</li>
+        <li><strong>Então</strong> existe uma linha com <code>userId = 7</code>, <code>chatId</code> igual ao UUID informado e <code>title = null</code></li>
+        <li><strong>E</strong> <code>createdAt</code> e <code>updatedAt</code> são preenchidos na criação</li>
+      </ul>
+      <h3>REQ-2: Listar conversas do usuário por recência</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> tem três conversas com <code>updatedAt</code> distintos (A mais recente, C mais antiga)</li>
+        <li><strong>Quando</strong> o repositório lista todas de <code>userId = 7</code> ordenadas por <code>updatedAt</code> descendente</li>
+        <li><strong>Então</strong> retorna A, depois B, depois C</li>
+        <li><strong>E</strong> não inclui conversas de outros usuários</li>
+      </ul>
+      <h3>REQ-3: Unicidade global do chatId</h3>
+      <ul>
+        <li><strong>Entrada</strong> criação de conversa com <code>chatId = &quot;f47ac10b-58cc-4372-a567-0e02b2c3d479&quot;</code> quando já existe linha com o mesmo <code>chatId</code> (mesmo ou outro <code>userId</code>)</li>
+        <li><strong>Saída</strong> a segunda operação falha por violação de unique  ||  não cria linha duplicada</li>
+        <li><strong>Erro</strong> <code>chatId</code> vazio ou string inválida para UUID → rejeição no domínio antes do Prisma</li>
+      </ul>
+      <h3>REQ-4: Atualizar título de uma conversa</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário <code>id = 7</code> com <code>title = null</code></li>
+        <li><strong>Quando</strong> o repositório atualiza o título para <code>&quot;Filmes de ficção dos anos 90&quot;</code></li>
+        <li><strong>Então</strong> a linha <code>id = 12</code> passa a ter esse título</li>
+        <li><strong>E</strong> <code>updatedAt</code> é atualizado</li>
+      </ul>
+      <h3>REQ-5: Excluir conversa (hard delete)</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe conversa <code>id = 12</code> do usuário <code>id = 7</code></li>
+        <li><strong>Quando</strong> o repositório exclui por <code>(id = 12, userId = 7)</code></li>
+        <li><strong>Então</strong> a linha some do banco</li>
+        <li><strong>E</strong> leitura por <code>id</code> retorna ausência (<code>null</code>)</li>
+      </ul>
+      <h3>REQ-6: Isolamento por usuário nas operações</h3>
+      <ul>
+        <li><strong>Entrada</strong> conversa <code>id = 12</code> pertence ao usuário <code>id = 7</code></li>
+        <li><strong>Saída</strong> leitura/atualização/exclusão com <code>userId = 99</code> retorna ausência ou falha controlada  ||  não altera a linha do usuário 7</li>
+        <li><strong>Erro</strong> <code>userId</code> inválido (≤ 0) → rejeição no domínio antes do Prisma</li>
+      </ul>
+      <h3>REQ-7: Migração idempotente</h3>
+      <ul>
+        <li><strong>Dado que</strong> o desenvolvedor roda <code>pnpm db:migrate</code> no backend</li>
+        <li><strong>Quando</strong> a migração desta feature é aplicada</li>
+        <li><strong>Então</strong> a tabela <code>UserConversation</code> existe com colunas, FK para <code>User</code> (<code>onDelete: Cascade</code>), <code>@unique</code> em <code>chatId</code> e índice em <code>(userId, updatedAt)</code></li>
+        <li><strong>E</strong> reaplicar a mesma migração em banco já migrado não falha</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Usuário apagado (<code>User</code> removido) → conversas do usuário removidas em cascata (<code>onDelete: Cascade</code>)</li>
+        <li>Duas criações concorrentes com o mesmo <code>chatId</code> → unique em <code>chatId</code> garante uma linha  ||  a segunda falha</li>
+        <li>Título muito longo na atualização → truncar ou rejeitar no domínio com limite nomeado (decisão do data-modeler no chunk de migração)</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
