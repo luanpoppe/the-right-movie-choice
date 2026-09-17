@@ -26,7 +26,7 @@
   <main class="lp-main">
     <details class="lp-sec" id="resumo" open>
       <summary><h2>Resumo</h2></summary>
-      <p>API REST autenticada para grupos com dono e membros: criar, listar, convidar por e-mail (qualquer membro), aceitar/recusar/cancelar convites, sair, remover membro (dono), excluir grupo e sugerir amigos ainda fora do grupo. Amizade não é pré-requisito para entrar. Rotas sob <code>/social/groups/*</code> e <code>/social/group-invites/*</code>.</p>
+      <p>API REST autenticada para grupos com dono e membros: criar, listar, editar nome/descrição (dono), convidar por e-mail (qualquer membro), aceitar/recusar/cancelar convites, sair, remover membro (dono), excluir grupo e sugerir amigos ainda fora do grupo. Amizade não é pré-requisito para entrar. Rotas sob <code>/social/groups/*</code> e <code>/social/group-invites/*</code>.</p>
     </details>
 
     <details class="lp-sec" id="requirements" open>
@@ -130,6 +130,19 @@
         <li><strong>Entrada</strong> convite <code>id = 40</code> pertence a <code>inviteeId = 12</code></li>
         <li><strong>Saída</strong> aceitar/recusar/cancelar com JWT de outro usuário → <code>404</code>  ||  não expõe nem altera dados alheios</li>
       </ul>
+      <h3>REQ-16: Dono edita nome e descrição</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> é dono do grupo <code>id = 3</code> (<code>name = &quot;Sábado cinema&quot;</code>, <code>description = &quot;Filmes do fim de semana&quot;</code>)</li>
+        <li><strong>Quando</strong> envia <code>PATCH /social/groups/3</code> com <code>{ &quot;name&quot;: &quot;Domingo série&quot;, &quot;description&quot;: &quot;Maratonas de TV&quot; }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>{ id: 3, name, description, ownerId: 7, createdAt, updatedAt }</code></li>
+        <li><strong>E</strong> <code>name</code> e <code>description</code> refletem os novos valores</li>
+        <li><strong>E</strong> <code>updatedAt</code> é atualizado</li>
+      </ul>
+      <h3>REQ-17: Edição parcial pelo dono</h3>
+      <ul>
+        <li><strong>Entrada</strong> dono envia <code>PATCH /social/groups/3</code> com <code>{ &quot;name&quot;: &quot;Novo nome&quot; }</code> (sem <code>description</code>)</li>
+        <li><strong>Saída</strong> retorna <code>200</code>  ||  altera só <code>name</code>  ||  mantém <code>description</code> anterior</li>
+      </ul>
     </details>
 
     <details class="lp-sec" id="edge-cases" open>
@@ -139,7 +152,8 @@
         <li>Convidar a si mesmo → <code>400</code></li>
         <li>Convidar membro existente ou convite <code>pending</code> duplicado no mesmo grupo → <code>409</code></li>
         <li>Usuário não-membro tenta convidar ou ver sugestões → <code>404</code></li>
-        <li>Não-dono tenta excluir grupo ou remover membro → <code>404</code></li>
+        <li>Não-dono tenta excluir grupo, remover membro ou editar nome/descrição → <code>404</code></li>
+        <li>PATCH com body vazio ou <code>name</code> vazio → <code>400</code></li>
         <li>Dono único sai do grupo → grupo dissolvido (mesmo efeito de DELETE grupo)</li>
         <li>Grupo atinge limite de 100 membros → <code>409</code> ao aceitar convite ou convidar</li>
         <li>Concorrência em aceite duplo do mesmo convite → um membro único  ||  sem duplicata</li>

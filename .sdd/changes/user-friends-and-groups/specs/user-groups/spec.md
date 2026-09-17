@@ -4,7 +4,7 @@
 
 ## Resumo
 
-API REST autenticada para grupos com dono e membros: criar, listar, convidar por e-mail (qualquer membro), aceitar/recusar/cancelar convites, sair, remover membro (dono), excluir grupo e sugerir amigos ainda fora do grupo. Amizade não é pré-requisito para entrar. Rotas sob `/social/groups/*` e `/social/group-invites/*`.
+API REST autenticada para grupos com dono e membros: criar, listar, editar nome/descrição (dono), convidar por e-mail (qualquer membro), aceitar/recusar/cancelar convites, sair, remover membro (dono), excluir grupo e sugerir amigos ainda fora do grupo. Amizade não é pré-requisito para entrar. Rotas sob `/social/groups/*` e `/social/group-invites/*`.
 
 ## Requirements
 
@@ -107,13 +107,27 @@ API REST autenticada para grupos com dono e membros: criar, listar, convidar por
 - **Entrada** convite `id = 40` pertence a `inviteeId = 12`
 - **Saída** aceitar/recusar/cancelar com JWT de outro usuário → `404`  ||  não expõe nem altera dados alheios
 
+### REQ-16: Dono edita nome e descrição
+
+- **Dado que** o usuário `id = 7` é dono do grupo `id = 3` (`name = "Sábado cinema"`, `description = "Filmes do fim de semana"`)
+- **Quando** envia `PATCH /social/groups/3` com `{ "name": "Domingo série", "description": "Maratonas de TV" }`
+- **Então** retorna `200` com `{ id: 3, name, description, ownerId: 7, createdAt, updatedAt }`
+- **E** `name` e `description` refletem os novos valores
+- **E** `updatedAt` é atualizado
+
+### REQ-17: Edição parcial pelo dono
+
+- **Entrada** dono envia `PATCH /social/groups/3` com `{ "name": "Novo nome" }` (sem `description`)
+- **Saída** retorna `200`  ||  altera só `name`  ||  mantém `description` anterior
+
 ## Edge cases
 
 - Convidar e-mail inexistente → `404`
 - Convidar a si mesmo → `400`
 - Convidar membro existente ou convite `pending` duplicado no mesmo grupo → `409`
 - Usuário não-membro tenta convidar ou ver sugestões → `404`
-- Não-dono tenta excluir grupo ou remover membro → `404`
+- Não-dono tenta excluir grupo, remover membro ou editar nome/descrição → `404`
+- PATCH com body vazio ou `name` vazio → `400`
 - Dono único sai do grupo → grupo dissolvido (mesmo efeito de DELETE grupo)
 - Grupo atinge limite de 100 membros → `409` ao aceitar convite ou convidar
 - Concorrência em aceite duplo do mesmo convite → um membro único  ||  sem duplicata
