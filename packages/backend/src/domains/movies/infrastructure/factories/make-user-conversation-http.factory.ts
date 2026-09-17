@@ -11,12 +11,14 @@ import { ListUserConversationsUseCase } from "@/domains/movies/application/use-c
 import { UpdateUserConversationTitleUseCase } from "@/domains/movies/application/use-cases/update-user-conversation-title.use-case";
 import { UserConversationController } from "../http/controllers/user-conversation.controller";
 import { UserMovieEntryAuthHook } from "../http/hooks/user-movie-entry-auth.hook";
+import { PrismaMovieCatalogRepository } from "../repositories/movie-catalog/prisma-movie-catalog.repository";
 import { PrismaUserConversationRepository } from "../repositories/user-conversation/prisma-user-conversation.repository";
 
 export class MakeUserConversationHttpFactory {
   static create() {
     const accessTokenProvider = new JoseAccessTokenProvider();
     const userConversationRepository = new PrismaUserConversationRepository();
+    const catalogRepository = new PrismaMovieCatalogRepository();
     const chatThreadRepository = new PostgresChatThreadRepository();
 
     const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
@@ -36,6 +38,7 @@ export class MakeUserConversationHttpFactory {
     const getUserConversationUseCase = new GetUserConversationUseCase(
       userConversationRepository,
       chatHistoryRepository,
+      catalogRepository,
     );
     const updateUserConversationTitleUseCase =
       new UpdateUserConversationTitleUseCase(userConversationRepository);

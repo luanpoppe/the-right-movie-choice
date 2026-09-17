@@ -4,7 +4,17 @@ import type { IChatHistoryRepository } from "@/core/repositories/chat-history.re
 import { GetUserConversationUseCase } from "../get-user-conversation.use-case";
 import type { UserConversationEntity } from "../../../domain/entities/user-conversation.entity";
 import { UserConversationNotFoundException } from "../../../domain/exceptions/user-conversation-not-found.exception";
+import type { IMovieCatalogRepository } from "../../../domain/repositories/movie-catalog.repository";
 import type { IUserConversationRepository } from "../../../domain/repositories/user-conversation.repository";
+
+vi.mock(
+  "@/infrastructure/repositories/chat-history-catalog-enrichment.utils",
+  () => ({
+    ChatHistoryCatalogEnrichmentUtils: {
+      enrichMoviePosters: vi.fn(async (history: ChatHistoryEntity) => history),
+    },
+  }),
+);
 
 describe("GetUserConversationUseCase", () => {
   const userId = 7;
@@ -27,6 +37,7 @@ describe("GetUserConversationUseCase", () => {
 
   let userConversationRepository: IUserConversationRepository;
   let chatHistoryRepository: IChatHistoryRepository;
+  let catalogRepository: IMovieCatalogRepository;
   let useCase: GetUserConversationUseCase;
 
   beforeEach(() => {
@@ -46,9 +57,17 @@ describe("GetUserConversationUseCase", () => {
       getHistory: vi.fn().mockResolvedValue(mockMessages),
     };
 
+    catalogRepository = {
+      findByTmdbId: vi.fn(),
+      findByTitleAndYear: vi.fn(),
+      findByTitlesAndYears: vi.fn(),
+      upsert: vi.fn(),
+    };
+
     useCase = new GetUserConversationUseCase(
       userConversationRepository,
       chatHistoryRepository,
+      catalogRepository,
     );
   });
 
