@@ -53,11 +53,7 @@ export class FriendshipResponseMapper {
       return userPublic;
     });
 
-    const response: ListFriendsResponse = {
-      friends: mappedFriends,
-    };
-
-    return response;
+    return mappedFriends;
   }
 
   static toIncomingFriendRequestResponse(

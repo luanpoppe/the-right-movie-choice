@@ -28,11 +28,13 @@ describe("AcceptFriendRequestUseCase", () => {
       findById: vi.fn().mockResolvedValue(pendingRequest),
       findLatestBetweenUsers: vi.fn(),
       createPending: vi.fn(),
+      executeSendFriendRequest: vi.fn(),
       updateStatus: vi.fn().mockResolvedValue({
         ...pendingRequest,
         status: "accepted",
       }),
       deleteById: vi.fn(),
+      deleteAllBetweenUsers: vi.fn(),
       listAcceptedFriends: vi.fn(),
       listIncomingPending: vi.fn(),
       listOutgoingPending: vi.fn(),

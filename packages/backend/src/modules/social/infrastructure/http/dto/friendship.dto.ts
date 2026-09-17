@@ -67,9 +67,7 @@ export const FriendRequestResponseSchema = z.object({
 
 export type FriendRequestResponse = z.infer<typeof FriendRequestResponseSchema>;
 
-export const ListFriendsResponseSchema = z.object({
-  friends: z.array(UserPublicSchema),
-});
+export const ListFriendsResponseSchema = z.array(UserPublicSchema);
 
 export type ListFriendsResponse = z.infer<typeof ListFriendsResponseSchema>;
 

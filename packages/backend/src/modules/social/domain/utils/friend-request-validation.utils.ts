@@ -14,6 +14,17 @@ export class FriendRequestValidationUtils {
     }
   }
 
+  static assertValidFriendRequestId(friendRequestId: number): void {
+    const isPositiveInteger =
+      Number.isInteger(friendRequestId) && friendRequestId > 0;
+
+    if (!isPositiveInteger) {
+      throw new FriendRequestValidationException(
+        `friendRequestId must be a positive integer, received ${friendRequestId}`,
+      );
+    }
+  }
+
   static assertValidEmail(email: string): void {
     if (StringUtils.isEmptyString(email)) {
       throw new FriendRequestValidationException("email is required");

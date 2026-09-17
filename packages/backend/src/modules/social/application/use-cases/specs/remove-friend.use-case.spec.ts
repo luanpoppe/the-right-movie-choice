@@ -28,8 +28,10 @@ describe("RemoveFriendUseCase", () => {
       findById: vi.fn(),
       findLatestBetweenUsers: vi.fn().mockResolvedValue(acceptedRequest),
       createPending: vi.fn(),
+      executeSendFriendRequest: vi.fn(),
       updateStatus: vi.fn(),
-      deleteById: vi.fn().mockResolvedValue(undefined),
+      deleteById: vi.fn(),
+      deleteAllBetweenUsers: vi.fn().mockResolvedValue(undefined),
       listAcceptedFriends: vi.fn(),
       listIncomingPending: vi.fn(),
       listOutgoingPending: vi.fn(),
@@ -39,15 +41,16 @@ describe("RemoveFriendUseCase", () => {
     useCase = new RemoveFriendUseCase(friendRequestRepository);
   });
 
-  it("should delete the accepted friendship record", async () => {
+  it("should delete all friendship records between the users", async () => {
     await useCase.execute(userId, friendUserId);
 
     expect(friendRequestRepository.findLatestBetweenUsers).toHaveBeenCalledWith(
       userId,
       friendUserId,
     );
-    expect(friendRequestRepository.deleteById).toHaveBeenCalledWith(
-      friendRequestId,
+    expect(friendRequestRepository.deleteAllBetweenUsers).toHaveBeenCalledWith(
+      userId,
+      friendUserId,
     );
   });
 
@@ -59,7 +62,7 @@ describe("RemoveFriendUseCase", () => {
     await expect(useCase.execute(userId, friendUserId)).rejects.toThrow(
       FriendRequestNotFoundException,
     );
-    expect(friendRequestRepository.deleteById).not.toHaveBeenCalled();
+    expect(friendRequestRepository.deleteAllBetweenUsers).not.toHaveBeenCalled();
   });
 
   it("should throw FriendRequestNotFoundException when latest relationship is not accepted", async () => {
@@ -71,6 +74,6 @@ describe("RemoveFriendUseCase", () => {
     await expect(useCase.execute(userId, friendUserId)).rejects.toThrow(
       FriendRequestNotFoundException,
     );
-    expect(friendRequestRepository.deleteById).not.toHaveBeenCalled();
+    expect(friendRequestRepository.deleteAllBetweenUsers).not.toHaveBeenCalled();
   });
 });

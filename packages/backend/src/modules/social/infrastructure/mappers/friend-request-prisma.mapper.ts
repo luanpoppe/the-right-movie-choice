@@ -11,12 +11,14 @@ import type {
 } from "../../domain/entities/friend-request.entity";
 import type { FriendRequestStatus } from "../../domain/types/relationship-status.type";
 
+type PrismaUserPublicFields = Pick<PrismaUser, "id" | "name" | "email">;
+
 type PrismaFriendRequestWithRequester = PrismaFriendRequest & {
-  requester: PrismaUser;
+  requester: PrismaUserPublicFields;
 };
 
 type PrismaFriendRequestWithAddressee = PrismaFriendRequest & {
-  addressee: PrismaUser;
+  addressee: PrismaUserPublicFields;
 };
 
 export class FriendRequestPrismaMapper {
@@ -33,7 +35,7 @@ export class FriendRequestPrismaMapper {
     };
   }
 
-  static toUserPublic(user: PrismaUser): UserPublicEntity {
+  static toUserPublic(user: PrismaUserPublicFields): UserPublicEntity {
     return {
       id: user.id,
       name: user.name,

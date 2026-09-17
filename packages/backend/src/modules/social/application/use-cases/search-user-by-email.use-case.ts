@@ -25,7 +25,8 @@ export class SearchUserByEmailUseCase {
   ): Promise<SearchUserByEmailResult> {
     const normalizedEmail = FriendRequestValidationUtils.normalizeEmail(email);
 
-    const foundUser = await this.userRepository.findByEmail(normalizedEmail);
+    const foundUser =
+      await this.userRepository.findByEmailCaseInsensitive(normalizedEmail);
 
     if (!foundUser) {
       throw new UserNotFoundByEmailException(normalizedEmail);

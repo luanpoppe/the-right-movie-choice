@@ -8,6 +8,8 @@ export interface IUserRepository {
 
   findByEmail(email: string): Promise<UserEntity | null>;
 
+  findByEmailCaseInsensitive(email: string): Promise<UserEntity | null>;
+
   findByGoogleId(googleId: string): Promise<UserEntity | null>;
 
   findAuthByEmail(email: string): Promise<UserAuthProfile | null>;

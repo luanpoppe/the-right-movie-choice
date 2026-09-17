@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma/prisma";
 import { Logger } from "@/lib/logger/logger";
+import { PrismaErrorMapper } from "@/shared/mappers/prisma-error.mapper";
 import type {
   FriendRequestEntity,
   IncomingFriendRequestEntity,
   OutgoingFriendRequestEntity,
   UserPublicEntity,
 } from "../../../domain/entities/friend-request.entity";
+import { AlreadyFriendsException } from "../../../domain/exceptions/already-friends.exception";
+import { FriendRequestAlreadyPendingException } from "../../../domain/exceptions/friend-request-already-pending.exception";
+import { FriendRequestNotFoundException } from "../../../domain/exceptions/friend-request-not-found.exception";
 import type { IFriendRequestRepository } from "../../../domain/repositories/friend-request.repository";
 import type {
   FriendRequestStatus,
@@ -14,9 +18,20 @@ import type {
 import { FriendRequestValidationUtils } from "../../../domain/utils/friend-request-validation.utils";
 import { FriendRequestPrismaMapper } from "../../mappers/friend-request-prisma.mapper";
 
+const userPublicSelect = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
+
+const latestBetweenUsersOrderBy = [
+  { createdAt: "desc" as const },
+  { id: "desc" as const },
+];
+
 export class PrismaFriendRequestRepository implements IFriendRequestRepository {
   async findById(id: number): Promise<FriendRequestEntity | null> {
-    FriendRequestValidationUtils.assertValidUserId(id);
+    FriendRequestValidationUtils.assertValidFriendRequestId(id);
 
     const row = await prisma.friendRequest.findUnique({ where: { id } });
 
@@ -35,14 +50,14 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
     FriendRequestValidationUtils.assertValidUserId(firstUserId);
     FriendRequestValidationUtils.assertValidUserId(secondUserId);
 
-    const where = {
-      OR: [
-        { requesterId: firstUserId, addresseeId: secondUserId },
-        { requesterId: secondUserId, addresseeId: firstUserId },
-      ],
-    };
-    const orderBy = { createdAt: "desc" as const };
-    const row = await prisma.friendRequest.findFirst({ where, orderBy });
+    const where = PrismaFriendRequestRepository.buildPairWhere(
+      firstUserId,
+      secondUserId,
+    );
+    const row = await prisma.friendRequest.findFirst({
+      where,
+      orderBy: latestBetweenUsersOrderBy,
+    });
 
     if (!row) {
       return null;
@@ -76,33 +91,140 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
     return entity;
   }
 
+  async executeSendFriendRequest(
+    requesterId: number,
+    addresseeId: number,
+  ): Promise<FriendRequestEntity> {
+    FriendRequestValidationUtils.assertNotSelf(requesterId, addresseeId);
+
+    const lockUserA = Math.min(requesterId, addresseeId);
+    const lockUserB = Math.max(requesterId, addresseeId);
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockUserA}::int, ${lockUserB}::int)`;
+
+      const where = PrismaFriendRequestRepository.buildPairWhere(
+        requesterId,
+        addresseeId,
+      );
+      const latestRow = await tx.friendRequest.findFirst({
+        where,
+        orderBy: latestBetweenUsersOrderBy,
+      });
+
+      if (!latestRow) {
+        const createdRow = await tx.friendRequest.create({
+          data: {
+            requesterId,
+            addresseeId,
+            status: "pending",
+          },
+        });
+
+        return FriendRequestPrismaMapper.toEntity(createdRow);
+      }
+
+      const latest = FriendRequestPrismaMapper.toEntity(latestRow);
+
+      if (latest.status === "accepted") {
+        throw new AlreadyFriendsException();
+      }
+
+      if (latest.status === "pending") {
+        const isOutgoingFromRequester = latest.requesterId === requesterId;
+
+        if (isOutgoingFromRequester) {
+          throw new FriendRequestAlreadyPendingException();
+        }
+
+        const prismaStatus = FriendRequestPrismaMapper.toPrismaStatus("accepted");
+        const acceptedRow = await tx.friendRequest.update({
+          where: { id: latest.id },
+          data: { status: prismaStatus },
+        });
+
+        return FriendRequestPrismaMapper.toEntity(acceptedRow);
+      }
+
+      const createdRow = await tx.friendRequest.create({
+        data: {
+          requesterId,
+          addresseeId,
+          status: "pending",
+        },
+      });
+
+      return FriendRequestPrismaMapper.toEntity(createdRow);
+    });
+
+    Logger.info("Friend request sent", {
+      friendRequestId: result.id,
+      requesterId,
+      addresseeId,
+      status: result.status,
+    });
+
+    return result;
+  }
+
   async updateStatus(
     id: number,
     status: FriendRequestStatus,
   ): Promise<FriendRequestEntity> {
-    FriendRequestValidationUtils.assertValidUserId(id);
+    FriendRequestValidationUtils.assertValidFriendRequestId(id);
 
     const prismaStatus = FriendRequestPrismaMapper.toPrismaStatus(status);
-    const row = await prisma.friendRequest.update({
-      where: { id },
-      data: { status: prismaStatus },
-    });
 
-    Logger.info("Friend request status updated", {
-      friendRequestId: id,
-      status,
-    });
+    try {
+      const row = await prisma.friendRequest.update({
+        where: { id },
+        data: { status: prismaStatus },
+      });
 
-    const entity = FriendRequestPrismaMapper.toEntity(row);
-    return entity;
+      Logger.info("Friend request status updated", {
+        friendRequestId: id,
+        status,
+      });
+
+      const entity = FriendRequestPrismaMapper.toEntity(row);
+      return entity;
+    } catch (error) {
+      const notFoundException = new FriendRequestNotFoundException(id);
+      PrismaErrorMapper.mapRecordNotFoundOrRethrow(error, notFoundException);
+    }
   }
 
   async deleteById(id: number): Promise<void> {
-    FriendRequestValidationUtils.assertValidUserId(id);
+    FriendRequestValidationUtils.assertValidFriendRequestId(id);
 
-    await prisma.friendRequest.delete({ where: { id } });
+    try {
+      await prisma.friendRequest.delete({ where: { id } });
 
-    Logger.info("Friend request deleted", { friendRequestId: id });
+      Logger.info("Friend request deleted", { friendRequestId: id });
+    } catch (error) {
+      const notFoundException = new FriendRequestNotFoundException(id);
+      PrismaErrorMapper.mapRecordNotFoundOrRethrow(error, notFoundException);
+    }
+  }
+
+  async deleteAllBetweenUsers(
+    firstUserId: number,
+    secondUserId: number,
+  ): Promise<void> {
+    FriendRequestValidationUtils.assertValidUserId(firstUserId);
+    FriendRequestValidationUtils.assertValidUserId(secondUserId);
+
+    const where = PrismaFriendRequestRepository.buildPairWhere(
+      firstUserId,
+      secondUserId,
+    );
+    const result = await prisma.friendRequest.deleteMany({ where });
+
+    Logger.info("Friend request history cleared between users", {
+      firstUserId,
+      secondUserId,
+      deletedCount: result.count,
+    });
   }
 
   async listAcceptedFriends(userId: number): Promise<UserPublicEntity[]> {
@@ -112,19 +234,24 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
       status: "accepted" as const,
       OR: [{ requesterId: userId }, { addresseeId: userId }],
     };
-    const include = {
-      requester: true,
-      addressee: true,
-    };
-    const rows = await prisma.friendRequest.findMany({ where, include });
+    const rows = await prisma.friendRequest.findMany({
+      where,
+      include: {
+        requester: { select: userPublicSelect },
+        addressee: { select: userPublicSelect },
+      },
+    });
 
-    const friends = rows.map((row) => {
+    const friendsById = new Map<number, UserPublicEntity>();
+
+    for (const row of rows) {
       const isRequester = row.requesterId === userId;
       const friendUser = isRequester ? row.addressee : row.requester;
       const friend = FriendRequestPrismaMapper.toUserPublic(friendUser);
-      return friend;
-    });
+      friendsById.set(friend.id, friend);
+    }
 
+    const friends = Array.from(friendsById.values());
     return friends;
   }
 
@@ -137,11 +264,10 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
       addresseeId: userId,
       status: "pending" as const,
     };
-    const include = { requester: true };
     const orderBy = { createdAt: "desc" as const };
     const rows = await prisma.friendRequest.findMany({
       where,
-      include,
+      include: { requester: { select: userPublicSelect } },
       orderBy,
     });
 
@@ -160,11 +286,10 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
       requesterId: userId,
       status: "pending" as const,
     };
-    const include = { addressee: true };
     const orderBy = { createdAt: "desc" as const };
     const rows = await prisma.friendRequest.findMany({
       where,
-      include,
+      include: { addressee: { select: userPublicSelect } },
       orderBy,
     });
 
@@ -206,5 +331,14 @@ export class PrismaFriendRequestRepository implements IFriendRequestRepository {
     }
 
     return "pending_incoming";
+  }
+
+  private static buildPairWhere(firstUserId: number, secondUserId: number) {
+    return {
+      OR: [
+        { requesterId: firstUserId, addresseeId: secondUserId },
+        { requesterId: secondUserId, addresseeId: firstUserId },
+      ],
+    };
   }
 }

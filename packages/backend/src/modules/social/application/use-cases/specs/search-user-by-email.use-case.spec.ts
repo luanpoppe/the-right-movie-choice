@@ -30,8 +30,10 @@ describe("SearchUserByEmailUseCase", () => {
       findById: vi.fn(),
       findLatestBetweenUsers: vi.fn(),
       createPending: vi.fn(),
+      executeSendFriendRequest: vi.fn(),
       updateStatus: vi.fn(),
       deleteById: vi.fn(),
+      deleteAllBetweenUsers: vi.fn(),
       listAcceptedFriends: vi.fn(),
       listIncomingPending: vi.fn(),
       listOutgoingPending: vi.fn(),
@@ -40,7 +42,8 @@ describe("SearchUserByEmailUseCase", () => {
 
     userRepository = {
       findById: vi.fn(),
-      findByEmail: vi.fn().mockResolvedValue(targetUser),
+      findByEmail: vi.fn(),
+      findByEmailCaseInsensitive: vi.fn().mockResolvedValue(targetUser),
       findByGoogleId: vi.fn(),
       findAuthByEmail: vi.fn(),
       create: vi.fn(),
@@ -62,7 +65,9 @@ describe("SearchUserByEmailUseCase", () => {
 
     const result = await useCase.execute(viewerUserId, email);
 
-    expect(userRepository.findByEmail).toHaveBeenCalledWith("maria@example.com");
+    expect(userRepository.findByEmailCaseInsensitive).toHaveBeenCalledWith(
+      "maria@example.com",
+    );
     expect(
       friendRequestRepository.resolveRelationshipStatus,
     ).toHaveBeenCalledWith(viewerUserId, targetUserId);
@@ -75,7 +80,7 @@ describe("SearchUserByEmailUseCase", () => {
   });
 
   it("REQ-9: should throw UserNotFoundByEmailException when user does not exist", async () => {
-    vi.mocked(userRepository.findByEmail).mockResolvedValue(null);
+    vi.mocked(userRepository.findByEmailCaseInsensitive).mockResolvedValue(null);
 
     await expect(useCase.execute(viewerUserId, email)).rejects.toThrow(
       UserNotFoundByEmailException,
@@ -86,7 +91,7 @@ describe("SearchUserByEmailUseCase", () => {
   });
 
   it("REQ-9: should throw SelfFriendRequestException when searching own email", async () => {
-    vi.mocked(userRepository.findByEmail).mockResolvedValue({
+    vi.mocked(userRepository.findByEmailCaseInsensitive).mockResolvedValue({
       ...targetUser,
       id: viewerUserId,
     });

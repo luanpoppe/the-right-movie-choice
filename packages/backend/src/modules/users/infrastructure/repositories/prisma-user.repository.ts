@@ -28,6 +28,22 @@ export class PrismaUserRepository implements IUserRepository {
     return UserMapper.toEntity(user);
   }
 
+  async findByEmailCaseInsensitive(email: string): Promise<UserEntity | null> {
+    const where = {
+      email: {
+        equals: email,
+        mode: "insensitive" as const,
+      },
+    };
+    const user = await prisma.user.findFirst({ where });
+
+    if (!user) {
+      return null;
+    }
+
+    return UserMapper.toEntity(user);
+  }
+
   async findByGoogleId(googleId: string): Promise<UserEntity | null> {
     const user = await prisma.user.findUnique({ where: { googleId } });
 

@@ -22,12 +22,22 @@ export interface IFriendRequestRepository {
     addresseeId: number,
   ): Promise<FriendRequestEntity>;
 
+  executeSendFriendRequest(
+    requesterId: number,
+    addresseeId: number,
+  ): Promise<FriendRequestEntity>;
+
   updateStatus(
     id: number,
     status: FriendRequestStatus,
   ): Promise<FriendRequestEntity>;
 
   deleteById(id: number): Promise<void>;
+
+  deleteAllBetweenUsers(
+    firstUserId: number,
+    secondUserId: number,
+  ): Promise<void>;
 
   listAcceptedFriends(userId: number): Promise<UserPublicEntity[]>;
 

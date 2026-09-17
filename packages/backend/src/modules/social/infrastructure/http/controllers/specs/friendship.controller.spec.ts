@@ -203,7 +203,7 @@ describe("FriendshipController", () => {
     expect(reply.send).toHaveBeenCalledWith();
   });
 
-  it("listFriends happy path returns 200 with friends wrapper", async () => {
+  it("listFriends happy path returns 200 with friends array", async () => {
     vi.mocked(listFriendsUseCase.execute).mockResolvedValue([
       { id: 12, name: "Maria", email: "maria@example.com" },
     ]);
@@ -214,9 +214,35 @@ describe("FriendshipController", () => {
 
     expect(listFriendsUseCase.execute).toHaveBeenCalledWith(7);
     expect(reply.status).toHaveBeenCalledWith(200);
-    expect(reply.send).toHaveBeenCalledWith({
-      friends: [{ id: 12, name: "Maria", email: "maria@example.com" }],
-    });
+    expect(reply.send).toHaveBeenCalledWith([
+      { id: 12, name: "Maria", email: "maria@example.com" },
+    ]);
+  });
+
+  it("listOutgoingFriendRequests happy path returns 200 with ISO createdAt", async () => {
+    vi.mocked(listOutgoingFriendRequestsUseCase.execute).mockResolvedValue([
+      {
+        id: 56,
+        addressee: { id: 15, name: "João", email: "joao@example.com" },
+        status: "pending",
+        createdAt: new Date("2026-03-02T10:00:00.000Z"),
+      },
+    ]);
+    const request = createAuthRequest({}) as unknown as FastifyRequest;
+    const reply = createReply();
+
+    await handlers.listOutgoingFriendRequests(request, reply);
+
+    expect(listOutgoingFriendRequestsUseCase.execute).toHaveBeenCalledWith(7);
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith([
+      {
+        id: 56,
+        addressee: { id: 15, name: "João", email: "joao@example.com" },
+        status: "pending",
+        createdAt: "2026-03-02T10:00:00.000Z",
+      },
+    ]);
   });
 
   it("listIncomingFriendRequests happy path returns 200 with ISO createdAt", async () => {

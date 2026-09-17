@@ -17,18 +17,17 @@ export class RemoveFriendUseCase {
     const isAcceptedFriendship = latestRequest?.status === "accepted";
 
     if (!isAcceptedFriendship) {
-      const notFoundId = latestRequest?.id ?? friendUserId;
-      throw new FriendRequestNotFoundException(notFoundId);
+      throw new FriendRequestNotFoundException(friendUserId);
     }
 
-    const friendRequestId = latestRequest.id;
-
-    await this.friendRequestRepository.deleteById(friendRequestId);
+    await this.friendRequestRepository.deleteAllBetweenUsers(
+      userId,
+      friendUserId,
+    );
 
     Logger.info("Friendship removed", {
       userId,
       friendUserId,
-      friendRequestId,
     });
   }
 }
