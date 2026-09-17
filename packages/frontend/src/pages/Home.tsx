@@ -67,18 +67,45 @@ export function Home() {
         excludeWatched: isExcludeWatchedChecked,
       };
       const conversationChatId = conversation.chatId;
-
-      await MovieRecommendationService.getRecommendations(
-        requestBody,
-        conversationChatId,
-      );
-
       const conversationId = conversation.id;
+
+      let recommendation;
+      try {
+        recommendation = await MovieRecommendationService.getRecommendations(
+          requestBody,
+          conversationChatId,
+        );
+      } catch (recommendationError) {
+        console.error("[Home] authenticated recommendation failed", {
+          conversationId,
+          error: recommendationError,
+        });
+
+        try {
+          await UserConversationService.delete(conversationId);
+        } catch (deleteError) {
+          console.error("[Home] failed to rollback orphan conversation", {
+            conversationId,
+            error: deleteError,
+          });
+        }
+
+        toast.error(GENERIC_ERROR_TOAST);
+        return;
+      }
+
       const conversationPath = `/conversations/${conversationId}`;
       console.info("[Home] navigating to conversation", { conversationId });
-      navigate(conversationPath);
+      navigate(conversationPath, {
+        state: {
+          conversationBootstrap: {
+            response: recommendation.response,
+            movies: recommendation.movies,
+          },
+        },
+      });
     } catch (error) {
-      console.error("[Home] authenticated recommendation failed", { error });
+      console.error("[Home] authenticated submit failed", { error });
       toast.error(GENERIC_ERROR_TOAST);
     } finally {
       setIsLoading(false);
@@ -100,23 +127,15 @@ export function Home() {
       return;
     }
 
-    const excludeWatchedField = form.elements.namedItem("excludeWatched");
-    const isExcludeWatchedChecked =
-      excludeWatchedField instanceof HTMLInputElement &&
-      excludeWatchedField.checked;
-
     setMessages([...messages, { from: "user", message: input }]);
     setHasStartedChat(true);
     form.message.value = "";
     setIsLoading(true);
 
     try {
-      const baseRequestBody: MovieRecommendationRequestDTO = {
+      const requestBody: MovieRecommendationRequestDTO = {
         userMessage: input,
       };
-      const requestBody = hasAccessToken
-        ? { ...baseRequestBody, excludeWatched: isExcludeWatchedChecked }
-        : baseRequestBody;
 
       const recommendation = await MovieRecommendationService.getRecommendations(
         requestBody,

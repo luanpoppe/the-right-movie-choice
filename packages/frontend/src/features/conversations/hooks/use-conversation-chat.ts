@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ChatEntity } from "@/features/chat/entities/chat.entity";
 import { MovieRecommendationRequestDTO } from "@/features/movies/dto/movie-recommendation.dto";
@@ -67,8 +67,10 @@ export function useConversationChat(
   const [isLoading, setIsLoading] = useState(false);
   const [excludeWatched, setExcludeWatched] = useState(true);
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+  const activeChatIdRef = useRef(params.chatId);
 
   useEffect(() => {
+    activeChatIdRef.current = params.chatId;
     setChatId(params.chatId);
     setMessages(params.initialMessages ?? []);
   }, [params.chatId, params.initialMessages]);
@@ -84,6 +86,7 @@ export function useConversationChat(
         return;
       }
 
+      const submissionChatId = activeChatIdRef.current;
       const isExcludeWatchedChecked =
         ConversationChatFormUtils.readExcludeWatched(form);
 
@@ -97,7 +100,7 @@ export function useConversationChat(
       setIsLoading(true);
 
       console.info("[useConversationChat] submitting recommendation", {
-        chatId,
+        chatId: submissionChatId,
       });
 
       try {
@@ -108,8 +111,18 @@ export function useConversationChat(
 
         const recommendation = await MovieRecommendationService.getRecommendations(
           requestBody,
-          chatId,
+          submissionChatId,
         );
+
+        const isStaleResponse =
+          activeChatIdRef.current !== submissionChatId;
+        if (isStaleResponse) {
+          console.info(
+            "[useConversationChat] ignoring stale recommendation response",
+            { chatId: submissionChatId },
+          );
+          return;
+        }
 
         const aiChatMessage = {
           from: "ai" as const,
@@ -121,19 +134,40 @@ export function useConversationChat(
         setSidebarRefreshKey((currentKey) => currentKey + 1);
 
         console.info("[useConversationChat] recommendation succeeded", {
-          chatId,
+          chatId: submissionChatId,
         });
       } catch (error) {
+        const isStaleResponse =
+          activeChatIdRef.current !== submissionChatId;
+        if (isStaleResponse) {
+          return;
+        }
+
+        setMessages((currentMessages) => {
+          const lastMessage = currentMessages[currentMessages.length - 1];
+          const isOrphanUserMessage =
+            lastMessage?.from === "user" && lastMessage.message === userMessage;
+          if (!isOrphanUserMessage) {
+            return currentMessages;
+          }
+
+          return currentMessages.slice(0, -1);
+        });
+
         console.error("[useConversationChat] recommendation failed", {
-          chatId,
+          chatId: submissionChatId,
           error,
         });
         toast.error(GENERIC_ERROR_TOAST);
       } finally {
-        setIsLoading(false);
+        const isCurrentSubmission =
+          activeChatIdRef.current === submissionChatId;
+        if (isCurrentSubmission) {
+          setIsLoading(false);
+        }
       }
     },
-    [chatId],
+    [],
   );
 
   return {

@@ -5,6 +5,7 @@ import {
 } from "@/core/entities/chat-history.entity";
 import { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
 import { Logger } from "@/lib/logger/logger";
+import { ChatHistoryStructuredContentUtils } from "./chat-history-structured-content.utils";
 
 export class ChatHistoryAiMemoryRepository implements IChatHistoryRepository {
   constructor(private ai: AI) {}
@@ -13,7 +14,7 @@ export class ChatHistoryAiMemoryRepository implements IChatHistoryRepository {
     const memory = this.ai.memory;
     const result = await memory.getHistory(chatId);
     const historyMessages = result.messages;
-    const mappedTuples: Array<[string, string]> = [];
+    const mappedTuples: ChatHistoryEntity = [];
 
     for (const message of historyMessages) {
       const role = message.role;
@@ -29,7 +30,18 @@ export class ChatHistoryAiMemoryRepository implements IChatHistoryRepository {
       }
 
       if (role === "ai") {
-        mappedTuples.push(["ai", content]);
+        const parsedContent =
+          ChatHistoryStructuredContentUtils.parseAiContent(content);
+        const movies = parsedContent.movies;
+        const hasMovies = movies !== undefined && movies.length > 0;
+        if (hasMovies) {
+          const aiMessageWithMovies: ["ai", string, Record<string, unknown>[]] =
+            ["ai", parsedContent.message, movies];
+          mappedTuples.push(aiMessageWithMovies);
+          continue;
+        }
+
+        mappedTuples.push(["ai", parsedContent.message]);
         continue;
       }
 

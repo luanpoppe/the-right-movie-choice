@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Chat } from "@/features/chat";
@@ -13,6 +13,7 @@ import {
 import { useConversationChat } from "@/features/conversations/hooks/use-conversation-chat";
 import { UserConversationService } from "@/features/conversations/services/user-conversation.service";
 import { ChatHistoryMapperUtils } from "@/features/conversations/utils/chat-history-mapper.utils";
+import { ConversationBootstrapUtils } from "@/features/conversations/utils/conversation-bootstrap.utils";
 import { UserMovieEntriesProvider } from "@/features/movies/context/user-movie-entries.context";
 import { StringUtils } from "@/utils/string.utils";
 
@@ -39,6 +40,7 @@ function ConversationChatPageContent({
   conversationId,
 }: ConversationChatPageContentProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [conversation, setConversation] =
     useState<UserConversationGetResponseDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,8 +112,15 @@ function ConversationChatPageContent({
     const mappedMessages = ChatHistoryMapperUtils.toChatEntity(
       conversation.messages,
     );
-    return mappedMessages;
-  }, [conversation]);
+    const bootstrap = ConversationBootstrapUtils.readFromLocationState(
+      location.state,
+    );
+    const enrichedMessages = ConversationBootstrapUtils.enrichMessagesWithBootstrap(
+      mappedMessages,
+      bootstrap,
+    );
+    return enrichedMessages;
+  }, [conversation, location.state]);
 
   const chatId = conversation?.chatId ?? "";
 

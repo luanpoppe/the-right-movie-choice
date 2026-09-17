@@ -1,12 +1,24 @@
 import z from "zod";
+import { MultipleMoviesRecommendationsSchema } from "@/features/movies/entities/movie-recommendation.entity";
 
 export class UserConversationConstants {
   static readonly MAX_TITLE_LENGTH = 200;
 }
 
-export const ChatHistoryEntityTuple = z.tuple([
+export const ChatHistoryEntityTupleBase = z.tuple([
   z.enum(["user", "system", "ai"]),
   z.string(),
+]);
+
+export const ChatHistoryEntityTupleWithMovies = z.tuple([
+  z.enum(["ai"]),
+  z.string(),
+  MultipleMoviesRecommendationsSchema,
+]);
+
+export const ChatHistoryEntityTuple = z.union([
+  ChatHistoryEntityTupleBase,
+  ChatHistoryEntityTupleWithMovies,
 ]);
 
 export const ChatHistoryEntitySchema = z.array(ChatHistoryEntityTuple);

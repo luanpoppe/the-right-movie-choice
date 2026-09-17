@@ -13,9 +13,11 @@ export class ChatHistoryMapperUtils {
         continue;
       }
 
+      const movies = tuple.length > 2 ? tuple[2] : undefined;
       const chatMessage = {
         from: role,
         message,
+        ...(movies !== undefined ? { movies } : {}),
       };
       chat.push(chatMessage);
     }

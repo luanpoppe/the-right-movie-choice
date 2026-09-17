@@ -69,12 +69,16 @@ export function ConversationSidebar({
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const activeFetchIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (options?: { silent?: boolean }) => {
     const fetchId = activeFetchIdRef.current + 1;
     activeFetchIdRef.current = fetchId;
 
-    setIsLoading(true);
+    const isSilentRefresh = options?.silent === true;
+    if (!isSilentRefresh) {
+      setIsLoading(true);
+    }
     setHasLoadError(false);
 
     console.info("[ConversationSidebar] loading conversations");
@@ -113,7 +117,9 @@ export function ConversationSidebar({
   }, []);
 
   useEffect(() => {
-    void fetchConversations();
+    const isSilentRefresh = hasLoadedOnceRef.current;
+    hasLoadedOnceRef.current = true;
+    void fetchConversations({ silent: isSilentRefresh });
   }, [fetchConversations, refreshKey]);
 
   function handleOpenConversation(conversationId: number) {
