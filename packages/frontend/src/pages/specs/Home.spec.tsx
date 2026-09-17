@@ -293,6 +293,7 @@ describe("Home exclude-watched toggle", () => {
         expect(mockedNavigate).toHaveBeenCalledWith("/conversations/42", {
           state: {
             conversationBootstrap: {
+              userMessage: "sci-fi thriller",
               response: recommendationResponse.response,
               movies: recommendationResponse.movies,
             },

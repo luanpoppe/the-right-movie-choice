@@ -2,6 +2,7 @@ import { ChatEntity } from "@/features/chat/entities/chat.entity";
 import { MovieRecommendationEntity } from "@/features/movies/entities/movie-recommendation.entity";
 
 export type ConversationBootstrapState = {
+  userMessage: string;
   response: string;
   movies: MovieRecommendationEntity;
 };
@@ -32,19 +33,62 @@ export class ConversationBootstrapUtils {
       return null;
     }
 
+    const userMessage = (bootstrap as { userMessage?: unknown }).userMessage;
     const response = (bootstrap as { response?: unknown }).response;
     const movies = (bootstrap as { movies?: unknown }).movies;
+    const hasValidUserMessage =
+      typeof userMessage === "string" && userMessage.length > 0;
     const hasValidResponse = typeof response === "string" && response.length > 0;
     const hasValidMovies = Array.isArray(movies);
 
-    if (!hasValidResponse || !hasValidMovies) {
+    if (!hasValidUserMessage || !hasValidResponse || !hasValidMovies) {
       return null;
     }
 
     return {
+      userMessage,
       response,
       movies: movies as MovieRecommendationEntity,
     };
+  }
+
+  static buildMessagesFromBootstrap(
+    bootstrap: ConversationBootstrapState | null,
+  ): ChatEntity {
+    if (!bootstrap) {
+      return [];
+    }
+
+    const userChatMessage = {
+      from: "user" as const,
+      message: bootstrap.userMessage,
+    };
+    const aiChatMessage = {
+      from: "ai" as const,
+      message: bootstrap.response,
+      movies: bootstrap.movies,
+    };
+
+    return [userChatMessage, aiChatMessage];
+  }
+
+  static resolveInitialMessages(
+    messages: ChatEntity,
+    bootstrap: ConversationBootstrapState | null,
+  ): ChatEntity {
+    const hasPersistedMessages = messages.length > 0;
+    if (hasPersistedMessages) {
+      const enrichedMessages =
+        ConversationBootstrapUtils.enrichMessagesWithBootstrap(
+          messages,
+          bootstrap,
+        );
+      return enrichedMessages;
+    }
+
+    const bootstrapMessages =
+      ConversationBootstrapUtils.buildMessagesFromBootstrap(bootstrap);
+    return bootstrapMessages;
   }
 
   static enrichMessagesWithBootstrap(

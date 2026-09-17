@@ -99,6 +99,7 @@ export function Home() {
       navigate(conversationPath, {
         state: {
           conversationBootstrap: {
+            userMessage: input,
             response: recommendation.response,
             movies: recommendation.movies,
           },

@@ -115,11 +115,11 @@ function ConversationChatPageContent({
     const bootstrap = ConversationBootstrapUtils.readFromLocationState(
       location.state,
     );
-    const enrichedMessages = ConversationBootstrapUtils.enrichMessagesWithBootstrap(
+    const initialMessages = ConversationBootstrapUtils.resolveInitialMessages(
       mappedMessages,
       bootstrap,
     );
-    return enrichedMessages;
+    return initialMessages;
   }, [conversation, location.state]);
 
   const chatId = conversation?.chatId ?? "";
