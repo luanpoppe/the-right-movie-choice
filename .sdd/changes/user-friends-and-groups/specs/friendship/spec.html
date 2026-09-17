@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: friendship — user-friends-and-groups</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-friends-and-groups</a> / specs / <strong>friendship</strong> / spec</p>
+    <h1>Spec: friendship</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-friends-and-groups</code></a> · atualizado em 2026-09-17</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Expõe API REST autenticada para amizades bilaterais: enviar, aceitar, recusar e cancelar solicitações; listar amigos e pendentes (recebidas/enviadas); buscar usuário por e-mail com status da relação; desfazer amizade. Rotas sob <code>/social/*</code>. Reutiliza JWT existente e <code>IUserRepository.findByEmail</code> para descoberta.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Enviar solicitação de amizade</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 7</code> envia <code>POST /social/friend-requests</code> com body <code>{ &quot;email&quot;: &quot;maria@example.com&quot; }</code></li>
+        <li><strong>Quando</strong> existe usuário com esse e-mail (<code>id = 12</code>) e ainda não há amizade nem solicitação pendente entre 7 e 12</li>
+        <li><strong>Então</strong> retorna <code>201</code> com a solicitação criada (<code>id</code>, <code>requesterId</code>, <code>addresseeId</code>, <code>status: &quot;pending&quot;</code>, timestamps)</li>
+        <li><strong>E</strong> <code>requesterId = 7</code> e <code>addresseeId = 12</code></li>
+      </ul>
+      <h3>REQ-2: Aceitar solicitação recebida</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe solicitação pendente <code>id = 55</code> de <code>requesterId = 12</code> para <code>addresseeId = 7</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 7</code> envia <code>POST /social/friend-requests/55/accept</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>status: &quot;accepted&quot;</code></li>
+        <li><strong>E</strong> a relação passa a contar como amizade ativa entre 7 e 12</li>
+      </ul>
+      <h3>REQ-3: Recusar solicitação recebida</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe solicitação pendente <code>id = 55</code> de <code>requesterId = 12</code> para <code>addresseeId = 7</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 7</code> envia <code>POST /social/friend-requests/55/reject</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>status: &quot;rejected&quot;</code></li>
+        <li><strong>E</strong> não há amizade ativa entre 7 e 12</li>
+      </ul>
+      <h3>REQ-4: Cancelar solicitação enviada</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe solicitação pendente <code>id = 56</code> de <code>requesterId = 7</code> para <code>addresseeId = 15</code></li>
+        <li><strong>Quando</strong> o usuário <code>id = 7</code> envia <code>DELETE /social/friend-requests/56</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> a solicitação deixa de existir como pendente</li>
+      </ul>
+      <h3>REQ-5: Desfazer amizade</h3>
+      <ul>
+        <li><strong>Dado que</strong> os usuários <code>id = 7</code> e <code>id = 12</code> são amigos aceitos</li>
+        <li><strong>Quando</strong> o usuário <code>id = 7</code> envia <code>DELETE /social/friends/12</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> não há mais amizade ativa entre 7 e 12</li>
+      </ul>
+      <h3>REQ-6: Listar amigos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> tem amizades aceitas com <code>id = 12</code> e <code>id = 15</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/friends</code> com JWT válido</li>
+        <li><strong>Então</strong> retorna <code>200</code> com array de usuários <code>{ id, name, email }</code></li>
+        <li><strong>E</strong> inclui somente amigos do usuário 7</li>
+        <li><strong>E</strong> não inclui solicitações pendentes ou recusadas</li>
+      </ul>
+      <h3>REQ-7: Listar solicitações recebidas</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> tem solicitações pendentes de <code>id = 12</code> e <code>id = 20</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/friend-requests/incoming</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array de itens <code>{ id, requester: { id, name, email }, status, createdAt }</code></li>
+        <li><strong>E</strong> inclui somente pendentes onde <code>addresseeId = 7</code></li>
+      </ul>
+      <h3>REQ-8: Listar solicitações enviadas</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 7</code> enviou solicitações pendentes para <code>id = 15</code> e <code>id = 18</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/friend-requests/outgoing</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array de itens <code>{ id, addressee: { id, name, email }, status, createdAt }</code></li>
+        <li><strong>E</strong> inclui somente pendentes onde <code>requesterId = 7</code></li>
+      </ul>
+      <h3>REQ-9: Buscar usuário por e-mail</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 7</code> consulta <code>GET /social/users/search?email=maria@example.com</code></li>
+        <li><strong>Quando</strong> existe usuário <code>id = 12</code> com esse e-mail</li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>{ id, name, email, relationshipStatus }</code></li>
+        <li><strong>E</strong> <code>relationshipStatus</code> é um de: <code>&quot;none&quot;</code>, <code>&quot;friends&quot;</code>, <code>&quot;pending_outgoing&quot;</code>, <code>&quot;pending_incoming&quot;</code>, <code>&quot;rejected&quot;</code></li>
+        <li><strong>E</strong> nunca retorna o próprio usuário 7 como resultado</li>
+      </ul>
+      <h3>REQ-10: Auto-aceite em solicitações cruzadas</h3>
+      <ul>
+        <li><strong>Entrada</strong> usuário <code>id = 7</code> envia solicitação para <code>id = 12</code> enquanto já existe solicitação pendente de <code>12</code> para <code>7</code></li>
+        <li><strong>Saída</strong> a relação resultante é amizade aceita imediatamente (<code>status: &quot;accepted&quot;</code>)</li>
+        <li><strong>E</strong> não permanecem duas solicitações pendentes opostas</li>
+      </ul>
+      <h3>REQ-11: Reenvio após recusa</h3>
+      <ul>
+        <li><strong>Entrada</strong> solicitação anterior de <code>7</code> para <code>12</code> está <code>rejected</code></li>
+        <li><strong>Quando</strong> <code>7</code> envia nova solicitação para <code>12</code></li>
+        <li><strong>Saída</strong> cria nova solicitação <code>pending</code> com <code>201</code></li>
+      </ul>
+      <h3>REQ-12: Acesso autenticado</h3>
+      <ul>
+        <li><strong>Entrada</strong> qualquer rota <code>/social/*</code> sem JWT válido</li>
+        <li><strong>Saída</strong> <code>401</code>  ||  nenhuma leitura/escrita de amizade</li>
+      </ul>
+      <h3>REQ-13: Isolamento por usuário</h3>
+      <ul>
+        <li><strong>Entrada</strong> solicitação <code>id = 55</code> pertence a <code>addresseeId = 7</code></li>
+        <li><strong>Saída</strong> aceitar/recusar/cancelar com JWT de outro usuário → <code>404</code>  ||  não expõe nem altera dados alheios</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Enviar solicitação para e-mail inexistente → <code>404</code></li>
+        <li>Enviar solicitação para o próprio e-mail/usuário → <code>400</code></li>
+        <li>Enviar solicitação quando já são amigos → <code>409</code></li>
+        <li>Enviar solicitação quando já existe pendente na mesma direção → <code>409</code></li>
+        <li>Busca por e-mail inexistente → <code>404</code></li>
+        <li>E-mail inválido ou ausente na busca/envio → <code>400</code></li>
+        <li>Concorrência em auto-aceite cruzado → resultado final único <code>accepted</code>  ||  sem duplicata de amizade</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><code>POST /social/friend-requests</code> — body <code>{ email: string }</code>  ||  <code>201</code> solicitação  ||  auth JWT</li>
+        <li><code>POST /social/friend-requests/:id/accept</code> — <code>200</code> solicitação aceita</li>
+        <li><code>POST /social/friend-requests/:id/reject</code> — <code>200</code> solicitação recusada</li>
+        <li><code>DELETE /social/friend-requests/:id</code> — <code>204</code> cancela pendente enviada pelo autenticado</li>
+        <li><code>DELETE /social/friends/:userId</code> — <code>204</code> remove amizade</li>
+        <li><code>GET /social/friends</code> — <code>200</code> <code>{ friends: UserPublic[] }</code> onde <code>UserPublic = { id, name, email }</code></li>
+        <li><code>GET /social/friend-requests/incoming</code> — <code>200</code> lista pendentes recebidas</li>
+        <li><code>GET /social/friend-requests/outgoing</code> — <code>200</code> lista pendentes enviadas</li>
+        <li><code>GET /social/users/search?email=</code> — <code>200</code> <code>{ id, name, email, relationshipStatus }</code></li>
+        <li>Auth: reutilizar padrão JWT de <code>UserMovieEntryAuthHook</code> (ou hook equivalente renomeado para uso social)</li>
+        <li>Descoberta: reutilizar <code>IUserRepository.findByEmail</code> do módulo users</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
