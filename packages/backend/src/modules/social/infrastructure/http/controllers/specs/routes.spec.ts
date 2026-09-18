@@ -160,6 +160,18 @@ describe("socialControllers routes", () => {
     );
   });
 
+  it("registra GET /social/groups/:id/members com preHandler e handler", async () => {
+    await socialControllers(app);
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/social/groups/:id/members",
+      expect.objectContaining({
+        preHandler: userGroupsPreHandler,
+      }),
+      userGroupsHandlers.listGroupMembers,
+    );
+  });
+
   it("routes.ts referencia docs e factory de friendship no código-fonte", () => {
     const routesPath = path.join(
       process.cwd(),

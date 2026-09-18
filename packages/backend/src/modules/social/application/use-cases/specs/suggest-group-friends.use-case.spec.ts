@@ -58,6 +58,7 @@ describe("SuggestGroupFriendsUseCase", () => {
       findMemberUserIds: vi
         .fn()
         .mockResolvedValue([userId, existingMemberId]),
+      findMemberProfiles: vi.fn(),
       leaveAsOwnerWithTransfer: vi.fn(),
     };
 

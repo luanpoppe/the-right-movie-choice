@@ -284,10 +284,11 @@ describe("UserGroupsController", () => {
     expect(reply.status).toHaveBeenCalledWith(204);
   });
 
-  it("listGroupMembers happy path returns 200", async () => {
+  it("REQ-1: listGroupMembers happy path returns 200 com membros ordenados", async () => {
     vi.mocked(listGroupMembersUseCase.execute).mockResolvedValue([
+      { id: 12, name: "Ana", email: "ana@example.com" },
       { id: 7, name: "João", email: "joao@example.com" },
-      { id: 12, name: "Maria", email: "maria@example.com" },
+      { id: 15, name: "Maria", email: "maria@example.com" },
     ]);
     const request = createAuthRequest({
       params: { id: "3" },
@@ -299,9 +300,39 @@ describe("UserGroupsController", () => {
     expect(listGroupMembersUseCase.execute).toHaveBeenCalledWith(7, 3);
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith([
+      { id: 12, name: "Ana", email: "ana@example.com" },
       { id: 7, name: "João", email: "joao@example.com" },
-      { id: 12, name: "Maria", email: "maria@example.com" },
+      { id: 15, name: "Maria", email: "maria@example.com" },
     ]);
+  });
+
+  it("edge: listGroupMembers com único membro retorna array de 1 item", async () => {
+    vi.mocked(listGroupMembersUseCase.execute).mockResolvedValue([
+      { id: 7, name: "João", email: "joao@example.com" },
+    ]);
+    const request = createAuthRequest({
+      params: { id: "3" },
+    }) as unknown as FastifyRequest<{ Params: UserGroupIdParams }>;
+    const reply = createReply();
+
+    await handlers.listGroupMembers(request, reply);
+
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith([
+      { id: 7, name: "João", email: "joao@example.com" },
+    ]);
+  });
+
+  it("edge: listGroupMembers rejeita id de grupo inválido antes do use case", async () => {
+    const request = createAuthRequest({
+      params: { id: "0" },
+    }) as unknown as FastifyRequest<{ Params: UserGroupIdParams }>;
+    const reply = createReply();
+
+    await expect(
+      handlers.listGroupMembers(request, reply),
+    ).rejects.toBeInstanceOf(UserGroupValidationException);
+    expect(listGroupMembersUseCase.execute).not.toHaveBeenCalled();
   });
 
   it("suggestGroupFriends happy path returns 200", async () => {
@@ -586,7 +617,7 @@ describe("UserGroupsController", () => {
       );
     });
 
-    it("listGroupMembers propagates NotGroupMemberException with statusCode 404", async () => {
+    it("REQ-2: listGroupMembers propagates NotGroupMemberException with statusCode 404", async () => {
       vi.mocked(listGroupMembersUseCase.execute).mockRejectedValue(
         new NotGroupMemberException(3),
       );
@@ -598,6 +629,22 @@ describe("UserGroupsController", () => {
       await expectPropagatesWithStatusCode(
         handlers.listGroupMembers(request, reply),
         NotGroupMemberException,
+        404,
+      );
+    });
+
+    it("REQ-5: listGroupMembers propagates UserGroupNotFoundException with statusCode 404", async () => {
+      vi.mocked(listGroupMembersUseCase.execute).mockRejectedValue(
+        new UserGroupNotFoundException(999),
+      );
+      const request = createAuthRequest({
+        params: { id: "999" },
+      }) as unknown as FastifyRequest<{ Params: UserGroupIdParams }>;
+      const reply = createReply();
+
+      await expectPropagatesWithStatusCode(
+        handlers.listGroupMembers(request, reply),
+        UserGroupNotFoundException,
         404,
       );
     });

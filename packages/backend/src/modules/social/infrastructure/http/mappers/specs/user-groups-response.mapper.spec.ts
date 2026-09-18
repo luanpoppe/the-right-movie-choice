@@ -159,6 +159,25 @@ describe("UserGroupsResponseMapper", () => {
     ]);
   });
 
+  it("toListGroupMembersResponse mapeia membros com shape UserPublic", () => {
+    const entities = [
+      UserGroupsResponseMapperFixtures.friendSuggestion({
+        id: 7,
+        name: "João",
+        email: "joao@example.com",
+      }),
+      UserGroupsResponseMapperFixtures.friendSuggestion(),
+    ];
+
+    const response =
+      UserGroupsResponseMapper.toListGroupMembersResponse(entities);
+
+    expect(response).toEqual([
+      { id: 7, name: "João", email: "joao@example.com" },
+      { id: 12, name: "Maria", email: "maria@example.com" },
+    ]);
+  });
+
   it("toIncomingGroupInviteResponse mapeia grupo e inviter aninhados", () => {
     const entity = UserGroupsResponseMapperFixtures.incomingInvite();
 
