@@ -55,6 +55,9 @@ function AuthActions() {
           <Link to="/conversations">Conversations</Link>
         </Button>
         <Button variant="ghost" size="sm" asChild>
+          <Link to="/social">Social</Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/my-movies">My movies</Link>
         </Button>
         <Button variant="outline" size="sm" onClick={handleLogout}>
