@@ -1,3 +1,4 @@
+import type { UserPublicEntity } from "../entities/friend-request.entity";
 import type { GroupMemberEntity } from "../entities/group-member.entity";
 import type {
   UserGroupEntity,
@@ -48,6 +49,8 @@ export interface IUserGroupRepository {
   deleteGroupAndRelated(groupId: number): Promise<void>;
 
   findMemberUserIds(groupId: number): Promise<number[]>;
+
+  findMemberProfiles(groupId: number): Promise<UserPublicEntity[]>;
 
   leaveAsOwnerWithTransfer(groupId: number, ownerId: number): Promise<void>;
 }

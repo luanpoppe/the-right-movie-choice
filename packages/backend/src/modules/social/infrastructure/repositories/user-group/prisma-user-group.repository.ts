@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma/prisma";
 import { Logger } from "@/lib/logger/logger";
 import { PrismaErrorMapper } from "@/shared/mappers/prisma-error.mapper";
+import type { UserPublicEntity } from "../../../domain/entities/friend-request.entity";
 import type { GroupMemberEntity } from "../../../domain/entities/group-member.entity";
 import type {
   UserGroupEntity,
@@ -9,10 +10,17 @@ import type {
 import { UserGroupNotFoundException } from "../../../domain/exceptions/user-group-not-found.exception";
 import type { IUserGroupRepository } from "../../../domain/repositories/user-group.repository";
 import { UserGroupValidationUtils } from "../../../domain/utils/user-group-validation.utils";
+import { FriendRequestPrismaMapper } from "../../mappers/friend-request-prisma.mapper";
 import { UserGroupPrismaMapper } from "../../mappers/user-group-prisma.mapper";
 
 const listGroupsOrderBy = { joinedAt: "desc" as const };
 const oldestMemberOrderBy = { joinedAt: "asc" as const };
+const memberProfilesOrderBy = { user: { name: "asc" as const } };
+const userPublicSelect = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
 
 export class PrismaUserGroupRepository implements IUserGroupRepository {
   async findById(groupId: number): Promise<UserGroupEntity | null> {
@@ -293,6 +301,24 @@ export class PrismaUserGroupRepository implements IUserGroupRepository {
 
     const userIds = rows.map((row) => row.userId);
     return userIds;
+  }
+
+  async findMemberProfiles(groupId: number): Promise<UserPublicEntity[]> {
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+
+    const where = { groupId };
+    const rows = await prisma.groupMember.findMany({
+      where,
+      include: { user: { select: userPublicSelect } },
+      orderBy: memberProfilesOrderBy,
+    });
+
+    const profiles = rows.map((row) => {
+      const profile = FriendRequestPrismaMapper.toUserPublic(row.user);
+      return profile;
+    });
+
+    return profiles;
   }
 
   async leaveAsOwnerWithTransfer(
