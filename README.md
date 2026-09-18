@@ -40,6 +40,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Excluir assistidos (autenticado):** Com Bearer, o body pode enviar `excludeWatched` (padrão `true` se omitido). O backend filtra filmes marcados como assistidos após o lookup no catálogo, amplia o pool de candidatos (até 25 queries por rodada) e repete até obter pelo menos 2 filmes verificados não-assistidos ou esgotar 5 rodadas. Convidados ignoram a flag.
 - **Listas do usuário:** `GET`/`PATCH /movie/user-entries` exigem **JWT** (`Authorization: Bearer`). Uma linha por `(userId, tmdbId)` com flags `watched`, `favorite`, `inWatchlist` e metadados opcionais de assistido (`rating` 1–10, `watchedAt`). Listagens aceitam filtros por flag e podem enriquecer com resumo do catálogo (`title`, `year`, `posterPath` como URL TMDB).
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
+- **Social (amizades e grupos):** Módulo `social` com rotas `/social/*` (JWT obrigatório). Amizades bilaterais via solicitações (`FriendRequest`), listagem de amigos, busca por e-mail com status de relacionamento, grupos com dono/membros (`UserGroup`, `GroupMember`), convites por e-mail (`GroupInvite`) e sugestões de amigos elegíveis para convite em um grupo.
 - **Logging estruturado:** **Pino** (`lib/logger`) nos fluxos de auth e cadastro.
 - **CORS:** `@fastify/cors` com `credentials: true` para `localhost` e deploys `*.vercel.app`; expõe `X-Guest-Remaining`.
 - **Arquitetura desacoplada:** Clean Architecture no pacote `packages/backend`.
@@ -58,6 +59,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
 - **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
 - **Autenticação:** telas `/login` e `/register` com senha ou botão Google (`@react-oauth/google`).
+- **Área Social (`/social`):** abas Friends, Requests e Groups; detalhe do grupo em `/social/groups/:id`; link **Social** no header quando autenticado; visitante é redirecionado para `/login?redirect=...`.
 
 ## Próximos Passos
 
@@ -75,7 +77,7 @@ A lógica da API fica em `packages/backend/src`, organizada da seguinte forma:
 
 - **`domains/...` (ex.: filmes):** Bounded contexts legados em `src/domains/movies`, com `domain`, `application` e `infrastructure`.
 
-- **`modules/...` (ex.: `users`, `auth`):** Contextos em `src/modules/*`, mesma separação de camadas. O domínio inclui entidades, exceções e **ports** (ex.: `IUserRepository`, `IRefreshTokenRepository`).
+- **`modules/...` (ex.: `users`, `auth`, `social`):** Contextos em `src/modules/*`, mesma separação de camadas. O domínio inclui entidades, exceções e **ports** (ex.: `IUserRepository`, `IRefreshTokenRepository`, `IFriendRequestRepository`, `IUserGroupRepository`).
 
 - **`domain` (Camada de Domínio):** Entidades (ex.: `UserEntity`, `MovieRecommendationEntity`), exceções de negócio e contratos de persistência, sem dependências externas.
 
@@ -110,7 +112,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **Testes:** Vitest
 - **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
-- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion` + `UserConversation`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
+- **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion` + `UserConversation` + social: `FriendRequest`, `UserGroup`, `GroupMember`, `GroupInvite`) + Redis (histórico de chat, refresh tokens, cache TMDB details e cota de convidado, `ioredis`)
 - **Jobs agendados:** `node-cron` para rotação do pool de sugestões (somente `NODE_ENV=prod`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
@@ -199,7 +201,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `UserConversation`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `UserConversation`, social: `FriendRequest`, `UserGroup`, `GroupMember`, `GroupInvite`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -234,14 +236,16 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**; `searchEmail`, `friendRequestId`, `friendUserId`, `groupId`, `groupInviteId` e `groupMemberUserId` para rotas sociais.
 
-Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Social — Friends**, **Social — Groups** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
 
-**Fluxo autenticado no Postman:** Login → **Create conversation** (salva `conversationId` e `chatId`) → **Movie recommendation (Bearer)** com `chatid: {{chatId}}`.
+**Fluxo autenticado no Postman (conversas):** Login → **Create conversation** (salva `conversationId` e `chatId`) → **Movie recommendation (Bearer)** com `chatid: {{chatId}}`.
+
+**Fluxo social no Postman:** Login → **Send friend request** ou **Create group** (ajuste `searchEmail` para uma conta cadastrada) → troque de usuário (novo Login) para **Accept friend request** / **Accept group invite**.
 ## Referência da API
 
-`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries` e todas as rotas `/movie/conversations` exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries`, todas as rotas `/movie/conversations` e **todas as rotas `/social/*`** exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
 
 > Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
 
@@ -483,6 +487,57 @@ curl -X DELETE "http://localhost:3333/movie/conversations/1" \
 
 **Respostas:** `204`, `400`, `401`, `404`.
 
+### Rotas sociais (`/social/*`)
+
+Todas exigem **`Authorization: Bearer`**. Respostas comuns: `401` (token ausente/inválido), `404` (recurso inexistente ou sem permissão), `409` (conflito de estado — ex.: já amigos, convite pendente).
+
+**Amizades**
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/social/friends` | Lista amigos (`{ id, name, email }[]`) |
+| `GET` | `/social/users/search?email=` | Busca usuário + `relationshipStatus` |
+| `POST` | `/social/friend-requests` | Body `{ email }` — envia solicitação (`201`) |
+| `GET` | `/social/friend-requests/incoming` | Solicitações recebidas |
+| `GET` | `/social/friend-requests/outgoing` | Solicitações enviadas |
+| `POST` | `/social/friend-requests/:id/accept` | Aceita solicitação |
+| `POST` | `/social/friend-requests/:id/reject` | Rejeita solicitação |
+| `DELETE` | `/social/friend-requests/:id` | Cancela solicitação enviada (`204`) |
+| `DELETE` | `/social/friends/:userId` | Remove amizade (`204`) |
+
+**Grupos**
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/social/groups` | Lista grupos do usuário (`memberCount`, `joinedAt`) |
+| `POST` | `/social/groups` | Body `{ name, description? }` — cria grupo (`201`) |
+| `PATCH` | `/social/groups/:id` | Atualiza nome/descrição (dono) |
+| `DELETE` | `/social/groups/:id` | Exclui grupo (dono, `204`) |
+| `POST` | `/social/groups/:id/invites` | Body `{ email }` — convida usuário (`201`) |
+| `GET` | `/social/groups/:id/suggestions` | Amigos elegíveis para convite |
+| `DELETE` | `/social/groups/:id/members/me` | Sai do grupo (`204`) |
+| `DELETE` | `/social/groups/:id/members/:userId` | Dono remove membro (`204`) |
+| `GET` | `/social/group-invites/incoming` | Convites de grupo recebidos |
+| `POST` | `/social/group-invites/:id/accept` | Aceita convite |
+| `POST` | `/social/group-invites/:id/reject` | Rejeita convite |
+| `DELETE` | `/social/group-invites/:id` | Cancela convite pendente enviado (`204`) |
+
+**Exemplo — enviar solicitação de amizade (local):**
+```bash
+curl -X POST http://localhost:3333/social/friend-requests \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"amigo@example.com\"}"
+```
+
+**Exemplo — criar grupo (local):**
+```bash
+curl -X POST http://localhost:3333/social/groups \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Grupo de filmes\",\"description\":\"Sugestões semanais\"}"
+```
+
 ### `POST /users/register`
 
 - **Body:**
@@ -574,7 +629,7 @@ curl "http://localhost:3333/debug/tmdb/movies/603?language=pt-BR"
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **600+** testes cobrindo filmes (recomendação, catálogo, lookup em lote, pool de sugestões, listas do usuário), auth, users, TMDB e mappers Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **970+** testes cobrindo filmes (recomendação, catálogo, lookup em lote, pool de sugestões, listas do usuário), auth, users, social (amizades e grupos), TMDB e mappers Prisma.
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 
