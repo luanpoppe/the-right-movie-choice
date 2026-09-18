@@ -451,6 +451,97 @@ describe("PrismaUserMovieEntryRepository", () => {
     });
   });
 
+  describe("findWatchedTmdbIdsByUsers", () => {
+    it("REQ-8 retorna união de tmdbIds assistidos por qualquer usuário", async () => {
+      const userIds = [7, 12];
+      const tmdbIds = [550, 680];
+      const watchedRowUser7 = { tmdbId: 550 };
+      const watchedRowUser12 = { tmdbId: 680 };
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([
+        watchedRowUser7,
+        watchedRowUser12,
+      ] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUsers(userIds, tmdbIds);
+
+      expect(prisma.userMovieEntry.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: { in: userIds },
+          tmdbId: { in: tmdbIds },
+          watched: true,
+        },
+        select: {
+          tmdbId: true,
+        },
+      });
+      expect(result).toEqual(expect.arrayContaining([550, 680]));
+      expect(result).toHaveLength(2);
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User movie entry watched multi-user batch lookup hit",
+        {
+          userCount: 2,
+          candidateCount: 2,
+          watchedCount: 2,
+        },
+      );
+    });
+
+    it("REQ-8 retorna tmdbId distinto quando ambos os usuários assistiram o mesmo filme", async () => {
+      const userIds = [7, 12];
+      const tmdbIds = [550, 680];
+      const watchedRowUser7 = { tmdbId: 550 };
+      const watchedRowUser12 = { tmdbId: 550 };
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([
+        watchedRowUser7,
+        watchedRowUser12,
+      ] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUsers(userIds, tmdbIds);
+
+      expect(result).toEqual([550]);
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User movie entry watched multi-user batch lookup hit",
+        {
+          userCount: 2,
+          candidateCount: 2,
+          watchedCount: 1,
+        },
+      );
+    });
+
+    it("retorna array vazio quando userIds de entrada está vazio", async () => {
+      const result = await repository.findWatchedTmdbIdsByUsers([], [550, 680]);
+
+      expect(result).toEqual([]);
+      expect(prisma.userMovieEntry.findMany).not.toHaveBeenCalled();
+    });
+
+    it("retorna array vazio quando tmdbIds de entrada está vazio", async () => {
+      const result = await repository.findWatchedTmdbIdsByUsers([7, 12], []);
+
+      expect(result).toEqual([]);
+      expect(prisma.userMovieEntry.findMany).not.toHaveBeenCalled();
+    });
+
+    it("retorna array vazio quando nenhum tmdbId é assistido", async () => {
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([] as never);
+
+      const result = await repository.findWatchedTmdbIdsByUsers([7, 12], [550, 680]);
+
+      expect(result).toEqual([]);
+      expect(Logger.debug).toHaveBeenCalledWith(
+        "User movie entry watched multi-user batch lookup hit",
+        {
+          userCount: 2,
+          candidateCount: 2,
+          watchedCount: 0,
+        },
+      );
+    });
+  });
+
   describe("listByUser", () => {
     it("REQ-6 filtra por watched quando presente no filtro", async () => {
       const rowA = UserMovieEntryRepositoryFixtures.prismaRow({
