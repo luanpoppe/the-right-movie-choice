@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: group-recommendation-chat-api — group-recommendation-chat</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">group-recommendation-chat</a> / specs / <strong>group-recommendation-chat-api</strong> / spec</p>
+    <h1>Spec: group-recommendation-chat-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>group-recommendation-chat</code></a> · atualizado em 2026-09-18</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Expõe CRUD de chats por grupo (metadados + histórico compartilhado no checkpointer Postgres), PATCH do subconjunto de membros usado no filtro de assistidos e POST de recomendação reutilizando o pipeline <code>excludeWatched</code> com união multi-usuário. Só membros autenticados do grupo; sem cota anônima.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Criar chat no grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 7</code> é membro do grupo <code>id = 3</code> (membros <code>7</code>, <code>12</code>, <code>15</code>)</li>
+        <li><strong>Quando</strong> envia <code>POST /social/groups/3/chats</code> com body <code>{}</code> ou <code>{ &quot;title&quot;: &quot;Sábado&quot; }</code></li>
+        <li><strong>Então</strong> retorna <code>201</code> com <code>{ id, groupId: 3, chatId, title, filterMemberUserIds, createdAt, updatedAt }</code></li>
+        <li><strong>E</strong> <code>chatId</code> é UUID novo gerado pelo servidor</li>
+        <li><strong>E</strong> <code>filterMemberUserIds</code> inicia com <code>[7, 12, 15]</code> (todos os membros atuais)</li>
+        <li><strong>E</strong> <code>title</code> é o enviado ou <code>null</code> até o primeiro turno de recomendação</li>
+      </ul>
+      <h3>REQ-2: Listar e abrir chats</h3>
+      <ul>
+        <li><strong>Dado que</strong> o grupo <code>id = 3</code> tem dois chats e o usuário <code>id = 7</code> é membro</li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups/3/chats</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array ordenado por <code>updatedAt</code> descendente</li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups/3/chats/:chatId</code> com <code>chatId</code> válido do grupo</li>
+        <li><strong>Então</strong> retorna <code>200</code> com metadados do chat</li>
+        <li><strong>E</strong> inclui <code>messages</code> lidos do checkpointer Postgres (mesmo shape de <code>GET /movie/conversations/:id</code>)</li>
+      </ul>
+      <h3>REQ-3: Renomear e excluir chat</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário <code>id = 12</code> é membro do grupo <code>id = 3</code> e existe chat <code>id = 40</code></li>
+        <li><strong>Quando</strong> envia <code>PATCH /social/groups/3/chats/40</code> com <code>{ &quot;title&quot;: &quot;Terror leve&quot; }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com título atualizado</li>
+        <li><strong>Quando</strong> envia <code>DELETE /social/groups/3/chats/40</code></li>
+        <li><strong>Então</strong> retorna <code>204</code></li>
+        <li><strong>E</strong> purga threads <code>chatId</code> e <code>chatId:exclude:{1..5}</code> no checkpointer antes de apagar metadados</li>
+      </ul>
+      <h3>REQ-4: Atualizar filtro de assistidos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o chat <code>id = 40</code> do grupo <code>3</code> tem <code>filterMemberUserIds = [7, 12, 15]</code></li>
+        <li><strong>Quando</strong> o membro <code>id = 7</code> envia <code>PATCH /social/groups/3/chats/40/filter-members</code> com <code>{ &quot;userIds&quot;: [7, 12] }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com <code>filterMemberUserIds = [7, 12]</code></li>
+        <li><strong>Erro</strong> <code>userIds</code> contém <code>99</code> (não membro do grupo) → <code>400</code> com lista de ids inválidos</li>
+      </ul>
+      <h3>REQ-5: Recomendação com exclude multi-usuário</h3>
+      <ul>
+        <li><strong>Dado que</strong> o membro <code>id = 7</code> abre o chat <code>chatId = &quot;abc-uuid&quot;</code> do grupo <code>3</code> com <code>filterMemberUserIds = [7, 12]</code></li>
+        <li><strong>Quando</strong> envia <code>POST /social/groups/3/chats/abc-uuid/recommendation</code> com <code>{ &quot;query&quot;: &quot;comédia leve&quot; }</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com payload de recomendação (mesmo contrato de <code>POST /movie/recommendation</code>)</li>
+        <li><strong>E</strong> <code>excludeWatched</code> default <code>true</code> considera assistido se <strong>qualquer</strong> id em <code>filterMemberUserIds</code> marcou o filme como watched</li>
+        <li><strong>E</strong> atualiza <code>updatedAt</code> do chat após sucesso</li>
+      </ul>
+      <h3>REQ-6: Apenas membros acessam</h3>
+      <ul>
+        <li><strong>Dado que</strong> o grupo <code>id = 3</code> existe e o usuário autenticado <code>id = 99</code> não é membro</li>
+        <li><strong>Quando</strong> envia qualquer rota <code>/social/groups/3/chats*</code> ou recommendation aninhada</li>
+        <li><strong>Então</strong> retorna <code>404</code>  ||  mesma resposta genérica das demais rotas de grupo</li>
+      </ul>
+      <h3>REQ-7: JWT obrigatório</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>GET /social/groups/3/chats</code> sem JWT válido</li>
+        <li><strong>Saída</strong> <code>401</code>  ||  nenhuma leitura de chats do grupo</li>
+      </ul>
+      <h3>REQ-8: Lookup de assistidos multi-usuário</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>filterMemberUserIds = [7, 12]</code>, candidatos TMDB <code>[550, 680]</code>, usuário <code>7</code> assistiu <code>550</code>, usuário <code>12</code> assistiu <code>680</code></li>
+        <li><strong>Saída</strong> ambos <code>tmdbId</code> tratados como assistidos na tool e no sanitize final</li>
+        <li><strong>Erro</strong> lista vazia de <code>filterMemberUserIds</code> com <code>excludeWatched: true</code> → recommendation segue sem filtro de assistidos (modo padrão single-turn)</li>
+      </ul>
+      <h3>REQ-9: Título automático no primeiro turno</h3>
+      <ul>
+        <li><strong>Entrada</strong> chat com <code>title = null</code>, recommendation bem-sucedida, gerador de título retorna <code>&quot;Comédias leves&quot;</code></li>
+        <li><strong>Saída</strong> metadados passam a <code>title = &quot;Comédias leves&quot;</code>  ||  falha do gerador mantém <code>title = null</code> e recommendation ainda retorna <code>200</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Chat de grupo com um único membro → <code>filterMemberUserIds</code> default <code>[dono]</code></li>
+        <li>Membro sai ou é removido do grupo → chats persistem  ||  ids ausentes são ignorados no exclude até próximo PATCH</li>
+        <li><code>groupId</code> ou <code>chatId</code> inválido / chat de outro grupo → <code>404</code> genérico</li>
+        <li>Checkpointer indisponível no <code>GET</code> com histórico → erro propagado (sem fallback silencioso)</li>
+        <li>Listagem sem paginação no MVP (como conversas individuais)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><strong>DTO/schemas:</strong> <code>packages/backend/src/modules/social/infrastructure/http/dto/group-chats.dto.ts</code></li>
+        <li><strong>Mapper:</strong> <code>packages/backend/src/modules/social/infrastructure/http/mappers/group-chats-response.mapper.ts:GroupChatsResponseMapper</code></li>
+        <li><strong>OpenAPI:</strong> <code>packages/backend/src/modules/social/infrastructure/http/docs/group-chats.docs.ts</code></li>
+        <li><strong>Auth:</strong> <code>packages/backend/src/domains/movies/infrastructure/http/hooks/user-movie-entry-auth.hook.ts:UserMovieEntryAuthHook</code> (mesmo hook de <code>/social/groups/*</code>)</li>
+        <li><strong>Histórico:</strong> <code>ChatHistoryEntitySchema</code> no GET — padrão <code>UserConversation</code> via <code>IChatHistoryRepository</code></li>
+        <li><strong>Recommendation pipeline:</strong> <code>packages/backend/src/domains/movies/application/use-cases/get-movie-recommendation.use-case.ts:GetMovieRecommendationUseCase</code> com <code>filterUserIds[]</code></li>
+        <li><strong>Resposta recommendation:</strong> <code>packages/backend/src/modules/social/infrastructure/http/dto/group-chats.dto.ts:GroupChatRecommendationResponseSchema</code> (alias de <code>MovieRecommendationResponseDTOSchema</code>)</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
