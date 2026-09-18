@@ -29,5 +29,6 @@ API REST autenticada para grupos com dono e membros: criar, listar, editar (dono
 
 - Sugestões de amigos: loop com `findMembership` por amigo (N+1 aceitável no MVP; A7 no review).
 - Reenvio após `rejected`: `hasPendingInvite` ignora rejected; novo pending permitido (REQ-13).
-- Próxima feature desta mudança: `social-ui` (telas SPA).
+- **Listagem de membros** (`GET /social/groups/:id/members`): ver [listagem-membros-grupo.md](listagem-membros-grupo.md).
+- Próxima feature desta mudança: chat de recomendação em grupo (`group-recommendation-chat-api` / UI).
 - Contratos: `specs/user-groups/spec.md` seção "Contratos expostos".
