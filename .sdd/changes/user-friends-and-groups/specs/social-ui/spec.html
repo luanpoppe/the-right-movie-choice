@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: social-ui — user-friends-and-groups</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">user-friends-and-groups</a> / specs / <strong>social-ui</strong> / spec</p>
+    <h1>Spec: social-ui</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-friends-and-groups</code></a> · atualizado em 2026-09-18</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>SPA autenticada para amizades e grupos: rota <code>/social</code> com abas Friends, Requests e Groups; detalhe do grupo em <code>/social/groups/:id</code>. Consome as APIs <code>/social/*</code> já existentes via <code>movieClient</code>, padrão de páginas como <code>MyMoviesPage</code> e <code>ConversationsListPage</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Acesso autenticado à área social</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado</li>
+        <li><strong>Quando</strong> navega para <code>/social</code></li>
+        <li><strong>Então</strong> vê abas Friends, Requests e Groups</li>
+        <li><strong>E</strong> a aba Friends está selecionada por padrão</li>
+      </ul>
+      <h3>REQ-2: Redirecionar visitante para login</h3>
+      <ul>
+        <li><strong>Dado que</strong> não há JWT válido no SPA</li>
+        <li><strong>Quando</strong> tenta abrir <code>/social</code> ou <code>/social/groups/3</code></li>
+        <li><strong>Então</strong> é redirecionado para <code>/login?redirect=&lt;caminho-original&gt;</code></li>
+      </ul>
+      <h3>REQ-3: Listar amigos na aba Friends</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário tem amigos aceitos</li>
+        <li><strong>Quando</strong> abre a aba Friends</li>
+        <li><strong>Então</strong> vê lista com <code>{ name, email }</code> de cada amigo</li>
+        <li><strong>E</strong> pode desfazer amizade com confirmação em dialog</li>
+      </ul>
+      <h3>REQ-4: Buscar usuário e enviar solicitação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está na aba Friends</li>
+        <li><strong>Quando</strong> informa <code>maria@example.com</code> e confirma envio</li>
+        <li><strong>Então</strong> chama <code>POST /social/friend-requests</code> com esse e-mail</li>
+        <li><strong>E</strong> exibe feedback de sucesso ou erro (toast)</li>
+      </ul>
+      <h3>REQ-5: Solicitações de amizade na aba Requests</h3>
+      <ul>
+        <li><strong>Dado que</strong> há solicitações recebidas e enviadas pendentes</li>
+        <li><strong>Quando</strong> abre a aba Requests</li>
+        <li><strong>Então</strong> vê seção Incoming com aceitar/recusar por item</li>
+        <li><strong>E</strong> vê seção Outgoing com cancelar por item</li>
+      </ul>
+      <h3>REQ-6: Convites de grupo na aba Requests</h3>
+      <ul>
+        <li><strong>Dado que</strong> há convites de grupo <code>pending</code> para o usuário</li>
+        <li><strong>Quando</strong> abre a aba Requests</li>
+        <li><strong>Então</strong> vê seção Group invites com <code>{ group.name, inviter.name }</code> por item</li>
+        <li><strong>E</strong> pode aceitar ou recusar cada convite</li>
+      </ul>
+      <h3>REQ-7: Listar e criar grupos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está na aba Groups</li>
+        <li><strong>Quando</strong> a página carrega</li>
+        <li><strong>Então</strong> lista grupos via <code>GET /social/groups</code> com <code>{ name, memberCount, joinedAt }</code></li>
+        <li><strong>E</strong> pode criar grupo informando <code>name</code> e <code>description</code> opcional via <code>POST /social/groups</code></li>
+      </ul>
+      <h3>REQ-8: Detalhe do grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário clica em um grupo da lista</li>
+        <li><strong>Quando</strong> navega para <code>/social/groups/:id</code></li>
+        <li><strong>Então</strong> carrega metadados do grupo a partir de <code>GET /social/groups</code> (filtra pelo <code>:id</code>)</li>
+        <li><strong>E</strong> exibe name, description, memberCount e se o usuário logado é dono</li>
+        <li><strong>E</strong> dono pode editar nome/descrição, convidar por e-mail, ver sugestões e excluir grupo</li>
+        <li><strong>E</strong> membro não-dono pode sair do grupo</li>
+      </ul>
+      <h3>REQ-9: Convidar e sugerir no detalhe</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário é membro do grupo aberto</li>
+        <li><strong>Quando</strong> informa e-mail no formulário de convite ou clica em amigo sugerido</li>
+        <li><strong>Então</strong> chama <code>POST /social/groups/:id/invites</code> com <code>{ email }</code></li>
+        <li><strong>E</strong> lista sugestões via <code>GET /social/groups/:id/suggestions</code></li>
+      </ul>
+      <h3>REQ-10: Confirmação de ações destrutivas</h3>
+      <ul>
+        <li><strong>Entrada</strong> usuário clica desfazer amizade, sair do grupo ou excluir grupo</li>
+        <li><strong>Saída</strong> abre dialog de confirmação antes de chamar a API</li>
+        <li><strong>Erro</strong> cancelar no dialog → nenhuma chamada HTTP</li>
+      </ul>
+      <h3>REQ-11: Link no header</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário está autenticado</li>
+        <li><strong>Quando</strong> visualiza o header global</li>
+        <li><strong>Então</strong> vê link Social apontando para <code>/social</code></li>
+      </ul>
+      <h3>REQ-12: Tratamento de erro de API</h3>
+      <ul>
+        <li><strong>Entrada</strong> chamada social retorna 4xx/5xx ou falha de rede</li>
+        <li><strong>Saída</strong> toast genérico de erro  ||  lista/tela permanece utilizável</li>
+        <li><strong>Erro</strong> não exibe stack trace ao usuário</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Abas vazias exibem mensagem específica (sem amigos, sem solicitações, sem grupos)</li>
+        <li>Troca rápida de aba ignora resposta HTTP obsoleta (padrão <code>activeFetchIdRef</code> de <code>MyMoviesPage</code>)</li>
+        <li>Grupo inexistente ou sem acesso em <code>/social/groups/:id</code> → mensagem not found e link de volta para <code>/social</code></li>
+        <li>Sem <code>GET /social/groups/:id</code> no backend  ||  detalhe monta a partir da listagem</li>
+        <li>Sem endpoint de listar membros  ||  UI mostra <code>memberCount</code>, não lista nominal de membros nesta versão</li>
+        <li>Erro 409 (grupo cheio, convite duplicado) → toast com mensagem derivada do status quando disponível</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Cliente HTTP: reutilizar <code>packages/frontend/src/lib/api/movie-client.ts:movieClient</code> (Bearer + silent refresh)</li>
+        <li>Backend amizades: <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts:socialControllers</code> (rotas <code>/social/friends*</code>, <code>/social/friend-requests*</code>, <code>/social/users/search</code>)</li>
+        <li>Backend grupos: mesmas rotas (<code>/social/groups*</code>, <code>/social/group-invites*</code>)</li>
+        <li>Rotas SPA: estender <code>packages/frontend/src/routes/index.tsx:routers</code> com <code>/social</code> e <code>/social/groups/:id</code></li>
+        <li>Header: <code>packages/frontend/src/layouts/Header.tsx:AuthActions</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

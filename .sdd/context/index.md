@@ -17,3 +17,6 @@
 - [Checkpointer Postgres logados](historico-conversas/checkpointer-postgres-logados.md) — memória híbrida na factory de recommendation: Postgres sem TTL para JWT, Redis TTL 1200s para guest; sem dual-write nem migração de histórico Redis.
 - [API de conversas](historico-conversas/api-conversas.md) — CRUD `/movie/conversations*`, integração recommendation (touchUpdatedAt, título IA paralelo), purge de thread no DELETE.
 - [Sidebar de conversas (UI)](historico-conversas/sidebar-conversas-ui.md) — listagem `/conversations`, chat com sidebar `/conversations/:id`, Home cria conversa na 1ª mensagem; guest inalterado.
+- [Amizades (API backend)](social/amizades-api.md) — solicitação/aceite bilateral, rotas `/social/*`, JWT reutilizado, modelo `FriendRequest` no Postgres.
+- [Grupos de usuários (API backend)](social/grupos-api.md) — grupos com dono/membros, convites por e-mail, rotas `/social/groups/*` e `/social/group-invites/*`.
+- [UI social (SPA)](social/ui-social-spa.md) — `/social` com abas Friends/Requests/Groups, detalhe `/social/groups/:id`, services + auth guard + confirmação destrutiva.

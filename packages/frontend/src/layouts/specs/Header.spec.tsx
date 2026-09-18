@@ -53,6 +53,19 @@ describe("Header", () => {
     expect(conversationsLink).toHaveAttribute("href", "/conversations");
   });
 
+  it("REQ-11: usuário autenticado vê link Social para /social", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: "token",
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    const socialLink = screen.getByRole("link", { name: "Social" });
+    expect(socialLink).toHaveAttribute("href", "/social");
+  });
+
   it("REQ-7: usuário autenticado vê link Meus filmes para /my-movies", () => {
     mockedUseAuth.mockReturnValue({
       accessToken: "token",
@@ -78,6 +91,20 @@ describe("Header", () => {
 
     expect(
       screen.queryByRole("link", { name: "Conversations" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("REQ-11: visitante não vê link Social", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: null,
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    expect(
+      screen.queryByRole("link", { name: "Social" }),
     ).not.toBeInTheDocument();
   });
 

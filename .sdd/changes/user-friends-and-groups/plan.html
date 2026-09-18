@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — user-friends-and-groups</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>user-friends-and-groups</strong> / plan</p>
+    <h1>Amizades e grupos de usuários</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>user-friends-and-groups</code> · <strong>criada</strong>: 2026-09-17 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-17</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>O app hoje trata cada usuário de forma isolada: listas de filmes (<code>UserMovieEntry</code>), conversas e recomendações são individuais. Esta mudança introduz relações sociais — amizades bilaterais e grupos de usuários — como base para funcionalidades futuras (watchlist compartilhada do grupo e busca agregada excluindo filmes já assistidos por qualquer membro).</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: Escopo desta mudança = fundação social (amizade + grupos + UI básica). <strong>Por quê</strong>: desacopla modelagem/API/UI da visão futura de listas e busca em grupo. <strong>Alternativa descartada</strong>: entregar watchlist/busca agregada já agora.</li>
+        <li><strong>Decisão</strong>: Amizade bilateral com solicitação e aceite. <strong>Por quê</strong>: controle explícito de quem entra na rede; evita vínculo unilateral indesejado. <strong>Alternativa descartada</strong>: amizade instantânea ou follow unidirecional.</li>
+        <li><strong>Decisão</strong>: Descoberta de usuários por busca de e-mail cadastrado. <strong>Por quê</strong>: <code>User.email</code> já existe e é único; sem novo campo público. <strong>Alternativa descartada</strong>: username/handle ou convite sem busca.</li>
+        <li><strong>Decisão</strong>: Grupos com dono + membros; amizade não é pré-requisito para entrar. <strong>Por quê</strong>: grupos podem reunir pessoas que ainda não são amigas. <strong>Alternativa descartada</strong>: só amigos no grupo ou papéis admin/flat.</li>
+        <li><strong>Decisão</strong>: Qualquer membro convida novos participantes por e-mail; API expõe sugestões entre amigos que ainda não estão no grupo. <strong>Por quê</strong>: facilita crescimento orgânico do grupo sem centralizar convites no dono. <strong>Alternativa descartada</strong>: só dono convida ou link reutilizável.</li>
+        <li><strong>Decisão</strong>: Reutilizar stack e padrões existentes — JWT/auth, Prisma (porta + repositório + mapper), factories Fastify, SPA com refresh silencioso. <strong>Por quê</strong>: consistência com <code>UserMovieEntry</code>, conversas e auth. <strong>Alternativa descartada</strong>: módulo social paralelo do zero.</li>
+        <li><strong>Decisão</strong>: Modelagem de banco detalhada por feature via <code>data_model: on</code> (subagente propõe schema antes da migração). <strong>Por quê</strong>: o usuário não definiu ainda a forma das tabelas; decisão fica no chunk com código na mão.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>friendship</strong> — Persistência e API de amizades: enviar/aceitar/recusar solicitação, listar amigos e buscar usuário por e-mail.</li>
+        <li><strong>user-groups</strong> — Persistência e API de grupos: criar, listar, convidar por e-mail (qualquer membro), aceitar convite e sugerir amigos ainda fora do grupo.</li>
+        <li><strong>social-ui</strong> — Telas básicas no SPA para gerenciar amigos, solicitações pendentes e grupos.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: modelos Prisma + migrações; endpoints REST autenticados para amizade e grupos; convite por e-mail; sugestões de amigos para convite; UI mínima no frontend; reúso de auth JWT e convenções de repositório do backend.</p>
+      <p><strong>Fora</strong>: watchlist compartilhada do grupo; busca/recomendação excluindo assistidos de todos os membros; username/handle público; papéis admin no grupo; follow unidirecional; notificações push/e-mail transacional; chat ou feed dentro do grupo; limite de tamanho de grupo (salvo validação mínima de sanidade na spec).</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

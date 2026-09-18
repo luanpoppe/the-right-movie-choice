@@ -1,0 +1,16 @@
+id: user-friends-and-groups
+title: Amizades e grupos de usuários
+created: 2026-09-17
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: friendship
+    title: Amizades
+    summary: Persistência e API de amizades com solicitação/aceite e busca por e-mail.
+  - slug: user-groups
+    title: Grupos de usuários
+    summary: Persistência e API de grupos com convite por e-mail e sugestões de amigos.
+  - slug: social-ui
+    title: UI social
+    summary: Telas básicas no SPA para amigos, solicitações e grupos.

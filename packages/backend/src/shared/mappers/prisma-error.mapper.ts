@@ -16,4 +16,15 @@ export class PrismaErrorMapper {
 
     throw error;
   }
+
+  static mapRecordNotFoundOrRethrow(
+    error: unknown,
+    notFoundException: BaseException,
+  ): never {
+    if (PrismaUtil.isRecordNotFound(error)) {
+      throw notFoundException;
+    }
+
+    throw error;
+  }
 }
