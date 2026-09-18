@@ -230,8 +230,10 @@ describe("RequestsTab", () => {
     expect(screen.getByText(/you have no group invites/i)).toBeInTheDocument();
   });
 
-  it("REQ-12: shows generic error toast when load fails", async () => {
+  it("REQ-12: shows generic error toast when all sections fail to load", async () => {
     mockedListIncomingFriendRequests.mockRejectedValue(new Error("network"));
+    mockedListOutgoingFriendRequests.mockRejectedValue(new Error("network"));
+    mockedListIncomingInvites.mockRejectedValue(new Error("network"));
 
     renderRequestsTab();
 
@@ -244,6 +246,63 @@ describe("RequestsTab", () => {
     expect(
       screen.getByText(/could not load your requests/i),
     ).toBeInTheDocument();
+  });
+
+  it("REQ-12: keeps other sections visible when one section fails to load", async () => {
+    mockedListIncomingFriendRequests.mockResolvedValue([
+      RequestsTabFixtures.incomingFriendRequest(),
+    ]);
+    mockedListOutgoingFriendRequests.mockResolvedValue([]);
+    mockedListIncomingInvites.mockRejectedValue(new Error("server error"));
+
+    renderRequestsTab();
+
+    expect(
+      await screen.findByText("Maria Silva (maria@example.com)"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/you have no outgoing friend requests/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/could not load this section/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/could not load your requests/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("edge 409: accept group invite shows API message from conflict", async () => {
+    const user = userEvent.setup();
+    const axios = await import("axios");
+    mockedListIncomingInvites.mockResolvedValue([
+      RequestsTabFixtures.incomingGroupInvite(),
+    ]);
+    mockedAcceptInvite.mockRejectedValue(
+      new axios.AxiosError(
+        "Conflict",
+        "409",
+        undefined,
+        undefined,
+        {
+          status: 409,
+          data: { error: "Group is full." },
+          statusText: "Conflict",
+          headers: {},
+          config: {} as never,
+        },
+      ),
+    );
+
+    renderRequestsTab();
+
+    const acceptButton = await screen.findByRole("button", {
+      name: /accept invite to movie club/i,
+    });
+    await user.click(acceptButton);
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith("Group is full.");
+    });
   });
 
   it("REQ-5: accepting incoming request refreshes lists", async () => {

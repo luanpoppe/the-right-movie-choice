@@ -49,6 +49,7 @@ jest.mock("react-hot-toast", () => ({
   },
 }));
 
+import axios from "axios";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -127,9 +128,11 @@ class GroupDetailPageFixtures {
   }
 }
 
-function renderGroupDetailPage(groupId: string, userId = 1) {
-  const accessToken = GroupDetailPageFixtures.createAccessToken(userId);
-
+function renderGroupDetailPage(
+  groupId: string,
+  userId = 1,
+  accessToken: string | null = GroupDetailPageFixtures.createAccessToken(userId),
+) {
   mockedUseAuth.mockReturnValue({
     accessToken,
     setAccessToken: jest.fn(),
@@ -140,9 +143,25 @@ function renderGroupDetailPage(groupId: string, userId = 1) {
     <MemoryRouter initialEntries={[`/social/groups/${groupId}`]}>
       <Routes>
         <Route path="/social/groups/:id" element={<GroupDetailPage />} />
+        <Route
+          path="/login"
+          element={<div data-testid="login-page">Login</div>}
+        />
       </Routes>
     </MemoryRouter>,
   );
+}
+
+function createAxiosError(status: number, errorMessage: string): Error {
+  const axiosError = new axios.AxiosError("request failed");
+  axiosError.response = {
+    status,
+    data: { error: errorMessage },
+    headers: {},
+    statusText: String(status),
+    config: {} as never,
+  };
+  return axiosError;
 }
 
 describe("GroupDetailPage", () => {
@@ -207,7 +226,7 @@ describe("GroupDetailPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Invite by email" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Pedro Lima")).toBeInTheDocument();
+    expect(await screen.findByText("Pedro Lima")).toBeInTheDocument();
     expect(screen.getByText("pedro@example.com")).toBeInTheDocument();
 
     const emailInput = screen.getByLabelText("Email");
@@ -304,5 +323,109 @@ describe("GroupDetailPage", () => {
     });
 
     expect(screen.getByText(/could not load this group/i)).toBeInTheDocument();
+  });
+
+  it("REQ-2: visitante é redirecionado para login com retorno do grupo", async () => {
+    renderGroupDetailPage("3", 1, null);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("login-page")).toBeInTheDocument();
+    });
+  });
+
+  it("edge: shows memberCount without nominal member list", async () => {
+    renderGroupDetailPage("3", 1);
+
+    expect(await screen.findByText("4 members")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /members/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/member list/i)).not.toBeInTheDocument();
+  });
+
+  it("edge 409: invite shows API error message in toast", async () => {
+    const user = userEvent.setup();
+    const conflictError = createAxiosError(
+      409,
+      "Group is full. Cannot send more invites.",
+    );
+    mockedSendInvite.mockRejectedValue(conflictError);
+
+    renderGroupDetailPage("3", 1);
+
+    const emailInput = await screen.findByLabelText("Email");
+    await user.type(emailInput, "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Send invite" }));
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(
+        "Group is full. Cannot send more invites.",
+      );
+    });
+  });
+
+  it("REQ-8: suggestions load error shows retry instead of empty message", async () => {
+    mockedListSuggestions.mockRejectedValue(new Error("server"));
+
+    renderGroupDetailPage("3", 1);
+
+    expect(
+      await screen.findByText(/could not load suggestions/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/no suggestions available/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("REQ-12: update failure shows generic error toast", async () => {
+    const user = userEvent.setup();
+    mockedUpdate.mockRejectedValue(new Error("network"));
+
+    renderGroupDetailPage("3", 1);
+
+    const saveButton = await screen.findByRole("button", {
+      name: "Save changes",
+    });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(
+        "Unexpected Error. Try again or get in contact with the staff.",
+      );
+    });
+  });
+
+  it("REQ-12: delete failure shows generic error toast", async () => {
+    const user = userEvent.setup();
+    mockedDelete.mockRejectedValue(new Error("network"));
+
+    renderGroupDetailPage("3", 1);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete group" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(
+        "Unexpected Error. Try again or get in contact with the staff.",
+      );
+    });
+  });
+
+  it("REQ-12: leave failure shows generic error toast", async () => {
+    const user = userEvent.setup();
+    mockedLeaveGroup.mockRejectedValue(new Error("network"));
+
+    renderGroupDetailPage("3", 2);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Leave group" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(
+        "Unexpected Error. Try again or get in contact with the staff.",
+      );
+    });
   });
 });

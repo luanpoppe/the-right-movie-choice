@@ -54,6 +54,7 @@ const mockedListFriends = jest.mocked(FriendshipService.listFriends);
 const mockedSendFriendRequest = jest.mocked(FriendshipService.sendFriendRequest);
 const mockedRemoveFriend = jest.mocked(FriendshipService.removeFriend);
 const mockedToastSuccess = jest.mocked(toast.success);
+const mockedToastError = jest.mocked(toast.error);
 
 class FriendsTabFixtures {
   static friend(overrides: Partial<UserPublicResponse> = {}): UserPublicResponse {
@@ -163,5 +164,65 @@ describe("FriendsTab", () => {
         screen.getByText("You do not have any friends yet."),
       ).toBeInTheDocument();
     });
+  });
+
+  it("REQ-12: shows generic error toast when load fails", async () => {
+    mockedListFriends.mockRejectedValue(new Error("network"));
+
+    renderFriendsTab();
+
+    await waitFor(() => {
+      expect(mockedToastError).toHaveBeenCalledWith(
+        "Unexpected Error. Try again or get in contact with the staff.",
+      );
+    });
+
+    expect(
+      screen.getByText("Could not load your friends."),
+    ).toBeInTheDocument();
+  });
+
+  it("edge: ignores stale fetch when a newer fetch completes first", async () => {
+    const user = userEvent.setup();
+    let resolveFirstFetch!: (friends: UserPublicResponse[]) => void;
+    const firstFetchPromise = new Promise<UserPublicResponse[]>((resolve) => {
+      resolveFirstFetch = resolve;
+    });
+    const currentFriend = FriendsTabFixtures.friend({
+      name: "Current Friend",
+      email: "current@example.com",
+    });
+    const staleFriend = FriendsTabFixtures.friend({
+      id: 99,
+      name: "Stale Friend",
+      email: "stale@example.com",
+    });
+
+    mockedListFriends
+      .mockReturnValueOnce(firstFetchPromise)
+      .mockResolvedValueOnce([currentFriend]);
+
+    renderFriendsTab();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Add friend by email")).toBeInTheDocument();
+    });
+
+    const emailInput = screen.getByLabelText("Add friend by email");
+    await user.type(emailInput, "new@example.com");
+    await user.click(screen.getByRole("button", { name: "Send request" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Current Friend")).toBeInTheDocument();
+    });
+
+    resolveFirstFetch([staleFriend]);
+
+    await waitFor(() => {
+      expect(mockedListFriends).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.queryByText("Stale Friend")).not.toBeInTheDocument();
+    expect(screen.getByText("Current Friend")).toBeInTheDocument();
   });
 });
