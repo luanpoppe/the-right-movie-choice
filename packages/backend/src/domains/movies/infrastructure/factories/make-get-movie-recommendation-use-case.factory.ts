@@ -90,8 +90,12 @@ export class MakeGetMovieRecommendationUseCaseFactory {
   ): MovieCatalogLookupAiToolOptions | undefined {
     const excludeWatched = options?.excludeWatched === true;
     const userId = options?.userId;
+    const filterUserIds = options?.filterUserIds;
     const hasValidUserId = userId !== undefined && userId > 0;
-    const isExcludeMode = excludeWatched && hasValidUserId;
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
+    const isExcludeMode =
+      excludeWatched && (hasValidUserId || hasNonEmptyFilterUserIds);
 
     if (!isExcludeMode) {
       return undefined;
@@ -101,11 +105,20 @@ export class MakeGetMovieRecommendationUseCaseFactory {
       return undefined;
     }
 
-    return {
-      userId,
+    const lookupToolOptions: MovieCatalogLookupAiToolOptions = {
       excludeWatched: true,
       userMovieEntryRepository,
     };
+
+    if (hasValidUserId) {
+      lookupToolOptions.userId = userId;
+    }
+
+    if (hasNonEmptyFilterUserIds) {
+      lookupToolOptions.filterUserIds = filterUserIds;
+    }
+
+    return lookupToolOptions;
   }
 
   private static buildAiConfig(

@@ -28,6 +28,7 @@ export type MovieCatalogLookupAiToolOptions = {
   userMovieEntryRepository?: IUserMovieEntryRepository | undefined;
   userId?: number | undefined;
   excludeWatched?: boolean | undefined;
+  filterUserIds?: number[] | undefined;
 };
 
 export class MovieCatalogLookupAiTool {
@@ -39,6 +40,7 @@ export class MovieCatalogLookupAiTool {
   private readonly aiTools = new AITools();
   private readonly excludeWatched: boolean;
   private readonly userId: number | undefined;
+  private readonly filterUserIds: number[] | undefined;
   private readonly userMovieEntryRepository:
     | IUserMovieEntryRepository
     | undefined;
@@ -50,10 +52,12 @@ export class MovieCatalogLookupAiTool {
   ) {
     this.excludeWatched = options?.excludeWatched === true;
     this.userId = options?.userId;
+    this.filterUserIds = options?.filterUserIds;
     this.userMovieEntryRepository = options?.userMovieEntryRepository;
     this.maxQueries = MovieCatalogLookupAiTool.resolveMaxQueries(
       this.excludeWatched,
       this.userId,
+      this.filterUserIds,
     );
   }
 
@@ -62,6 +66,7 @@ export class MovieCatalogLookupAiTool {
     const catalogLookup = this.catalogLookup;
     const excludeWatched = this.excludeWatched;
     const userId = this.userId;
+    const filterUserIds = this.filterUserIds;
     const userMovieEntryRepository = this.userMovieEntryRepository;
     const toolFunction = async (
       input: LookupMoviesToolInput,
@@ -83,6 +88,7 @@ export class MovieCatalogLookupAiTool {
             excludeWatched,
             userId,
             userMovieEntryRepository,
+            filterUserIds,
           );
 
         const durationMs = Date.now() - startedAtMs;
@@ -109,9 +115,13 @@ export class MovieCatalogLookupAiTool {
   private static resolveMaxQueries(
     excludeWatched: boolean,
     userId?: number,
+    filterUserIds?: number[],
   ): number {
     const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    const isExcludeMode = excludeWatched && hasValidUserId;
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
+    const isExcludeMode =
+      excludeWatched && (hasValidUserId || hasNonEmptyFilterUserIds);
 
     if (isExcludeMode) {
       return ExcludeWatchedRecommendationConstants.CANDIDATE_POOL_SIZE;
@@ -133,19 +143,25 @@ export class MovieCatalogLookupAiTool {
     excludeWatched: boolean,
     userId?: number,
     userMovieEntryRepository?: IUserMovieEntryRepository,
+    filterUserIds?: number[],
   ): Promise<MovieCatalogLookupResult[]> {
     if (!excludeWatched) {
       return results;
     }
 
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
     const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    if (!hasValidUserId) {
+    const canApplyWatchedFilter =
+      hasNonEmptyFilterUserIds || hasValidUserId;
+    if (!canApplyWatchedFilter) {
       return results;
     }
 
     if (!userMovieEntryRepository) {
       Logger.warn("Filtro de assistidos ignorado: repositório não injetado", {
         userId,
+        filterUserCount: filterUserIds?.length ?? 0,
       });
       return results;
     }
@@ -155,8 +171,19 @@ export class MovieCatalogLookupAiTool {
       return results;
     }
 
-    const watchedIds =
-      await userMovieEntryRepository.findWatchedTmdbIdsByUser(userId, tmdbIds);
+    let watchedIds: number[];
+    if (hasNonEmptyFilterUserIds) {
+      watchedIds = await userMovieEntryRepository.findWatchedTmdbIdsByUsers(
+        filterUserIds,
+        tmdbIds,
+      );
+    } else {
+      watchedIds = await userMovieEntryRepository.findWatchedTmdbIdsByUser(
+        userId!,
+        tmdbIds,
+      );
+    }
+
     const watchedTmdbIds = new Set(watchedIds);
     const filteredResults = WatchedMovieFilterUtils.filterLookupResults(
       results,
@@ -167,6 +194,7 @@ export class MovieCatalogLookupAiTool {
     if (removedCount > 0) {
       Logger.debug("Hits assistidos removidos do lookup batch", {
         userId,
+        filterUserCount: filterUserIds?.length ?? 0,
         removedCount,
         resultCountBefore: results.length,
         resultCountAfter: filteredResults.length,
