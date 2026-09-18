@@ -1,12 +1,9 @@
-import axios from "axios";
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SocialApiErrorUtils } from "@/features/social/utils/social-api-error.utils";
 import { FriendshipService } from "../services/friendship.service";
-
-const GENERIC_ERROR_TOAST =
-  "Unexpected Error. Try again or get in contact with the staff.";
 
 const FRIEND_REQUEST_SENT_TOAST = "Friend request sent.";
 
@@ -16,22 +13,7 @@ interface AddFriendFormProps {
 
 export class AddFriendFormUtils {
   static getSendFriendRequestErrorMessage(error: unknown): string {
-    if (!axios.isAxiosError(error)) {
-      return GENERIC_ERROR_TOAST;
-    }
-
-    const statusCode = error.response?.status;
-    const isConflict = statusCode === 409;
-    if (!isConflict) {
-      return GENERIC_ERROR_TOAST;
-    }
-
-    const apiError = error.response?.data?.error;
-    if (typeof apiError === "string") {
-      return apiError;
-    }
-
-    return GENERIC_ERROR_TOAST;
+    return SocialApiErrorUtils.getConflictOrGenericErrorMessage(error);
   }
 }
 

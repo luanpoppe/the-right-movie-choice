@@ -8,13 +8,14 @@ import type {
 import type { IncomingGroupInviteResponse } from "@/features/social/dto/user-groups.dto";
 import { FriendshipService } from "@/features/social/services/friendship.service";
 import { UserGroupsService } from "@/features/social/services/user-groups.service";
+import { SocialApiErrorUtils } from "@/features/social/utils/social-api-error.utils";
 
-const GENERIC_ERROR_TOAST =
-  "Unexpected Error. Try again or get in contact with the staff.";
+const GENERIC_ERROR_TOAST = SocialApiErrorUtils.getGenericErrorMessage();
 
 const EMPTY_INCOMING_MESSAGE = "You have no incoming friend requests.";
 const EMPTY_OUTGOING_MESSAGE = "You have no outgoing friend requests.";
 const EMPTY_GROUP_INVITES_MESSAGE = "You have no group invites.";
+const SECTION_LOAD_ERROR_MESSAGE = "Could not load this section.";
 
 export class RequestsTabUtils {
   static formatUserDisplayName(user: { name: string; email: string }): string {
@@ -34,6 +35,10 @@ export function RequestsTab() {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const [hasIncomingLoadError, setHasIncomingLoadError] = useState(false);
+  const [hasOutgoingLoadError, setHasOutgoingLoadError] = useState(false);
+  const [hasGroupInvitesLoadError, setHasGroupInvitesLoadError] =
+    useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const activeFetchIdRef = useRef(0);
 
@@ -43,50 +48,93 @@ export function RequestsTab() {
 
     setIsLoading(true);
     setHasLoadError(false);
+    setHasIncomingLoadError(false);
+    setHasOutgoingLoadError(false);
+    setHasGroupInvitesLoadError(false);
 
     console.info("[RequestsTab] loading requests");
 
-    try {
-      const incomingPromise = FriendshipService.listIncomingFriendRequests();
-      const outgoingPromise = FriendshipService.listOutgoingFriendRequests();
-      const groupInvitesPromise = UserGroupsService.listIncomingInvites();
-      const responses = await Promise.all([
-        incomingPromise,
-        outgoingPromise,
-        groupInvitesPromise,
-      ]);
-      const isStaleFetch = fetchId !== activeFetchIdRef.current;
-      if (isStaleFetch) {
-        return;
-      }
+    const incomingPromise = FriendshipService.listIncomingFriendRequests();
+    const outgoingPromise = FriendshipService.listOutgoingFriendRequests();
+    const groupInvitesPromise = UserGroupsService.listIncomingInvites();
+    const settledResults = await Promise.allSettled([
+      incomingPromise,
+      outgoingPromise,
+      groupInvitesPromise,
+    ]);
 
-      const nextIncomingRequests = responses[0];
-      const nextOutgoingRequests = responses[1];
-      const nextGroupInvites = responses[2];
-      setIncomingRequests(nextIncomingRequests);
-      setOutgoingRequests(nextOutgoingRequests);
-      setGroupInvites(nextGroupInvites);
+    const isStaleFetch = fetchId !== activeFetchIdRef.current;
+    if (isStaleFetch) {
+      return;
+    }
 
-      console.info("[RequestsTab] requests loaded", {
-        incomingCount: nextIncomingRequests.length,
-        outgoingCount: nextOutgoingRequests.length,
-        groupInviteCount: nextGroupInvites.length,
+    const incomingResult = settledResults[0];
+    const outgoingResult = settledResults[1];
+    const groupInvitesResult = settledResults[2];
+
+    let incomingFailed = false;
+    let outgoingFailed = false;
+    let groupInvitesFailed = false;
+
+    if (incomingResult.status === "fulfilled") {
+      setIncomingRequests(incomingResult.value);
+    } else {
+      incomingFailed = true;
+      setIncomingRequests([]);
+      setHasIncomingLoadError(true);
+      console.error("[RequestsTab] failed to load incoming friend requests", {
+        error: incomingResult.reason,
       });
-    } catch (error) {
-      const isStaleFetch = fetchId !== activeFetchIdRef.current;
-      if (isStaleFetch) {
-        return;
-      }
+    }
 
-      console.error("[RequestsTab] failed to load requests", { error });
+    if (outgoingResult.status === "fulfilled") {
+      setOutgoingRequests(outgoingResult.value);
+    } else {
+      outgoingFailed = true;
+      setOutgoingRequests([]);
+      setHasOutgoingLoadError(true);
+      console.error("[RequestsTab] failed to load outgoing friend requests", {
+        error: outgoingResult.reason,
+      });
+    }
+
+    if (groupInvitesResult.status === "fulfilled") {
+      setGroupInvites(groupInvitesResult.value);
+    } else {
+      groupInvitesFailed = true;
+      setGroupInvites([]);
+      setHasGroupInvitesLoadError(true);
+      console.error("[RequestsTab] failed to load group invites", {
+        error: groupInvitesResult.reason,
+      });
+    }
+
+    const allSectionsFailed =
+      incomingFailed && outgoingFailed && groupInvitesFailed;
+    if (allSectionsFailed) {
       setHasLoadError(true);
       toast.error(GENERIC_ERROR_TOAST);
-    } finally {
-      const isCurrentFetch = fetchId === activeFetchIdRef.current;
-      if (isCurrentFetch) {
-        setIsLoading(false);
-      }
+    } else {
+      const incomingCount =
+        incomingResult.status === "fulfilled" ? incomingResult.value.length : 0;
+      const outgoingCount =
+        outgoingResult.status === "fulfilled" ? outgoingResult.value.length : 0;
+      const groupInviteCount =
+        groupInvitesResult.status === "fulfilled"
+          ? groupInvitesResult.value.length
+          : 0;
+
+      console.info("[RequestsTab] requests loaded", {
+        incomingCount,
+        outgoingCount,
+        groupInviteCount,
+        incomingFailed,
+        outgoingFailed,
+        groupInvitesFailed,
+      });
     }
+
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -107,8 +155,11 @@ export function RequestsTab() {
 
       console.info(`[RequestsTab] ${logLabel}`);
     } catch (error) {
+      const errorMessage =
+        SocialApiErrorUtils.getConflictOrGenericErrorMessage(error);
+
       console.error(`[RequestsTab] failed to ${logLabel}`, { error });
-      toast.error(GENERIC_ERROR_TOAST);
+      toast.error(errorMessage);
     } finally {
       setIsMutating(false);
     }
@@ -191,11 +242,20 @@ export function RequestsTab() {
           Incoming friend requests
         </h2>
 
-        {!hasIncomingRequests && (
+        {hasIncomingLoadError && (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-muted-foreground">{SECTION_LOAD_ERROR_MESSAGE}</p>
+            <Button type="button" size="sm" variant="outline" onClick={handleRetry}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!hasIncomingLoadError && !hasIncomingRequests && (
           <p className="text-muted-foreground">{EMPTY_INCOMING_MESSAGE}</p>
         )}
 
-        {hasIncomingRequests && (
+        {!hasIncomingLoadError && hasIncomingRequests && (
           <ul className="space-y-2">
             {incomingRequests.map((request) => {
               const requesterLabel = RequestsTabUtils.formatUserDisplayName(
@@ -250,11 +310,20 @@ export function RequestsTab() {
           Outgoing friend requests
         </h2>
 
-        {!hasOutgoingRequests && (
+        {hasOutgoingLoadError && (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-muted-foreground">{SECTION_LOAD_ERROR_MESSAGE}</p>
+            <Button type="button" size="sm" variant="outline" onClick={handleRetry}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!hasOutgoingLoadError && !hasOutgoingRequests && (
           <p className="text-muted-foreground">{EMPTY_OUTGOING_MESSAGE}</p>
         )}
 
-        {hasOutgoingRequests && (
+        {!hasOutgoingLoadError && hasOutgoingRequests && (
           <ul className="space-y-2">
             {outgoingRequests.map((request) => {
               const addresseeLabel = RequestsTabUtils.formatUserDisplayName(
@@ -292,11 +361,20 @@ export function RequestsTab() {
           Group invites
         </h2>
 
-        {!hasGroupInvites && (
+        {hasGroupInvitesLoadError && (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-muted-foreground">{SECTION_LOAD_ERROR_MESSAGE}</p>
+            <Button type="button" size="sm" variant="outline" onClick={handleRetry}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!hasGroupInvitesLoadError && !hasGroupInvites && (
           <p className="text-muted-foreground">{EMPTY_GROUP_INVITES_MESSAGE}</p>
         )}
 
-        {hasGroupInvites && (
+        {!hasGroupInvitesLoadError && hasGroupInvites && (
           <ul className="space-y-2">
             {groupInvites.map((invite) => {
               const acceptLabel = `Accept invite to ${invite.group.name}`;

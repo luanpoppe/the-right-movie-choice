@@ -1,4 +1,3 @@
-import axios from "axios";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import toast from "react-hot-toast";
@@ -14,6 +13,7 @@ import type {
 } from "@/features/social/dto/user-groups.dto";
 import { UserGroupConstants } from "@/features/social/dto/user-groups.dto";
 import { UserGroupsService } from "@/features/social/services/user-groups.service";
+import { SocialApiErrorUtils } from "@/features/social/utils/social-api-error.utils";
 import { cn } from "@/lib/utils";
 
 const GENERIC_ERROR_TOAST =
@@ -109,22 +109,7 @@ export class GroupDetailPanelUtils {
   }
 
   static getSendInviteErrorMessage(error: unknown): string {
-    if (!axios.isAxiosError(error)) {
-      return GENERIC_ERROR_TOAST;
-    }
-
-    const statusCode = error.response?.status;
-    const isConflict = statusCode === 409;
-    if (!isConflict) {
-      return GENERIC_ERROR_TOAST;
-    }
-
-    const apiError = error.response?.data?.error;
-    if (typeof apiError === "string") {
-      return apiError;
-    }
-
-    return GENERIC_ERROR_TOAST;
+    return SocialApiErrorUtils.getConflictOrGenericErrorMessage(error);
   }
 }
 
@@ -154,6 +139,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     GroupFriendSuggestionResponse[]
   >([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [hasSuggestionsError, setHasSuggestionsError] = useState(false);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
@@ -240,6 +226,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     activeSuggestionsFetchIdRef.current = fetchId;
 
     setIsLoadingSuggestions(true);
+    setHasSuggestionsError(false);
 
     console.info("[GroupDetailPanel] loading suggestions", {
       groupId: parsedGroupId,
@@ -264,11 +251,13 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         return;
       }
 
+      setSuggestions([]);
+      setHasSuggestionsError(true);
+
       console.error("[GroupDetailPanel] failed to load suggestions", {
         groupId: parsedGroupId,
         error,
       });
-      toast.error(GENERIC_ERROR_TOAST);
     } finally {
       const isCurrentFetch = fetchId === activeSuggestionsFetchIdRef.current;
       if (isCurrentFetch) {
@@ -291,6 +280,10 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
 
   function handleRetry() {
     void fetchGroup();
+  }
+
+  function handleRetrySuggestions() {
+    void fetchSuggestions();
   }
 
   async function handleUpdateSubmit(event: FormEvent<HTMLFormElement>) {
@@ -672,7 +665,25 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
             <p className="text-sm text-muted-foreground">Loading suggestions...</p>
           )}
 
-          {!isLoadingSuggestions && !hasSuggestions && (
+          {hasSuggestionsError && !isLoadingSuggestions && (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-sm text-muted-foreground">
+                Could not load suggestions.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRetrySuggestions}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {!hasSuggestionsError &&
+            !isLoadingSuggestions &&
+            !hasSuggestions && (
             <p className="text-sm text-muted-foreground">
               No suggestions available.
             </p>
