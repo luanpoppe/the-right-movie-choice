@@ -281,4 +281,57 @@ export class PrismaUserGroupRepository implements IUserGroupRepository {
   async deleteGroupAndRelated(groupId: number): Promise<void> {
     await this.deleteGroup(groupId);
   }
+
+  async findMemberUserIds(groupId: number): Promise<number[]> {
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+
+    const where = { groupId };
+    const rows = await prisma.groupMember.findMany({
+      where,
+      select: { userId: true },
+    });
+
+    const userIds = rows.map((row) => row.userId);
+    return userIds;
+  }
+
+  async leaveAsOwnerWithTransfer(
+    groupId: number,
+    ownerId: number,
+  ): Promise<void> {
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+    UserGroupValidationUtils.assertValidUserId(ownerId);
+
+    await prisma.$transaction(async (tx) => {
+      const memberWhere = {
+        groupId,
+        userId: { not: ownerId },
+      };
+      const nextOwnerRow = await tx.groupMember.findFirst({
+        where: memberWhere,
+        orderBy: oldestMemberOrderBy,
+      });
+
+      if (!nextOwnerRow) {
+        throw new UserGroupNotFoundException(groupId);
+      }
+
+      const newOwnerId = nextOwnerRow.userId;
+
+      await tx.userGroup.update({
+        where: { id: groupId },
+        data: { ownerId: newOwnerId },
+      });
+
+      const ownerMembershipWhere = {
+        groupId_userId: { groupId, userId: ownerId },
+      };
+      await tx.groupMember.delete({ where: ownerMembershipWhere });
+    });
+
+    Logger.info("Owner left group after transferring ownership", {
+      groupId,
+      previousOwnerId: ownerId,
+    });
+  }
 }

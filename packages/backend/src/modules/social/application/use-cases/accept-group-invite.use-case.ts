@@ -1,16 +1,10 @@
 import { Logger } from "@/lib/logger/logger";
 import type { GroupInviteEntity } from "../../domain/entities/group-invite.entity";
-import { GroupFullException } from "../../domain/exceptions/group-full.exception";
 import { GroupInviteNotFoundException } from "../../domain/exceptions/group-invite-not-found.exception";
 import type { IGroupInviteRepository } from "../../domain/repositories/group-invite.repository";
-import type { IUserGroupRepository } from "../../domain/repositories/user-group.repository";
-import { MAX_GROUP_MEMBERS } from "../../domain/utils/user-group-validation.utils";
 
 export class AcceptGroupInviteUseCase {
-  constructor(
-    private readonly groupInviteRepository: IGroupInviteRepository,
-    private readonly userGroupRepository: IUserGroupRepository,
-  ) {}
+  constructor(private readonly groupInviteRepository: IGroupInviteRepository) {}
 
   async execute(
     inviteeId: number,
@@ -32,19 +26,12 @@ export class AcceptGroupInviteUseCase {
     }
 
     const groupId = groupInvite.groupId;
-    const memberCount = await this.userGroupRepository.countMembers(groupId);
-    const isGroupFull = memberCount >= MAX_GROUP_MEMBERS;
-
-    if (isGroupFull) {
-      throw new GroupFullException();
-    }
-
-    const acceptedInvite = await this.groupInviteRepository.updateStatus(
-      groupInviteId,
-      "accepted",
-    );
-
-    await this.userGroupRepository.addMember(groupId, inviteeId);
+    const acceptedInvite =
+      await this.groupInviteRepository.acceptPendingAndAddMember(
+        groupInviteId,
+        groupId,
+        inviteeId,
+      );
 
     Logger.info("Group invite accepted", {
       groupInviteId,

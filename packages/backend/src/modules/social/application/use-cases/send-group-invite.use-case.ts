@@ -2,13 +2,16 @@ import { Logger } from "@/lib/logger/logger";
 import type { IUserRepository } from "@/modules/users/domain/repositories/user.repository";
 import type { GroupInviteEntity } from "../../domain/entities/group-invite.entity";
 import { AlreadyGroupMemberException } from "../../domain/exceptions/already-group-member.exception";
-import { GroupInviteAlreadyPendingException } from "../../domain/exceptions/group-invite-already-pending.exception";
+import { GroupFullException } from "../../domain/exceptions/group-full.exception";
 import { NotGroupMemberException } from "../../domain/exceptions/not-group-member.exception";
 import { SelfGroupInviteException } from "../../domain/exceptions/self-group-invite.exception";
 import { UserNotFoundByEmailException } from "../../domain/exceptions/user-not-found-by-email.exception";
 import type { IGroupInviteRepository } from "../../domain/repositories/group-invite.repository";
 import type { IUserGroupRepository } from "../../domain/repositories/user-group.repository";
-import { UserGroupValidationUtils } from "../../domain/utils/user-group-validation.utils";
+import {
+  MAX_GROUP_MEMBERS,
+  UserGroupValidationUtils,
+} from "../../domain/utils/user-group-validation.utils";
 
 export class SendGroupInviteUseCase {
   constructor(
@@ -59,20 +62,19 @@ export class SendGroupInviteUseCase {
       throw new AlreadyGroupMemberException();
     }
 
-    const hasPendingInvite = await this.groupInviteRepository.hasPendingInvite(
-      groupId,
-      inviteeId,
-    );
+    const memberCount = await this.userGroupRepository.countMembers(groupId);
+    const isGroupFull = memberCount >= MAX_GROUP_MEMBERS;
 
-    if (hasPendingInvite) {
-      throw new GroupInviteAlreadyPendingException();
+    if (isGroupFull) {
+      throw new GroupFullException();
     }
 
-    const createdInvite = await this.groupInviteRepository.createPending(
-      groupId,
-      inviterId,
-      inviteeId,
-    );
+    const createdInvite =
+      await this.groupInviteRepository.createPendingIfAvailable(
+        groupId,
+        inviterId,
+        inviteeId,
+      );
 
     Logger.info("Group invite sent", {
       groupInviteId: createdInvite.id,

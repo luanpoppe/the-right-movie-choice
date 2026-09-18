@@ -53,25 +53,11 @@ export class LeaveUserGroupUseCase {
       return;
     }
 
-    const nextOwnerMember =
-      await this.userGroupRepository.findOldestMemberAfterOwner(
-        groupId,
-        userId,
-      );
-
-    if (!nextOwnerMember) {
-      throw new UserGroupNotFoundException(groupId);
-    }
-
-    const newOwnerId = nextOwnerMember.userId;
-
-    await this.userGroupRepository.transferOwnership(groupId, newOwnerId);
-    await this.userGroupRepository.removeMember(groupId, userId);
+    await this.userGroupRepository.leaveAsOwnerWithTransfer(groupId, userId);
 
     Logger.info("Owner left group after transferring ownership", {
       groupId,
       previousOwnerId: userId,
-      newOwnerId,
     });
   }
 }

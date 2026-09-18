@@ -29,6 +29,12 @@ export class RemoveGroupMemberUseCase {
       throw new NotGroupOwnerException(groupId);
     }
 
+    const isRemovingSelf = targetMemberId === ownerId;
+
+    if (isRemovingSelf) {
+      throw new NotGroupMemberException(groupId);
+    }
+
     const targetMembership = await this.userGroupRepository.findMembership(
       groupId,
       targetMemberId,

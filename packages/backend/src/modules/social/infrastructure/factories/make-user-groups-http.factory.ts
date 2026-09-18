@@ -55,7 +55,6 @@ export class MakeUserGroupsHttpFactory {
     );
     const acceptGroupInviteUseCase = new AcceptGroupInviteUseCase(
       groupInviteRepository,
-      userGroupRepository,
     );
     const rejectGroupInviteUseCase = new RejectGroupInviteUseCase(
       groupInviteRepository,

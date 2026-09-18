@@ -5,10 +5,15 @@ import type {
   GroupInviteEntity,
   IncomingGroupInviteEntity,
 } from "../../../domain/entities/group-invite.entity";
+import { GroupFullException } from "../../../domain/exceptions/group-full.exception";
+import { GroupInviteAlreadyPendingException } from "../../../domain/exceptions/group-invite-already-pending.exception";
 import { GroupInviteNotFoundException } from "../../../domain/exceptions/group-invite-not-found.exception";
 import type { IGroupInviteRepository } from "../../../domain/repositories/group-invite.repository";
 import type { GroupInviteStatus } from "../../../domain/types/group-invite-status.type";
-import { UserGroupValidationUtils } from "../../../domain/utils/user-group-validation.utils";
+import {
+  MAX_GROUP_MEMBERS,
+  UserGroupValidationUtils,
+} from "../../../domain/utils/user-group-validation.utils";
 import { GroupInvitePrismaMapper } from "../../mappers/group-invite-prisma.mapper";
 
 const userPublicSelect = {
@@ -173,5 +178,98 @@ export class PrismaGroupInviteRepository implements IGroupInviteRepository {
     const hasPendingInvite = count > 0;
 
     return hasPendingInvite;
+  }
+
+  async acceptPendingAndAddMember(
+    inviteId: number,
+    groupId: number,
+    inviteeId: number,
+  ): Promise<GroupInviteEntity> {
+    UserGroupValidationUtils.assertValidGroupInviteId(inviteId);
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+    UserGroupValidationUtils.assertValidUserId(inviteeId);
+
+    const acceptedInvite = await prisma.$transaction(async (tx) => {
+      const memberWhere = { groupId };
+      const memberCount = await tx.groupMember.count({ where: memberWhere });
+      const isGroupFull = memberCount >= MAX_GROUP_MEMBERS;
+
+      if (isGroupFull) {
+        throw new GroupFullException();
+      }
+
+      const prismaStatus = GroupInvitePrismaMapper.toPrismaStatus("accepted");
+      const inviteRow = await tx.groupInvite.update({
+        where: { id: inviteId },
+        data: { status: prismaStatus },
+      });
+
+      await tx.groupMember.create({
+        data: { groupId, userId: inviteeId },
+      });
+
+      const entity = GroupInvitePrismaMapper.toEntity(inviteRow);
+      return entity;
+    });
+
+    Logger.info("Group invite accepted and member added", {
+      groupInviteId: inviteId,
+      groupId,
+      inviteeId,
+    });
+
+    return acceptedInvite;
+  }
+
+  async createPendingIfAvailable(
+    groupId: number,
+    inviterId: number,
+    inviteeId: number,
+  ): Promise<GroupInviteEntity> {
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+    UserGroupValidationUtils.assertNotSelf(inviterId, inviteeId);
+
+    const createdInvite = await prisma.$transaction(async (tx) => {
+      const memberWhere = { groupId };
+      const memberCount = await tx.groupMember.count({ where: memberWhere });
+      const isGroupFull = memberCount >= MAX_GROUP_MEMBERS;
+
+      if (isGroupFull) {
+        throw new GroupFullException();
+      }
+
+      const pendingWhere = {
+        groupId,
+        inviteeId,
+        status: "pending" as const,
+      };
+      const pendingCount = await tx.groupInvite.count({ where: pendingWhere });
+      const hasPendingInvite = pendingCount > 0;
+
+      if (hasPendingInvite) {
+        throw new GroupInviteAlreadyPendingException();
+      }
+
+      const inviteRow = await tx.groupInvite.create({
+        data: {
+          groupId,
+          inviterId,
+          inviteeId,
+          status: "pending",
+        },
+      });
+
+      const entity = GroupInvitePrismaMapper.toEntity(inviteRow);
+      return entity;
+    });
+
+    Logger.info("Group invite created", {
+      groupInviteId: createdInvite.id,
+      groupId,
+      inviterId,
+      inviteeId,
+    });
+
+    return createdInvite;
   }
 }

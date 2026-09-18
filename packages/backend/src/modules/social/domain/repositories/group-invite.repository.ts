@@ -28,4 +28,16 @@ export interface IGroupInviteRepository {
   listIncomingPending(inviteeId: number): Promise<IncomingGroupInviteEntity[]>;
 
   hasPendingInvite(groupId: number, inviteeId: number): Promise<boolean>;
+
+  acceptPendingAndAddMember(
+    inviteId: number,
+    groupId: number,
+    inviteeId: number,
+  ): Promise<GroupInviteEntity>;
+
+  createPendingIfAvailable(
+    groupId: number,
+    inviterId: number,
+    inviteeId: number,
+  ): Promise<GroupInviteEntity>;
 }

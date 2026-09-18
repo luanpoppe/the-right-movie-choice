@@ -46,4 +46,8 @@ export interface IUserGroupRepository {
   ): Promise<GroupMemberEntity | null>;
 
   deleteGroupAndRelated(groupId: number): Promise<void>;
+
+  findMemberUserIds(groupId: number): Promise<number[]>;
+
+  leaveAsOwnerWithTransfer(groupId: number, ownerId: number): Promise<void>;
 }

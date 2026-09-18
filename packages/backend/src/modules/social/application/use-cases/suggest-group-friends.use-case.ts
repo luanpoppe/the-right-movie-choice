@@ -34,6 +34,10 @@ export class SuggestGroupFriendsUseCase {
     const acceptedFriends =
       await this.friendRequestRepository.listAcceptedFriends(userId);
 
+    const memberUserIds =
+      await this.userGroupRepository.findMemberUserIds(groupId);
+    const memberIdSet = new Set(memberUserIds);
+
     const suggestions: UserPublicEntity[] = [];
 
     for (const friend of acceptedFriends) {
@@ -43,12 +47,7 @@ export class SuggestGroupFriendsUseCase {
         continue;
       }
 
-      const friendMembership = await this.userGroupRepository.findMembership(
-        groupId,
-        friend.id,
-      );
-
-      const isAlreadyMember = friendMembership !== null;
+      const isAlreadyMember = memberIdSet.has(friend.id);
 
       if (isAlreadyMember) {
         continue;
