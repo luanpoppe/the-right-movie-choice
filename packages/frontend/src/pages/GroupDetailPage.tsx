@@ -1,5 +1,6 @@
-import { Link, Navigate, useParams } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { GroupDetailPanel } from "@/features/social/components/group-detail-panel";
 import { SocialLoginRedirectUtils } from "@/features/social/utils/social-login-redirect.utils";
 import { StringUtils } from "@/utils/string.utils";
 
@@ -12,15 +13,7 @@ function GroupDetailPageContent() {
 
   return (
     <div className="container mx-auto px-6 py-8">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Group detail</h1>
-        <p className="text-muted-foreground">
-          Group {groupId} — coming soon
-        </p>
-        <Link to="/social" className="text-primary hover:underline">
-          Back to Social
-        </Link>
-      </div>
+      <GroupDetailPanel groupId={groupId} />
     </div>
   );
 }
