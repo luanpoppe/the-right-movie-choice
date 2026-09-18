@@ -20,7 +20,7 @@
   <header class="lp-header">
     <p class="lp-breadcrumb"><a href="../../plan.html">user-friends-and-groups</a> / specs / <strong>user-groups</strong> / spec</p>
     <h1>Spec: user-groups</h1>
-    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-friends-and-groups</code></a> · atualizado em 2026-09-17</p>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>user-friends-and-groups</code></a> · atualizado em 2026-09-18</p>
   </header>
 
   <main class="lp-main">
@@ -163,8 +163,10 @@
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
       <ul>
-        <li>Rotas novas sob <code>/social/groups/*</code> e <code>/social/group-invites/*</code> (a definir em <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts</code>)</li>
-        <li>DTOs Zod: <code>packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts</code> (provisório)</li>
+        <li>Rotas: <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts:socialControllers</code></li>
+        <li>DTOs Zod: <code>packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts</code></li>
+        <li>Controller: <code>packages/backend/src/modules/social/infrastructure/http/controllers/user-groups.controller.ts:UserGroupsController</code></li>
+        <li>Factory: <code>packages/backend/src/modules/social/infrastructure/factories/make-user-groups-http.factory.ts:MakeUserGroupsHttpFactory</code></li>
         <li>Auth JWT: reutilizar <code>UserMovieEntryAuthHook</code></li>
         <li>Descoberta por e-mail: reutilizar <code>IUserRepository.findByEmailCaseInsensitive</code></li>
         <li>Sugestões: reutilizar <code>IFriendRequestRepository</code> / listagem de amigos aceitos da feature friendship</li>

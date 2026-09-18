@@ -134,8 +134,10 @@ API REST autenticada para grupos com dono e membros: criar, listar, editar nome/
 
 ## Contratos expostos
 
-- Rotas novas sob `/social/groups/*` e `/social/group-invites/*` (a definir em `packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts`)
-- DTOs Zod: `packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts` (provisório)
+- Rotas: `packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts:socialControllers`
+- DTOs Zod: `packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts`
+- Controller: `packages/backend/src/modules/social/infrastructure/http/controllers/user-groups.controller.ts:UserGroupsController`
+- Factory: `packages/backend/src/modules/social/infrastructure/factories/make-user-groups-http.factory.ts:MakeUserGroupsHttpFactory`
 - Auth JWT: reutilizar `UserMovieEntryAuthHook`
 - Descoberta por e-mail: reutilizar `IUserRepository.findByEmailCaseInsensitive`
 - Sugestões: reutilizar `IFriendRequestRepository` / listagem de amigos aceitos da feature friendship

@@ -11,9 +11,25 @@ import {
   SendFriendRequestDocs,
 } from "../docs/friendship.docs";
 import { MakeFriendshipHttpFactory } from "../../factories/make-friendship-http.factory";
+import { MakeUserGroupsHttpFactory } from "../../factories/make-user-groups-http.factory";
+import {
+  AcceptGroupInviteDocs,
+  CancelGroupInviteDocs,
+  CreateUserGroupDocs,
+  DeleteUserGroupDocs,
+  LeaveUserGroupDocs,
+  ListIncomingGroupInvitesDocs,
+  ListUserGroupsDocs,
+  RejectGroupInviteDocs,
+  RemoveGroupMemberDocs,
+  SendGroupInviteDocs,
+  SuggestGroupFriendsDocs,
+  UpdateUserGroupDocs,
+} from "../docs/user-groups.docs";
 
 export async function socialControllers(app: FastifyInstance) {
   const friendshipHttp = MakeFriendshipHttpFactory.create();
+  const userGroupsHttp = MakeUserGroupsHttpFactory.create();
 
   app.post(
     "/social/friend-requests",
@@ -94,5 +110,113 @@ export async function socialControllers(app: FastifyInstance) {
       preHandler: friendshipHttp.preHandler,
     } as any,
     friendshipHttp.handlers.searchUserByEmail,
+  );
+
+  app.post(
+    "/social/groups",
+    {
+      ...CreateUserGroupDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.createUserGroup,
+  );
+
+  app.get(
+    "/social/groups",
+    {
+      ...ListUserGroupsDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.listUserGroups,
+  );
+
+  app.patch(
+    "/social/groups/:id",
+    {
+      ...UpdateUserGroupDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.updateUserGroup,
+  );
+
+  app.delete(
+    "/social/groups/:id",
+    {
+      ...DeleteUserGroupDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.deleteUserGroup,
+  );
+
+  app.post(
+    "/social/groups/:id/invites",
+    {
+      ...SendGroupInviteDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.sendGroupInvite,
+  );
+
+  app.delete(
+    "/social/groups/:id/members/me",
+    {
+      ...LeaveUserGroupDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.leaveUserGroup,
+  );
+
+  app.delete(
+    "/social/groups/:id/members/:userId",
+    {
+      ...RemoveGroupMemberDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.removeGroupMember,
+  );
+
+  app.get(
+    "/social/groups/:id/suggestions",
+    {
+      ...SuggestGroupFriendsDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.suggestGroupFriends,
+  );
+
+  app.get(
+    "/social/group-invites/incoming",
+    {
+      ...ListIncomingGroupInvitesDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.listIncomingGroupInvites,
+  );
+
+  app.post(
+    "/social/group-invites/:id/accept",
+    {
+      ...AcceptGroupInviteDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.acceptGroupInvite,
+  );
+
+  app.post(
+    "/social/group-invites/:id/reject",
+    {
+      ...RejectGroupInviteDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.rejectGroupInvite,
+  );
+
+  app.delete(
+    "/social/group-invites/:id",
+    {
+      ...CancelGroupInviteDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.cancelGroupInvite,
   );
 }

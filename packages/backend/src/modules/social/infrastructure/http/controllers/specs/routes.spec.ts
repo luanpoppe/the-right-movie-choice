@@ -16,6 +16,22 @@ const friendshipHandlers = {
   searchUserByEmail: vi.fn(),
 };
 
+const userGroupsPreHandler = vi.fn();
+const userGroupsHandlers = {
+  createUserGroup: vi.fn(),
+  listUserGroups: vi.fn(),
+  updateUserGroup: vi.fn(),
+  deleteUserGroup: vi.fn(),
+  sendGroupInvite: vi.fn(),
+  leaveUserGroup: vi.fn(),
+  removeGroupMember: vi.fn(),
+  suggestGroupFriends: vi.fn(),
+  listIncomingGroupInvites: vi.fn(),
+  acceptGroupInvite: vi.fn(),
+  rejectGroupInvite: vi.fn(),
+  cancelGroupInvite: vi.fn(),
+};
+
 vi.mock("../../../factories/make-friendship-http.factory", () => ({
   MakeFriendshipHttpFactory: {
     create: vi.fn(() => ({
@@ -25,7 +41,17 @@ vi.mock("../../../factories/make-friendship-http.factory", () => ({
   },
 }));
 
+vi.mock("../../../factories/make-user-groups-http.factory", () => ({
+  MakeUserGroupsHttpFactory: {
+    create: vi.fn(() => ({
+      preHandler: userGroupsPreHandler,
+      handlers: userGroupsHandlers,
+    })),
+  },
+}));
+
 import { MakeFriendshipHttpFactory } from "../../../factories/make-friendship-http.factory";
+import { MakeUserGroupsHttpFactory } from "../../../factories/make-user-groups-http.factory";
 import { socialControllers } from "../routes";
 
 describe("socialControllers routes", () => {
@@ -37,6 +63,7 @@ describe("socialControllers routes", () => {
     app = {
       get: vi.fn(),
       post: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn(),
     } as unknown as FastifyInstance;
   });
@@ -45,6 +72,7 @@ describe("socialControllers routes", () => {
     await socialControllers(app);
 
     expect(MakeFriendshipHttpFactory.create).toHaveBeenCalledTimes(1);
+    expect(MakeUserGroupsHttpFactory.create).toHaveBeenCalledTimes(1);
 
     expect(app.post).toHaveBeenCalledWith(
       "/social/friend-requests",
