@@ -5,6 +5,7 @@ import { CancelGroupInviteUseCase } from "@/modules/social/application/use-cases
 import { CreateUserGroupUseCase } from "@/modules/social/application/use-cases/create-user-group.use-case";
 import { DeleteUserGroupUseCase } from "@/modules/social/application/use-cases/delete-user-group.use-case";
 import { LeaveUserGroupUseCase } from "@/modules/social/application/use-cases/leave-user-group.use-case";
+import { ListGroupMembersUseCase } from "@/modules/social/application/use-cases/list-group-members.use-case";
 import { ListIncomingGroupInvitesUseCase } from "@/modules/social/application/use-cases/list-incoming-group-invites.use-case";
 import { ListUserGroupsUseCase } from "@/modules/social/application/use-cases/list-user-groups.use-case";
 import { RejectGroupInviteUseCase } from "@/modules/social/application/use-cases/reject-group-invite.use-case";
@@ -49,6 +50,9 @@ export class MakeUserGroupsHttpFactory {
     const removeGroupMemberUseCase = new RemoveGroupMemberUseCase(
       userGroupRepository,
     );
+    const listGroupMembersUseCase = new ListGroupMembersUseCase(
+      userGroupRepository,
+    );
     const suggestGroupFriendsUseCase = new SuggestGroupFriendsUseCase(
       userGroupRepository,
       friendRequestRepository,
@@ -77,6 +81,7 @@ export class MakeUserGroupsHttpFactory {
       sendGroupInviteUseCase,
       leaveUserGroupUseCase,
       removeGroupMemberUseCase,
+      listGroupMembersUseCase,
       suggestGroupFriendsUseCase,
       acceptGroupInviteUseCase,
       rejectGroupInviteUseCase,

@@ -20,6 +20,7 @@ import { CancelGroupInviteUseCase } from "@/modules/social/application/use-cases
 import { CreateUserGroupUseCase } from "@/modules/social/application/use-cases/create-user-group.use-case";
 import { DeleteUserGroupUseCase } from "@/modules/social/application/use-cases/delete-user-group.use-case";
 import { LeaveUserGroupUseCase } from "@/modules/social/application/use-cases/leave-user-group.use-case";
+import { ListGroupMembersUseCase } from "@/modules/social/application/use-cases/list-group-members.use-case";
 import { ListIncomingGroupInvitesUseCase } from "@/modules/social/application/use-cases/list-incoming-group-invites.use-case";
 import { ListUserGroupsUseCase } from "@/modules/social/application/use-cases/list-user-groups.use-case";
 import { RejectGroupInviteUseCase } from "@/modules/social/application/use-cases/reject-group-invite.use-case";
@@ -105,6 +106,7 @@ describe("UserGroupsController", () => {
   let sendGroupInviteUseCase: SendGroupInviteUseCase;
   let leaveUserGroupUseCase: LeaveUserGroupUseCase;
   let removeGroupMemberUseCase: RemoveGroupMemberUseCase;
+  let listGroupMembersUseCase: ListGroupMembersUseCase;
   let suggestGroupFriendsUseCase: SuggestGroupFriendsUseCase;
   let acceptGroupInviteUseCase: AcceptGroupInviteUseCase;
   let rejectGroupInviteUseCase: RejectGroupInviteUseCase;
@@ -122,6 +124,7 @@ describe("UserGroupsController", () => {
     sendGroupInviteUseCase = { execute: vi.fn() } as unknown as SendGroupInviteUseCase;
     leaveUserGroupUseCase = { execute: vi.fn() } as unknown as LeaveUserGroupUseCase;
     removeGroupMemberUseCase = { execute: vi.fn() } as unknown as RemoveGroupMemberUseCase;
+    listGroupMembersUseCase = { execute: vi.fn() } as unknown as ListGroupMembersUseCase;
     suggestGroupFriendsUseCase = { execute: vi.fn() } as unknown as SuggestGroupFriendsUseCase;
     acceptGroupInviteUseCase = { execute: vi.fn() } as unknown as AcceptGroupInviteUseCase;
     rejectGroupInviteUseCase = { execute: vi.fn() } as unknown as RejectGroupInviteUseCase;
@@ -138,6 +141,7 @@ describe("UserGroupsController", () => {
       sendGroupInviteUseCase,
       leaveUserGroupUseCase,
       removeGroupMemberUseCase,
+      listGroupMembersUseCase,
       suggestGroupFriendsUseCase,
       acceptGroupInviteUseCase,
       rejectGroupInviteUseCase,
@@ -278,6 +282,26 @@ describe("UserGroupsController", () => {
 
     expect(removeGroupMemberUseCase.execute).toHaveBeenCalledWith(7, 3, 15);
     expect(reply.status).toHaveBeenCalledWith(204);
+  });
+
+  it("listGroupMembers happy path returns 200", async () => {
+    vi.mocked(listGroupMembersUseCase.execute).mockResolvedValue([
+      { id: 7, name: "João", email: "joao@example.com" },
+      { id: 12, name: "Maria", email: "maria@example.com" },
+    ]);
+    const request = createAuthRequest({
+      params: { id: "3" },
+    }) as unknown as FastifyRequest<{ Params: UserGroupIdParams }>;
+    const reply = createReply();
+
+    await handlers.listGroupMembers(request, reply);
+
+    expect(listGroupMembersUseCase.execute).toHaveBeenCalledWith(7, 3);
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith([
+      { id: 7, name: "João", email: "joao@example.com" },
+      { id: 12, name: "Maria", email: "maria@example.com" },
+    ]);
   });
 
   it("suggestGroupFriends happy path returns 200", async () => {
@@ -558,6 +582,22 @@ describe("UserGroupsController", () => {
       await expectPropagatesWithStatusCode(
         handlers.removeGroupMember(request, reply),
         NotGroupOwnerException,
+        404,
+      );
+    });
+
+    it("listGroupMembers propagates NotGroupMemberException with statusCode 404", async () => {
+      vi.mocked(listGroupMembersUseCase.execute).mockRejectedValue(
+        new NotGroupMemberException(3),
+      );
+      const request = createAuthRequest({
+        params: { id: "3" },
+      }) as unknown as FastifyRequest<{ Params: UserGroupIdParams }>;
+      const reply = createReply();
+
+      await expectPropagatesWithStatusCode(
+        handlers.listGroupMembers(request, reply),
+        NotGroupMemberException,
         404,
       );
     });

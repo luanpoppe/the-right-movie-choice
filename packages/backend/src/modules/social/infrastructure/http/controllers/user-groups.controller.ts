@@ -6,6 +6,7 @@ import { CancelGroupInviteUseCase } from "@/modules/social/application/use-cases
 import { CreateUserGroupUseCase } from "@/modules/social/application/use-cases/create-user-group.use-case";
 import { DeleteUserGroupUseCase } from "@/modules/social/application/use-cases/delete-user-group.use-case";
 import { LeaveUserGroupUseCase } from "@/modules/social/application/use-cases/leave-user-group.use-case";
+import { ListGroupMembersUseCase } from "@/modules/social/application/use-cases/list-group-members.use-case";
 import { ListIncomingGroupInvitesUseCase } from "@/modules/social/application/use-cases/list-incoming-group-invites.use-case";
 import { ListUserGroupsUseCase } from "@/modules/social/application/use-cases/list-user-groups.use-case";
 import { RejectGroupInviteUseCase } from "@/modules/social/application/use-cases/reject-group-invite.use-case";
@@ -41,6 +42,7 @@ export type UserGroupsControllerParams = {
   sendGroupInviteUseCase: SendGroupInviteUseCase;
   leaveUserGroupUseCase: LeaveUserGroupUseCase;
   removeGroupMemberUseCase: RemoveGroupMemberUseCase;
+  listGroupMembersUseCase: ListGroupMembersUseCase;
   suggestGroupFriendsUseCase: SuggestGroupFriendsUseCase;
   acceptGroupInviteUseCase: AcceptGroupInviteUseCase;
   rejectGroupInviteUseCase: RejectGroupInviteUseCase;
@@ -83,6 +85,10 @@ export type UserGroupsControllerHandlers = {
     request: FastifyRequest<{ Params: GroupMemberUserIdParams }>,
     reply: FastifyReply,
   ) => Promise<FastifyReply>;
+  listGroupMembers: (
+    request: FastifyRequest<{ Params: UserGroupIdParams }>,
+    reply: FastifyReply,
+  ) => Promise<FastifyReply>;
   suggestGroupFriends: (
     request: FastifyRequest<{ Params: UserGroupIdParams }>,
     reply: FastifyReply,
@@ -118,6 +124,8 @@ export class UserGroupsController {
       leaveUserGroup: UserGroupsController.createLeaveUserGroupHandler(params),
       removeGroupMember:
         UserGroupsController.createRemoveGroupMemberHandler(params),
+      listGroupMembers:
+        UserGroupsController.createListGroupMembersHandler(params),
       suggestGroupFriends:
         UserGroupsController.createSuggestGroupFriendsHandler(params),
       acceptGroupInvite:
@@ -355,6 +363,39 @@ export class UserGroupsController {
       });
 
       return reply.status(204).send();
+    };
+  }
+
+  private static createListGroupMembersHandler(
+    params: UserGroupsControllerParams,
+  ) {
+    return async (
+      request: FastifyRequest<{ Params: UserGroupIdParams }>,
+      reply: FastifyReply,
+    ) => {
+      const userId = UserGroupsController.getUserId(request);
+      const routeParams = UserGroupsController.parseOrThrow(
+        UserGroupIdParamsSchema,
+        request.params,
+      );
+      const groupId = routeParams.id;
+
+      Logger.info("Listing group members", { userId, groupId });
+
+      const members = await params.listGroupMembersUseCase.execute(
+        userId,
+        groupId,
+      );
+      const responseBody =
+        UserGroupsResponseMapper.toListGroupMembersResponse(members);
+
+      Logger.debug("Group members listed via HTTP", {
+        userId,
+        groupId,
+        count: members.length,
+      });
+
+      return reply.status(200).send(responseBody);
     };
   }
 

@@ -25,6 +25,7 @@ const userGroupsHandlers = {
   sendGroupInvite: vi.fn(),
   leaveUserGroup: vi.fn(),
   removeGroupMember: vi.fn(),
+  listGroupMembers: vi.fn(),
   suggestGroupFriends: vi.fn(),
   listIncomingGroupInvites: vi.fn(),
   acceptGroupInvite: vi.fn(),

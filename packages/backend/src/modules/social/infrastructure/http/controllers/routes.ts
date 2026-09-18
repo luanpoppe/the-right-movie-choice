@@ -18,6 +18,7 @@ import {
   CreateUserGroupDocs,
   DeleteUserGroupDocs,
   LeaveUserGroupDocs,
+  ListGroupMembersDocs,
   ListIncomingGroupInvitesDocs,
   ListUserGroupsDocs,
   RejectGroupInviteDocs,
@@ -173,6 +174,15 @@ export async function socialControllers(app: FastifyInstance) {
       preHandler: userGroupsHttp.preHandler,
     } as any,
     userGroupsHttp.handlers.removeGroupMember,
+  );
+
+  app.get(
+    "/social/groups/:id/members",
+    {
+      ...ListGroupMembersDocs,
+      preHandler: userGroupsHttp.preHandler,
+    } as any,
+    userGroupsHttp.handlers.listGroupMembers,
   );
 
   app.get(
