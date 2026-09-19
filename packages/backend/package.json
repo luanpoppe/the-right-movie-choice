@@ -9,7 +9,8 @@
     "test:tmdb-live": "vitest run --project tmdb-live",
     "test:catalog-lookup-bench": "vitest run --project catalog-lookup-bench",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev && pnpm seed:query-suggestions",
+    "db:migrate": "prisma migrate deploy && pnpm seed:query-suggestions",
+    "db:migrate:dev": "prisma migrate dev && pnpm seed:query-suggestions",
     "seed:query-suggestions": "tsx src/scripts/seed-query-suggestions.ts",
     "db:studio": "prisma studio"
   },

@@ -201,7 +201,7 @@ A documentação é gerada a partir dos mesmos schemas **Zod** usados na valida�
    pnpm db:generate
    pnpm db:migrate
    ```
-   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` cria/atualiza as tabelas (`User`, `UserMovieEntry`, `UserConversation`, social: `FriendRequest`, `UserGroup`, `GroupMember`, `GroupInvite`, `GroupChat`, `Movie` e filhas do catálogo, `MovieQuerySuggestion`) e, ao final, roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar).
+   `db:generate` gera o client em `packages/backend/generated/prisma`. `db:migrate` aplica migrations pendentes (`prisma migrate deploy`) e roda o seed do pool de sugestões (`pnpm seed:query-suggestions` — 4 lotes × 25 via IA, idempotente; pula se o pool já tem 100). Requer `OPENROUTER_API_KEY` (e Postgres/Redis no ar). Use após `git pull` ou setup inicial. Se você **alterou** `schema.prisma` e precisa **gerar** uma migration nova, use `pnpm db:migrate:dev` (não use em banco que já tem tabelas do LangGraph checkpointer — `checkpoint_*` — senão o Prisma pode pedir reset; nesse caso aplique com `db:migrate` mesmo).
 
 6. **Subir backend e frontend juntos (recomendado):**
    ```bash
@@ -228,7 +228,8 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 | Comando | Descrição |
 |---------|-----------|
 | `pnpm db:generate` | Gera o Prisma Client |
-| `pnpm db:migrate` | Aplica migrations e seed do pool de sugestões (`seed:query-suggestions`) |
+| `pnpm db:migrate` | Aplica migrations pendentes (`migrate deploy`) + seed do pool (`seed:query-suggestions`) |
+| `pnpm db:migrate:dev` | Cria/aplica migration a partir de mudanças no `schema.prisma` (`migrate dev`) + seed — só ao **autorar** schema |
 | `pnpm seed:query-suggestions` | Popula o pool até 100 sugestões via IA (idempotente; pula se já cheio) |
 | `pnpm db:studio` | Abre o Prisma Studio |
 | `pnpm test:catalog-lookup-bench` | Benchmark opt-in: batch vs unitário com Postgres + Redis reais |

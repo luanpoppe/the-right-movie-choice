@@ -53,6 +53,9 @@ describe("seed-query-suggestions script", () => {
     };
 
     expect(packageJson.scripts["db:migrate"]).toBe(
+      "prisma migrate deploy && pnpm seed:query-suggestions",
+    );
+    expect(packageJson.scripts["db:migrate:dev"]).toBe(
       "prisma migrate dev && pnpm seed:query-suggestions",
     );
     expect(packageJson.scripts["seed:query-suggestions"]).toContain(
