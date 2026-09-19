@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useLocation } from "react-router";
 import {
   Tabs,
   TabsContent,
@@ -16,8 +17,13 @@ export function GroupDetailTabs({
   groupId,
   detailsContent,
 }: GroupDetailTabsProps) {
+  const location = useLocation();
+  const locationState = location.state as { tab?: string } | null;
+  const shouldOpenChatTab = locationState?.tab === "chat";
+  const defaultTab = shouldOpenChatTab ? "chat" : "details";
+
   return (
-    <Tabs defaultValue="details">
+    <Tabs defaultValue={defaultTab}>
       <TabsList className="mb-6">
         <TabsTrigger value="details">Details</TabsTrigger>
         <TabsTrigger value="chat">Chat</TabsTrigger>
