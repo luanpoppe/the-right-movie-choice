@@ -56,6 +56,7 @@ export class MakeUserGroupsHttpFactory {
     const suggestGroupFriendsUseCase = new SuggestGroupFriendsUseCase(
       userGroupRepository,
       friendRequestRepository,
+      groupInviteRepository,
     );
     const acceptGroupInviteUseCase = new AcceptGroupInviteUseCase(
       groupInviteRepository,

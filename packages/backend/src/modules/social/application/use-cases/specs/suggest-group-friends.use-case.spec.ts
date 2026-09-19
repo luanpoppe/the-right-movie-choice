@@ -5,6 +5,7 @@ import type { UserGroupEntity } from "../../../domain/entities/user-group.entity
 import { NotGroupMemberException } from "../../../domain/exceptions/not-group-member.exception";
 import { UserGroupNotFoundException } from "../../../domain/exceptions/user-group-not-found.exception";
 import type { IFriendRequestRepository } from "../../../domain/repositories/friend-request.repository";
+import type { IGroupInviteRepository } from "../../../domain/repositories/group-invite.repository";
 import type { IUserGroupRepository } from "../../../domain/repositories/user-group.repository";
 import { SuggestGroupFriendsUseCase } from "../suggest-group-friends.use-case";
 
@@ -36,6 +37,7 @@ describe("SuggestGroupFriendsUseCase", () => {
 
   let userGroupRepository: IUserGroupRepository;
   let friendRequestRepository: IFriendRequestRepository;
+  let groupInviteRepository: IGroupInviteRepository;
   let useCase: SuggestGroupFriendsUseCase;
 
   beforeEach(() => {
@@ -76,9 +78,23 @@ describe("SuggestGroupFriendsUseCase", () => {
       resolveRelationshipStatus: vi.fn(),
     };
 
+    groupInviteRepository = {
+      findById: vi.fn(),
+      findLatestPending: vi.fn(),
+      createPending: vi.fn(),
+      updateStatus: vi.fn(),
+      deleteById: vi.fn(),
+      listIncomingPending: vi.fn(),
+      hasPendingInvite: vi.fn(),
+      acceptPendingAndAddMember: vi.fn(),
+      createPendingIfAvailable: vi.fn(),
+      findPendingInviteeUserIds: vi.fn().mockResolvedValue([]),
+    };
+
     useCase = new SuggestGroupFriendsUseCase(
       userGroupRepository,
       friendRequestRepository,
+      groupInviteRepository,
     );
   });
 
@@ -89,6 +105,9 @@ describe("SuggestGroupFriendsUseCase", () => {
       userId,
     );
     expect(userGroupRepository.findMemberUserIds).toHaveBeenCalledWith(groupId);
+    expect(groupInviteRepository.findPendingInviteeUserIds).toHaveBeenCalledWith(
+      groupId,
+    );
     expect(result).toEqual([
       { id: friendId, name: "Maria", email: "maria@example.com" },
     ]);
@@ -96,6 +115,16 @@ describe("SuggestGroupFriendsUseCase", () => {
     expect(result.some((friend) => friend.id === existingMemberId)).toBe(
       false,
     );
+  });
+
+  it("edge: exclui amigos com convite pending para o grupo", async () => {
+    vi.mocked(groupInviteRepository.findPendingInviteeUserIds).mockResolvedValue([
+      friendId,
+    ]);
+
+    const result = await useCase.execute(userId, groupId);
+
+    expect(result).toEqual([]);
   });
 
   it("edge: não-membro recebe NotGroupMemberException", async () => {

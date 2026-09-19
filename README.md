@@ -517,7 +517,7 @@ Todas exigem **`Authorization: Bearer`**. Respostas comuns: `401` (token ausente
 | `PATCH` | `/social/groups/:id` | Atualiza nome/descrição (dono) |
 | `DELETE` | `/social/groups/:id` | Exclui grupo (dono, `204`) |
 | `POST` | `/social/groups/:id/invites` | Body `{ email }` — convida usuário (`201`) |
-| `GET` | `/social/groups/:id/suggestions` | Amigos elegíveis para convite |
+| `GET` | `/social/groups/:id/suggestions` | Amigos elegíveis para convite (exclui membros, self e convites `pending`) |
 | `GET` | `/social/groups/:id/members` | Lista membros do grupo (`{ id, name, email }[]`) |
 | `DELETE` | `/social/groups/:id/members/me` | Sai do grupo (`204`) |
 | `DELETE` | `/social/groups/:id/members/:userId` | Dono remove membro (`204`) |

@@ -361,6 +361,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
       });
       toast.success(INVITE_SENT_TOAST);
       setInviteEmail("");
+      void fetchSuggestions();
 
       console.info("[GroupDetailPanel] invite sent", {
         groupId: parsedGroupId,
@@ -401,6 +402,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         email: suggestion.email,
       });
       toast.success(INVITE_SENT_TOAST);
+      void fetchSuggestions();
 
       console.info("[GroupDetailPanel] suggested friend invited", {
         groupId: parsedGroupId,

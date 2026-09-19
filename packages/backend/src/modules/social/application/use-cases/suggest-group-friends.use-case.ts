@@ -3,6 +3,7 @@ import type { UserPublicEntity } from "../../domain/entities/friend-request.enti
 import { NotGroupMemberException } from "../../domain/exceptions/not-group-member.exception";
 import { UserGroupNotFoundException } from "../../domain/exceptions/user-group-not-found.exception";
 import type { IFriendRequestRepository } from "../../domain/repositories/friend-request.repository";
+import type { IGroupInviteRepository } from "../../domain/repositories/group-invite.repository";
 import type { IUserGroupRepository } from "../../domain/repositories/user-group.repository";
 import { UserGroupValidationUtils } from "../../domain/utils/user-group-validation.utils";
 
@@ -10,6 +11,7 @@ export class SuggestGroupFriendsUseCase {
   constructor(
     private readonly userGroupRepository: IUserGroupRepository,
     private readonly friendRequestRepository: IFriendRequestRepository,
+    private readonly groupInviteRepository: IGroupInviteRepository,
   ) {}
 
   async execute(userId: number, groupId: number): Promise<UserPublicEntity[]> {
@@ -38,6 +40,10 @@ export class SuggestGroupFriendsUseCase {
       await this.userGroupRepository.findMemberUserIds(groupId);
     const memberIdSet = new Set(memberUserIds);
 
+    const pendingInviteeUserIds =
+      await this.groupInviteRepository.findPendingInviteeUserIds(groupId);
+    const pendingInviteeIdSet = new Set(pendingInviteeUserIds);
+
     const suggestions: UserPublicEntity[] = [];
 
     for (const friend of acceptedFriends) {
@@ -50,6 +56,12 @@ export class SuggestGroupFriendsUseCase {
       const isAlreadyMember = memberIdSet.has(friend.id);
 
       if (isAlreadyMember) {
+        continue;
+      }
+
+      const hasPendingInvite = pendingInviteeIdSet.has(friend.id);
+
+      if (hasPendingInvite) {
         continue;
       }
 

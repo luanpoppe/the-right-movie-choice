@@ -256,6 +256,23 @@ describe("PrismaGroupInviteRepository", () => {
     });
   });
 
+  describe("findPendingInviteeUserIds", () => {
+    it("retorna ids de invitees com convite pending no grupo", async () => {
+      vi.mocked(prisma.groupInvite.findMany).mockResolvedValue([
+        { inviteeId: 12 },
+        { inviteeId: 15 },
+      ] as never);
+
+      const result = await repository.findPendingInviteeUserIds(3);
+
+      expect(prisma.groupInvite.findMany).toHaveBeenCalledWith({
+        where: { groupId: 3, status: "pending" },
+        select: { inviteeId: true },
+      });
+      expect(result).toEqual([12, 15]);
+    });
+  });
+
   describe("acceptPendingAndAddMember", () => {
     it("aceita convite e adiciona membro em transação", async () => {
       const acceptedRow = GroupInviteRepositoryFixtures.prismaGroupInviteRow({

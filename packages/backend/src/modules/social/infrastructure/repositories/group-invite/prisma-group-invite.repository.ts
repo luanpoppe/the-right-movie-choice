@@ -272,4 +272,20 @@ export class PrismaGroupInviteRepository implements IGroupInviteRepository {
 
     return createdInvite;
   }
+
+  async findPendingInviteeUserIds(groupId: number): Promise<number[]> {
+    UserGroupValidationUtils.assertValidGroupId(groupId);
+
+    const where = {
+      groupId,
+      status: "pending" as const,
+    };
+    const rows = await prisma.groupInvite.findMany({
+      where,
+      select: { inviteeId: true },
+    });
+
+    const inviteeUserIds = rows.map((row) => row.inviteeId);
+    return inviteeUserIds;
+  }
 }
