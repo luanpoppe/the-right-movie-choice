@@ -1,14 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { MovieRecommendationPostgresMemory } from "@/lib/ai/movie-recommendation-postgres-memory";
+
+const { aiConstructorCalls, recommendUseCaseCtorArgs } = vi.hoisted(() => ({
+  aiConstructorCalls: [] as unknown[],
+  recommendUseCaseCtorArgs: [] as unknown[][],
+}));
 
 vi.mock("@/env", () => ({
   env: {
     JWT_SECRET: "test-jwt-secret-for-factory-spec",
     JWT_ACCESS_EXPIRES_IN: "15m",
     REDIS_URL: "redis://localhost:6379",
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/app",
     OPENAI_API_KEY: "test-openai-key",
     OPENAI_MODEL: "gpt-4o-mini",
+    OPENROUTER_API_KEY: "openrouter-key",
+    GEMINI_API_KEY: "gemini-key",
+  },
+}));
+
+vi.mock("@luanpoppe/ai", () => ({
+  AI: class AI {
+    constructor(config: unknown) {
+      aiConstructorCalls.push(config);
+    }
+  },
+  AIMemory: class AIMemory {
+    constructor(public config: { type: string; connectionString?: string }) {}
+  },
+  AITools: class AITools {
+    createTool() {
+      return { name: "lookupMovies", description: "stub", execute: vi.fn() };
+    }
   },
 }));
 
@@ -71,11 +96,37 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "@/modules/social/application/use-cases/recommend-in-group-chat.use-case",
+  async (importOriginal) => {
+    const module =
+      await importOriginal<
+        typeof import("@/modules/social/application/use-cases/recommend-in-group-chat.use-case")
+      >();
+
+    return {
+      ...module,
+      RecommendInGroupChatUseCase: class extends module.RecommendInGroupChatUseCase {
+        constructor(
+          ...args: ConstructorParameters<typeof module.RecommendInGroupChatUseCase>
+        ) {
+          recommendUseCaseCtorArgs.push(args);
+          super(...args);
+        }
+      },
+    };
+  },
+);
+
+import { MakeGetMovieRecommendationUseCaseFactory } from "@/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory";
 import { MakeGroupChatsHttpFactory } from "../make-group-chats-http.factory";
 
 describe("MakeGroupChatsHttpFactory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    aiConstructorCalls.length = 0;
+    recommendUseCaseCtorArgs.length = 0;
+    MovieRecommendationPostgresMemory.resetForTests();
   });
 
   it("retorna preHandler e handlers prontos para registrar nas rotas", () => {
@@ -117,12 +168,45 @@ describe("MakeGroupChatsHttpFactory", () => {
     expect(factorySource).toMatch(/new DeleteGroupChatUseCase\(/);
     expect(factorySource).toMatch(/new RecommendInGroupChatUseCase\(/);
     expect(factorySource).toMatch(
-      /MakeGetMovieRecommendationUseCaseFactory\.create\(\)/,
+      /MakeGetMovieRecommendationUseCaseFactory\.create,/,
     );
     expect(factorySource).toMatch(
       /MakeGetMovieRecommendationUseCaseFactory\.createConversationTitleGenerator\(\)/,
     );
     expect(factorySource).toMatch(/UserMovieEntryAuthHook\.createPreHandler/);
     expect(factorySource).toMatch(/GroupChatsController\.create\(/);
+  });
+
+  it("REQ-5/C10: wiring de recommendation usa memory postgres compartilhado e factory per-request", () => {
+    MakeGroupChatsHttpFactory.create();
+
+    const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
+    const postgresAiConfigs = aiConstructorCalls.filter((config) => {
+      const memory = (config as { memory?: unknown }).memory;
+      return memory === sharedPostgresMemory;
+    });
+    const wiredAiConfig = postgresAiConfigs[0] as {
+      memory: {
+        config: { type: string; connectionString: string };
+      };
+    };
+    const wiredCreateGetMovieRecommendationUseCase =
+      recommendUseCaseCtorArgs[0]?.[2];
+
+    expect(postgresAiConfigs.length).toBeGreaterThan(0);
+    expect(wiredAiConfig.memory.config).toEqual({
+      type: "postgres",
+      connectionString: "postgresql://user:pass@localhost:5432/app",
+    });
+    expect(recommendUseCaseCtorArgs).toHaveLength(1);
+    expect(wiredCreateGetMovieRecommendationUseCase).toBe(
+      MakeGetMovieRecommendationUseCaseFactory.create,
+    );
+    expect(
+      MakeGetMovieRecommendationUseCaseFactory.create,
+    ).not.toHaveBeenCalled();
+    expect(
+      MakeGetMovieRecommendationUseCaseFactory.createConversationTitleGenerator,
+    ).toHaveBeenCalledTimes(1);
   });
 });

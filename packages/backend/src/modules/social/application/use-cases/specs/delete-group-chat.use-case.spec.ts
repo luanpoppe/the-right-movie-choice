@@ -159,5 +159,26 @@ describe("DeleteGroupChatUseCase", () => {
       GroupChatDeleteAfterPurgeFailedException,
     );
     expect(chatThreadRepository.deleteThread).toHaveBeenCalledWith(chatId);
+    expect(groupChatRepository.deleteById).toHaveBeenCalledTimes(2);
+  });
+
+  it("should succeed when deleteById succeeds on retry after first failure", async () => {
+    vi.mocked(groupChatRepository.deleteById)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    await useCase.execute(userId, groupId, groupChatId);
+
+    expect(groupChatRepository.deleteById).toHaveBeenCalledTimes(2);
+    expect(groupChatRepository.deleteById).toHaveBeenNthCalledWith(
+      1,
+      groupId,
+      groupChatId,
+    );
+    expect(groupChatRepository.deleteById).toHaveBeenNthCalledWith(
+      2,
+      groupId,
+      groupChatId,
+    );
   });
 });

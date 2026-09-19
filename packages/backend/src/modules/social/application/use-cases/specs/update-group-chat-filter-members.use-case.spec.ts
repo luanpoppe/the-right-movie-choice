@@ -176,4 +176,25 @@ describe("UpdateGroupChatFilterMembersUseCase", () => {
     expect(userGroupRepository.findMemberUserIds).not.toHaveBeenCalled();
     expect(groupChatRepository.updateFilterMembers).not.toHaveBeenCalled();
   });
+
+  it("REQ-8/C9: userIds vazio persiste filtro sem exclude de assistidos", async () => {
+    const emptyFilterChat: GroupChatEntity = {
+      ...updatedChat,
+      filterMemberUserIds: [],
+    };
+
+    vi.mocked(groupChatRepository.updateFilterMembers).mockResolvedValue(
+      emptyFilterChat,
+    );
+
+    const result = await useCase.execute(userId, groupId, groupChatId, []);
+
+    expect(userGroupRepository.findMemberUserIds).toHaveBeenCalledWith(groupId);
+    expect(groupChatRepository.updateFilterMembers).toHaveBeenCalledWith(
+      groupId,
+      groupChatId,
+      [],
+    );
+    expect(result.filterMemberUserIds).toEqual([]);
+  });
 });

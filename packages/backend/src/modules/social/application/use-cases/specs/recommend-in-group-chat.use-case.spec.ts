@@ -11,7 +11,10 @@ import { NotGroupMemberException } from "../../../domain/exceptions/not-group-me
 import { UserGroupNotFoundException } from "../../../domain/exceptions/user-group-not-found.exception";
 import type { IGroupChatRepository } from "../../../domain/repositories/group-chat.repository";
 import type { IUserGroupRepository } from "../../../domain/repositories/user-group.repository";
-import { RecommendInGroupChatUseCase } from "../recommend-in-group-chat.use-case";
+import {
+  RecommendInGroupChatUseCase,
+  type CreateGetMovieRecommendationUseCase,
+} from "../recommend-in-group-chat.use-case";
 
 describe("RecommendInGroupChatUseCase", () => {
   const userId = 7;
@@ -19,6 +22,7 @@ describe("RecommendInGroupChatUseCase", () => {
   const groupChatId = 40;
   const chatId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
   const query = "comédia leve";
+  const groupMemberUserIds = [7, 12];
 
   const group: UserGroupEntity = {
     id: groupId,
@@ -64,6 +68,7 @@ describe("RecommendInGroupChatUseCase", () => {
   let userGroupRepository: IUserGroupRepository;
   let groupChatRepository: IGroupChatRepository;
   let getMovieRecommendationUseCase: GetMovieRecommendationUseCase;
+  let createGetMovieRecommendationUseCase: CreateGetMovieRecommendationUseCase;
   let conversationTitleGenerator: ConversationTitleGenerator;
   let useCase: RecommendInGroupChatUseCase;
 
@@ -97,7 +102,7 @@ describe("RecommendInGroupChatUseCase", () => {
       transferOwnership: vi.fn(),
       findOldestMemberAfterOwner: vi.fn(),
       deleteGroupAndRelated: vi.fn(),
-      findMemberUserIds: vi.fn(),
+      findMemberUserIds: vi.fn().mockResolvedValue(groupMemberUserIds),
       findMemberProfiles: vi.fn(),
       leaveAsOwnerWithTransfer: vi.fn(),
     };
@@ -120,6 +125,10 @@ describe("RecommendInGroupChatUseCase", () => {
       }),
     } as unknown as GetMovieRecommendationUseCase;
 
+    createGetMovieRecommendationUseCase = vi
+      .fn()
+      .mockReturnValue(getMovieRecommendationUseCase);
+
     conversationTitleGenerator = {
       generateFromUserMessage: vi.fn(),
     } as unknown as ConversationTitleGenerator;
@@ -127,7 +136,7 @@ describe("RecommendInGroupChatUseCase", () => {
     useCase = new RecommendInGroupChatUseCase(
       userGroupRepository,
       groupChatRepository,
-      getMovieRecommendationUseCase,
+      createGetMovieRecommendationUseCase,
       conversationTitleGenerator,
     );
   });
@@ -144,6 +153,16 @@ describe("RecommendInGroupChatUseCase", () => {
       groupId,
       chatId,
     );
+    expect(userGroupRepository.findMemberUserIds).toHaveBeenCalledWith(groupId);
+    expect(groupChatRepository.touchUpdatedAt).toHaveBeenCalledWith(
+      groupId,
+      chatId,
+    );
+    expect(createGetMovieRecommendationUseCase).toHaveBeenCalledWith({
+      userId,
+      excludeWatched: true,
+      filterUserIds: [7, 12],
+    });
     expect(getMovieRecommendationUseCase.execute).toHaveBeenCalledWith(
       query,
       chatId,
@@ -152,10 +171,6 @@ describe("RecommendInGroupChatUseCase", () => {
         excludeWatched: true,
         filterUserIds: [7, 12],
       },
-    );
-    expect(groupChatRepository.touchUpdatedAt).toHaveBeenCalledWith(
-      groupId,
-      chatId,
     );
     expect(result).toEqual({
       movies: mockRecommendation.movies,
@@ -193,6 +208,19 @@ describe("RecommendInGroupChatUseCase", () => {
     ).rejects.toThrow(GroupChatNotFoundException);
     expect(getMovieRecommendationUseCase.execute).not.toHaveBeenCalled();
     expect(groupChatRepository.touchUpdatedAt).not.toHaveBeenCalled();
+  });
+
+  it("chat ausente no touch antes da recomendação lança GroupChatNotFoundException", async () => {
+    vi.mocked(groupChatRepository.touchUpdatedAt).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute(userId, groupId, chatId, query),
+    ).rejects.toThrow(GroupChatNotFoundException);
+    expect(getMovieRecommendationUseCase.execute).not.toHaveBeenCalled();
+    expect(groupChatRepository.touchUpdatedAt).toHaveBeenCalledWith(
+      groupId,
+      chatId,
+    );
   });
 
   it("REQ-9: chat sem título gera título e chama updateTitle após sucesso", async () => {
@@ -268,15 +296,38 @@ describe("RecommendInGroupChatUseCase", () => {
 
     await useCase.execute(userId, groupId, chatId, query);
 
+    expect(createGetMovieRecommendationUseCase).toHaveBeenCalledWith({
+      userId,
+      excludeWatched: true,
+      filterUserIds: [7, 12],
+    });
     expect(getMovieRecommendationUseCase.execute).toHaveBeenCalledWith(
       query,
       chatId,
       {
         userId,
         excludeWatched: true,
-        filterUserIds: customFilterIds,
+        filterUserIds: [7, 12],
       },
     );
+  });
+
+  it("intersecta filterMemberUserIds com membros atuais do grupo", async () => {
+    const chatWithRemovedMember = createMockGroupChat({
+      filterMemberUserIds: [7, 12, 99],
+    });
+
+    vi.mocked(groupChatRepository.findByChatId).mockResolvedValue(
+      chatWithRemovedMember,
+    );
+
+    await useCase.execute(userId, groupId, chatId, query);
+
+    expect(createGetMovieRecommendationUseCase).toHaveBeenCalledWith({
+      userId,
+      excludeWatched: true,
+      filterUserIds: [7, 12],
+    });
   });
 
   it("propaga erros do GetMovieRecommendationUseCase", async () => {
@@ -288,7 +339,10 @@ describe("RecommendInGroupChatUseCase", () => {
     await expect(
       useCase.execute(userId, groupId, chatId, query),
     ).rejects.toThrow(recommendationError);
-    expect(groupChatRepository.touchUpdatedAt).not.toHaveBeenCalled();
+    expect(groupChatRepository.touchUpdatedAt).toHaveBeenCalledWith(
+      groupId,
+      chatId,
+    );
     expect(groupChatRepository.updateTitle).not.toHaveBeenCalled();
   });
 
@@ -297,5 +351,56 @@ describe("RecommendInGroupChatUseCase", () => {
       useCase.execute(userId, groupId, chatId, "   "),
     ).rejects.toThrow(GroupChatValidationException);
     expect(userGroupRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it("REQ-8/C7: filterMemberUserIds vazio repassa filtro vazio sem modo exclude", async () => {
+    const chatWithEmptyFilter = createMockGroupChat({
+      filterMemberUserIds: [],
+    });
+
+    vi.mocked(groupChatRepository.findByChatId).mockResolvedValue(
+      chatWithEmptyFilter,
+    );
+
+    await useCase.execute(userId, groupId, chatId, query);
+
+    expect(createGetMovieRecommendationUseCase).toHaveBeenCalledWith({
+      userId,
+      excludeWatched: true,
+      filterUserIds: [],
+    });
+    expect(getMovieRecommendationUseCase.execute).toHaveBeenCalledWith(
+      query,
+      chatId,
+      {
+        userId,
+        excludeWatched: true,
+        filterUserIds: [],
+      },
+    );
+  });
+
+  it("REQ-8/C8: touchUpdatedAt ocorre antes da recommendation (falha pós-sucesso é N/A)", async () => {
+    const callOrder: string[] = [];
+
+    vi.mocked(groupChatRepository.touchUpdatedAt).mockImplementation(
+      async () => {
+        callOrder.push("touchUpdatedAt");
+        return touchedChat;
+      },
+    );
+    vi.mocked(getMovieRecommendationUseCase.execute).mockImplementation(
+      async () => {
+        callOrder.push("recommendation");
+        return {
+          movies: mockRecommendation.movies,
+          response: mockRecommendation.response,
+        };
+      },
+    );
+
+    await useCase.execute(userId, groupId, chatId, query);
+
+    expect(callOrder).toEqual(["touchUpdatedAt", "recommendation"]);
   });
 });
