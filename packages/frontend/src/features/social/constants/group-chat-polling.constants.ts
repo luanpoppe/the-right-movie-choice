@@ -1,0 +1,1 @@
+export const GROUP_CHAT_POLLING_INTERVAL_MS = 5000;
