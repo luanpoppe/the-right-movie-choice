@@ -11,7 +11,17 @@ import {
   SendFriendRequestDocs,
 } from "../docs/friendship.docs";
 import { MakeFriendshipHttpFactory } from "../../factories/make-friendship-http.factory";
+import { MakeGroupChatsHttpFactory } from "../../factories/make-group-chats-http.factory";
 import { MakeUserGroupsHttpFactory } from "../../factories/make-user-groups-http.factory";
+import {
+  CreateGroupChatDocs,
+  DeleteGroupChatDocs,
+  GetGroupChatDocs,
+  ListGroupChatsDocs,
+  RecommendInGroupChatDocs,
+  UpdateGroupChatFilterMembersDocs,
+  UpdateGroupChatTitleDocs,
+} from "../docs/group-chats.docs";
 import {
   AcceptGroupInviteDocs,
   CancelGroupInviteDocs,
@@ -31,6 +41,7 @@ import {
 export async function socialControllers(app: FastifyInstance) {
   const friendshipHttp = MakeFriendshipHttpFactory.create();
   const userGroupsHttp = MakeUserGroupsHttpFactory.create();
+  const groupChatsHttp = MakeGroupChatsHttpFactory.create();
 
   app.post(
     "/social/friend-requests",
@@ -228,5 +239,68 @@ export async function socialControllers(app: FastifyInstance) {
       preHandler: userGroupsHttp.preHandler,
     } as any,
     userGroupsHttp.handlers.cancelGroupInvite,
+  );
+
+  app.post(
+    "/social/groups/:groupId/chats",
+    {
+      ...CreateGroupChatDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.createGroupChat,
+  );
+
+  app.get(
+    "/social/groups/:groupId/chats",
+    {
+      ...ListGroupChatsDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.listGroupChats,
+  );
+
+  app.get(
+    "/social/groups/:groupId/chats/:chatId",
+    {
+      ...GetGroupChatDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.getGroupChat,
+  );
+
+  app.patch(
+    "/social/groups/:groupId/chats/:id",
+    {
+      ...UpdateGroupChatTitleDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.updateGroupChatTitle,
+  );
+
+  app.delete(
+    "/social/groups/:groupId/chats/:id",
+    {
+      ...DeleteGroupChatDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.deleteGroupChat,
+  );
+
+  app.patch(
+    "/social/groups/:groupId/chats/:id/filter-members",
+    {
+      ...UpdateGroupChatFilterMembersDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.updateGroupChatFilterMembers,
+  );
+
+  app.post(
+    "/social/groups/:groupId/chats/:chatId/recommendation",
+    {
+      ...RecommendInGroupChatDocs,
+      preHandler: groupChatsHttp.preHandler,
+    } as any,
+    groupChatsHttp.handlers.recommendInGroupChat,
   );
 }
