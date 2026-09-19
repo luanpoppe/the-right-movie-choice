@@ -51,7 +51,17 @@ export class DeleteGroupChatUseCase {
     // Purge primeiro: metadados não devem sumir se o checkpointer falhar.
     await this.chatThreadRepository.deleteThread(chatId);
 
-    const deleted = await this.groupChatRepository.deleteById(groupId, id);
+    let deleted = await this.groupChatRepository.deleteById(groupId, id);
+
+    if (!deleted) {
+      Logger.warn("Group chat metadata delete failed after purge, retrying once", {
+        groupId,
+        userId,
+        groupChatId: id,
+        chatId,
+      });
+      deleted = await this.groupChatRepository.deleteById(groupId, id);
+    }
 
     if (!deleted) {
       Logger.error("Group chat metadata delete failed after thread purge", {

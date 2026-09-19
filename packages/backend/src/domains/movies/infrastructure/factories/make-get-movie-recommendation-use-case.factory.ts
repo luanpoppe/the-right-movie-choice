@@ -95,7 +95,11 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     const hasNonEmptyFilterUserIds =
       filterUserIds !== undefined && filterUserIds.length > 0;
     const isExcludeMode =
-      excludeWatched && (hasValidUserId || hasNonEmptyFilterUserIds);
+      MakeGetMovieRecommendationUseCaseFactory.isExcludeMode(
+        excludeWatched,
+        hasValidUserId,
+        filterUserIds,
+      );
 
     if (!isExcludeMode) {
       return undefined;
@@ -119,6 +123,22 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     }
 
     return lookupToolOptions;
+  }
+
+  private static isExcludeMode(
+    excludeWatched: boolean,
+    hasValidUserId: boolean,
+    filterUserIds?: number[],
+  ): boolean {
+    if (!excludeWatched) {
+      return false;
+    }
+
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
+    return hasValidUserId;
   }
 
   private static buildAiConfig(

@@ -332,10 +332,8 @@ export class AiMovieRecommendationProvider
     }
 
     const filterUserIds = options?.filterUserIds;
-    const hasNonEmptyFilterUserIds =
-      filterUserIds !== undefined && filterUserIds.length > 0;
-    if (hasNonEmptyFilterUserIds) {
-      return true;
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
     }
 
     const userId = options?.userId;
@@ -352,10 +350,7 @@ export class AiMovieRecommendationProvider
     options: MovieRecommendationProviderOptions,
   ): Promise<number[]> {
     const filterUserIds = options.filterUserIds;
-    const hasNonEmptyFilterUserIds =
-      filterUserIds !== undefined && filterUserIds.length > 0;
-
-    if (hasNonEmptyFilterUserIds) {
+    if (filterUserIds !== undefined) {
       const watchedIds =
         await userMovieEntryRepository.findWatchedTmdbIdsByUsers(
           filterUserIds,

@@ -1,4 +1,7 @@
-import { GetMovieRecommendationUseCase } from "@/domains/movies/application/use-cases/get-movie-recommendation.use-case";
+import {
+  GetMovieRecommendationUseCase,
+  GetMovieRecommendationUseCaseOptions,
+} from "@/domains/movies/application/use-cases/get-movie-recommendation.use-case";
 import type { MovieRecommendationEntity } from "@/domains/movies/domain/entities/movie-recommendation.entity";
 import { ConversationTitleGenerator } from "@/domains/movies/infrastructure/providers/conversation-title.generator";
 import { Logger } from "@/lib/logger/logger";
@@ -22,11 +25,15 @@ type RecommendationExecutionResult = RecommendInGroupChatResult & {
   generatedTitle: string | null;
 };
 
+export type CreateGetMovieRecommendationUseCase = (
+  options: GetMovieRecommendationUseCaseOptions,
+) => GetMovieRecommendationUseCase;
+
 export class RecommendInGroupChatUseCase {
   constructor(
     private readonly userGroupRepository: IUserGroupRepository,
     private readonly groupChatRepository: IGroupChatRepository,
-    private readonly getMovieRecommendationUseCase: GetMovieRecommendationUseCase,
+    private readonly createGetMovieRecommendationUseCase: CreateGetMovieRecommendationUseCase,
     private readonly conversationTitleGenerator: ConversationTitleGenerator,
   ) {}
 
@@ -67,13 +74,6 @@ export class RecommendInGroupChatUseCase {
       throw new GroupChatNotFoundException(0);
     }
 
-    const filterMemberCount = chat.filterMemberUserIds.length;
-    const executionResult = await this.executeRecommendationWithOptionalTitle(
-      chat,
-      userId,
-      query,
-    );
-
     const historyChatId = chat.chatId;
     const touchedChat = await this.groupChatRepository.touchUpdatedAt(
       groupId,
@@ -81,7 +81,7 @@ export class RecommendInGroupChatUseCase {
     );
 
     if (!touchedChat) {
-      Logger.debug("Group chat missing after recommendation success", {
+      Logger.debug("Group chat missing before recommendation turn", {
         groupId,
         userId,
         chatId: historyChatId,
@@ -89,6 +89,22 @@ export class RecommendInGroupChatUseCase {
       });
       throw new GroupChatNotFoundException(chat.id);
     }
+
+    const groupMemberUserIds =
+      await this.userGroupRepository.findMemberUserIds(groupId);
+    const filterUserIds =
+      RecommendInGroupChatUseCase.intersectFilterMemberUserIds(
+        chat.filterMemberUserIds,
+        groupMemberUserIds,
+      );
+    const filterMemberCount = filterUserIds.length;
+
+    const executionResult = await this.executeRecommendationWithOptionalTitle(
+      chat,
+      userId,
+      query,
+      filterUserIds,
+    );
 
     await this.saveGeneratedTitleIfAny(
       groupId,
@@ -114,18 +130,21 @@ export class RecommendInGroupChatUseCase {
     chat: GroupChatEntity,
     userId: number,
     query: string,
+    filterUserIds: number[],
   ): Promise<RecommendationExecutionResult> {
     const recommendationOptions = {
       userId,
       excludeWatched: true,
-      filterUserIds: chat.filterMemberUserIds,
+      filterUserIds,
     };
+    const getMovieRecommendationUseCase =
+      this.createGetMovieRecommendationUseCase(recommendationOptions);
     const historyChatId = chat.chatId;
     const shouldGenerateTitle = chat.title === null;
 
     if (!shouldGenerateTitle) {
       const recommendationResult =
-        await this.getMovieRecommendationUseCase.execute(
+        await getMovieRecommendationUseCase.execute(
           query,
           historyChatId,
           recommendationOptions,
@@ -138,7 +157,7 @@ export class RecommendInGroupChatUseCase {
       };
     }
 
-    const executePromise = this.getMovieRecommendationUseCase.execute(
+    const executePromise = getMovieRecommendationUseCase.execute(
       query,
       historyChatId,
       recommendationOptions,
@@ -187,6 +206,25 @@ export class RecommendInGroupChatUseCase {
       groupChatId,
       chatId: chat.chatId,
     });
+  }
+
+  private static intersectFilterMemberUserIds(
+    filterMemberUserIds: number[],
+    groupMemberUserIds: number[],
+  ): number[] {
+    const groupMemberIdSet = new Set(groupMemberUserIds);
+    const intersectedIds: number[] = [];
+
+    for (const memberUserId of filterMemberUserIds) {
+      const isCurrentGroupMember = groupMemberIdSet.has(memberUserId);
+      if (!isCurrentGroupMember) {
+        continue;
+      }
+
+      intersectedIds.push(memberUserId);
+    }
+
+    return intersectedIds;
   }
 
   private static assertValidQuery(query: string): void {

@@ -2,6 +2,7 @@ import z from "zod";
 import { RouteShorthandOptions } from "fastify";
 import { InvalidAccessTokenException } from "@/domains/movies/domain/exceptions/invalid-access-token.exception";
 import { WrongMovieSchemaFromLlmException } from "@/domains/movies/domain/exceptions/wrong-movie-schema-from-llm.exception";
+import { GroupChatDeleteAfterPurgeFailedException } from "@/modules/social/domain/exceptions/group-chat-delete-after-purge-failed.exception";
 import {
   CreateGroupChatDTOSchema,
   GroupChatChatIdParamsSchema,
@@ -117,6 +118,13 @@ export const DeleteGroupChatDocs: RouteShorthandOptions = {
       400: badRequestResponseSchema,
       401: unauthorizedResponseSchema,
       404: notFoundResponseSchema,
+      500: z
+        .object({
+          error: z.enum([
+            new GroupChatDeleteAfterPurgeFailedException(0, "").message,
+          ]),
+        })
+        .describe("Internal Server Error"),
     },
   },
 };

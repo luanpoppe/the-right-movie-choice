@@ -63,14 +63,12 @@ export class MakeGroupChatsHttpFactory {
         groupChatRepository,
       );
 
-    const getMovieRecommendationUseCase =
-      MakeGetMovieRecommendationUseCaseFactory.create();
     const conversationTitleGenerator =
       MakeGetMovieRecommendationUseCaseFactory.createConversationTitleGenerator();
     const recommendInGroupChatUseCase = new RecommendInGroupChatUseCase(
       userGroupRepository,
       groupChatRepository,
-      getMovieRecommendationUseCase,
+      MakeGetMovieRecommendationUseCaseFactory.create,
       conversationTitleGenerator,
     );
 

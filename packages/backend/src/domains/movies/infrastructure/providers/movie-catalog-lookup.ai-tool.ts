@@ -118,10 +118,11 @@ export class MovieCatalogLookupAiTool {
     filterUserIds?: number[],
   ): number {
     const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    const hasNonEmptyFilterUserIds =
-      filterUserIds !== undefined && filterUserIds.length > 0;
-    const isExcludeMode =
-      excludeWatched && (hasValidUserId || hasNonEmptyFilterUserIds);
+    const isExcludeMode = MovieCatalogLookupAiTool.isExcludeMode(
+      excludeWatched,
+      userId,
+      filterUserIds,
+    );
 
     if (isExcludeMode) {
       return ExcludeWatchedRecommendationConstants.CANDIDATE_POOL_SIZE;
@@ -138,6 +139,23 @@ export class MovieCatalogLookupAiTool {
     return userId > 0;
   }
 
+  private static isExcludeMode(
+    excludeWatched: boolean,
+    userId?: number,
+    filterUserIds?: number[],
+  ): boolean {
+    if (!excludeWatched) {
+      return false;
+    }
+
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
+    const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
+    return hasValidUserId;
+  }
+
   private static async applyWatchedFilterIfNeeded(
     results: MovieCatalogLookupResult[],
     excludeWatched: boolean,
@@ -149,11 +167,11 @@ export class MovieCatalogLookupAiTool {
       return results;
     }
 
-    const hasNonEmptyFilterUserIds =
-      filterUserIds !== undefined && filterUserIds.length > 0;
-    const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    const canApplyWatchedFilter =
-      hasNonEmptyFilterUserIds || hasValidUserId;
+    const canApplyWatchedFilter = MovieCatalogLookupAiTool.isExcludeMode(
+      excludeWatched,
+      userId,
+      filterUserIds,
+    );
     if (!canApplyWatchedFilter) {
       return results;
     }
@@ -170,6 +188,9 @@ export class MovieCatalogLookupAiTool {
     if (tmdbIds.length === 0) {
       return results;
     }
+
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
 
     let watchedIds: number[];
     if (hasNonEmptyFilterUserIds) {
