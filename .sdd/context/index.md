@@ -20,4 +20,5 @@
 - [Amizades (API backend)](social/amizades-api.md) — solicitação/aceite bilateral, rotas `/social/*`, JWT reutilizado, modelo `FriendRequest` no Postgres.
 - [Grupos de usuários (API backend)](social/grupos-api.md) — grupos com dono/membros, convites por e-mail, rotas `/social/groups/*` e `/social/group-invites/*`.
 - [Listagem de membros do grupo (API)](social/listagem-membros-grupo.md) — `GET /social/groups/:id/members`, perfis `UserPublic` ordenados por nome, só para membros.
+- [Chats e recomendação em grupo (API)](social/chats-recomendacao-grupo-api.md) — CRUD `/social/groups/:groupId/chats*`, filtro assistidos multi-usuário, recommendation com exclude union.
 - [UI social (SPA)](social/ui-social-spa.md) — `/social` com abas Friends/Requests/Groups, detalhe `/social/groups/:id`, services + auth guard + confirmação destrutiva.
