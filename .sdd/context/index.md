@@ -22,3 +22,4 @@
 - [Listagem de membros do grupo (API)](social/listagem-membros-grupo.md) — `GET /social/groups/:id/members`, perfis `UserPublic` ordenados por nome, só para membros.
 - [Chats e recomendação em grupo (API)](social/chats-recomendacao-grupo-api.md) — CRUD `/social/groups/:groupId/chats*`, filtro assistidos multi-usuário, recommendation com exclude union.
 - [UI social (SPA)](social/ui-social-spa.md) — `/social` com abas Friends/Requests/Groups, detalhe `/social/groups/:id`, services + auth guard + confirmação destrutiva.
+- [UI chat de grupo (SPA)](social/ui-chat-grupo-spa.md) — aba Chat no grupo, sub-rota `/social/groups/:groupId/chats/:chatId`, sidebar, polling, filtro de assistidos por membros.
