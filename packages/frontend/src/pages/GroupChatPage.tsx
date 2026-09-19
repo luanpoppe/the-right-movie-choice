@@ -39,14 +39,144 @@ interface GroupChatPageContentProps {
   chatId: string;
 }
 
-function GroupChatPageContent({ groupId, chatId }: GroupChatPageContentProps) {
+interface GroupChatLoadedContentProps {
+  groupId: number;
+  chatId: string;
+  chat: GroupChatGetResponse;
+  onChatNotFound: () => void;
+  onChatUpdated: (chat: GroupChatGetResponse) => void;
+}
+
+// Page owns the initial GET and 404/auth handling; hook owns polling and post-submit refetch.
+function GroupChatLoadedContent({
+  groupId,
+  chatId,
+  chat,
+  onChatNotFound,
+  onChatUpdated,
+}: GroupChatLoadedContentProps) {
   const navigate = useNavigate();
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+
+  const initialMessages = useMemo((): ChatEntity => {
+    const mappedMessages = ChatHistoryMapperUtils.toChatEntity(chat.messages);
+    return mappedMessages;
+  }, [chat.messages]);
+
+  const {
+    messages,
+    isLoading: isChatLoading,
+    handleSubmit,
+    sidebarRefreshKey,
+    chatSummary,
+    updateFilterMemberUserIds,
+  } = useGroupChat({
+    groupId,
+    chatId,
+    initialMessages,
+    enabled: true,
+    onChatNotFound,
+  });
+
+  const numericChatId = chatSummary?.id ?? chat.id;
+  const filterMemberUserIds =
+    chatSummary?.filterMemberUserIds ?? chat.filterMemberUserIds;
+
+  function handleReset() {
+    navigate("/");
+  }
+
+  function handleActiveChatDeleted() {
+    const groupPath = `/social/groups/${groupId}`;
+    const navigationState = { tab: "chat" };
+    navigate(groupPath, { state: navigationState });
+  }
+
+  function handleFilterMembersSaved(
+    result: GroupChatUpdateFilterMembersResponse,
+  ) {
+    const updatedChat: GroupChatGetResponse = {
+      ...chat,
+      filterMemberUserIds: result.filterMemberUserIds,
+      updatedAt: result.updatedAt,
+    };
+
+    onChatUpdated(updatedChat);
+    updateFilterMemberUserIds(
+      result.filterMemberUserIds,
+      result.updatedAt,
+    );
+
+    console.info("[GroupChatPage] filter members updated", {
+      groupId,
+      chatId,
+      memberCount: result.filterMemberUserIds.length,
+    });
+  }
+
+  function handleOpenFilterDialog() {
+    setIsFilterDialogOpen(true);
+  }
+
+  function handleFilterDialogOpenChange(open: boolean) {
+    setIsFilterDialogOpen(open);
+  }
+
+  function handleExcludeWatchedChange() {
+    // Group chat watched filter is managed via filter members dialog.
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      <GroupChatSidebar
+        groupId={groupId}
+        activeChatId={chatId}
+        refreshKey={sidebarRefreshKey}
+        onActiveChatDeleted={handleActiveChatDeleted}
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-border/50 px-6 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOpenFilterDialog}
+          >
+            Watched movies filter
+          </Button>
+        </div>
+
+        <UserMovieEntriesProvider>
+          <Chat
+            handleReset={handleReset}
+            displayMessages={messages}
+            isLoading={isChatLoading}
+            handleSubmit={handleSubmit}
+            excludeWatched={true}
+            onExcludeWatchedChange={handleExcludeWatchedChange}
+            hasAccessToken={false}
+          />
+        </UserMovieEntriesProvider>
+      </div>
+
+      <GroupChatFilterMembersDialog
+        open={isFilterDialogOpen}
+        onOpenChange={handleFilterDialogOpenChange}
+        groupId={groupId}
+        chatId={numericChatId}
+        currentFilterMemberUserIds={filterMemberUserIds}
+        onSaved={handleFilterMembersSaved}
+      />
+    </div>
+  );
+}
+
+function GroupChatPageContent({ groupId, chatId }: GroupChatPageContentProps) {
   const [chat, setChat] = useState<GroupChatGetResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirectToGroup, setShouldRedirectToGroup] = useState(false);
-  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const activeFetchIdRef = useRef(0);
-  const hasCalledInitialRefetchRef = useRef(false);
 
   const fetchChat = useCallback(async () => {
     const fetchId = activeFetchIdRef.current + 1;
@@ -103,88 +233,13 @@ function GroupChatPageContent({ groupId, chatId }: GroupChatPageContentProps) {
     void fetchChat();
   }, [fetchChat]);
 
-  const initialMessages = useMemo((): ChatEntity => {
-    if (!chat) {
-      return [];
-    }
+  const handleChatNotFound = useCallback(() => {
+    setShouldRedirectToGroup(true);
+  }, []);
 
-    const mappedMessages = ChatHistoryMapperUtils.toChatEntity(chat.messages);
-    return mappedMessages;
-  }, [chat]);
-
-  const {
-    messages,
-    isLoading: isChatLoading,
-    handleSubmit,
-    refetch,
-    sidebarRefreshKey,
-    chatSummary,
-  } = useGroupChat({
-    groupId,
-    chatId,
-    initialMessages,
-    enabled: true,
-  });
-
-  useEffect(() => {
-    if (hasCalledInitialRefetchRef.current) {
-      return;
-    }
-
-    hasCalledInitialRefetchRef.current = true;
-    void refetch();
-  }, [refetch]);
-
-  const numericChatId = chatSummary?.id ?? chat?.id ?? null;
-  const filterMemberUserIds =
-    chatSummary?.filterMemberUserIds ?? chat?.filterMemberUserIds ?? [];
-  const canOpenFilterDialog = numericChatId !== null;
-
-  function handleReset() {
-    navigate("/");
-  }
-
-  function handleActiveChatDeleted() {
-    const groupPath = `/social/groups/${groupId}`;
-    const navigationState = { tab: "chat" };
-    navigate(groupPath, { state: navigationState });
-  }
-
-  function handleFilterMembersSaved(
-    result: GroupChatUpdateFilterMembersResponse,
-  ) {
-    setChat((currentChat) => {
-      if (!currentChat) {
-        return currentChat;
-      }
-
-      const updatedChat: GroupChatGetResponse = {
-        ...currentChat,
-        filterMemberUserIds: result.filterMemberUserIds,
-        updatedAt: result.updatedAt,
-      };
-
-      return updatedChat;
-    });
-
-    console.info("[GroupChatPage] filter members updated", {
-      groupId,
-      chatId,
-      memberCount: result.filterMemberUserIds.length,
-    });
-  }
-
-  function handleOpenFilterDialog() {
-    setIsFilterDialogOpen(true);
-  }
-
-  function handleFilterDialogOpenChange(open: boolean) {
-    setIsFilterDialogOpen(open);
-  }
-
-  function handleExcludeWatchedChange() {
-    // Group chat watched filter is managed via filter members dialog.
-  }
+  const handleChatUpdated = useCallback((updatedChat: GroupChatGetResponse) => {
+    setChat(updatedChat);
+  }, []);
 
   if (shouldRedirectToGroup) {
     const groupPath = `/social/groups/${groupId}`;
@@ -209,51 +264,13 @@ function GroupChatPageContent({ groupId, chatId }: GroupChatPageContentProps) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <GroupChatSidebar
-        groupId={groupId}
-        activeChatId={chatId}
-        refreshKey={sidebarRefreshKey}
-        onActiveChatDeleted={handleActiveChatDeleted}
-      />
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-border/50 px-6 py-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleOpenFilterDialog}
-            disabled={!canOpenFilterDialog}
-          >
-            Watched movies filter
-          </Button>
-        </div>
-
-        <UserMovieEntriesProvider>
-          <Chat
-            handleReset={handleReset}
-            displayMessages={messages}
-            isLoading={isChatLoading}
-            handleSubmit={handleSubmit}
-            excludeWatched={true}
-            onExcludeWatchedChange={handleExcludeWatchedChange}
-            hasAccessToken={false}
-          />
-        </UserMovieEntriesProvider>
-      </div>
-
-      {canOpenFilterDialog && numericChatId !== null && (
-        <GroupChatFilterMembersDialog
-          open={isFilterDialogOpen}
-          onOpenChange={handleFilterDialogOpenChange}
-          groupId={groupId}
-          chatId={numericChatId}
-          currentFilterMemberUserIds={filterMemberUserIds}
-          onSaved={handleFilterMembersSaved}
-        />
-      )}
-    </div>
+    <GroupChatLoadedContent
+      groupId={groupId}
+      chatId={chatId}
+      chat={chat}
+      onChatNotFound={handleChatNotFound}
+      onChatUpdated={handleChatUpdated}
+    />
   );
 }
 
