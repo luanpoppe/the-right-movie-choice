@@ -1,4 +1,5 @@
 import z from "zod";
+import { UserPublicSchema } from "./friendship.dto";
 
 export class UserGroupConstants {
   static readonly MAX_GROUP_NAME_LENGTH = 100;
@@ -171,4 +172,10 @@ export const ListIncomingGroupInvitesResponseSchema = z.array(
 
 export type ListIncomingGroupInvitesResponse = z.infer<
   typeof ListIncomingGroupInvitesResponseSchema
+>;
+
+export const ListGroupMembersResponseSchema = z.array(UserPublicSchema);
+
+export type ListGroupMembersResponse = z.infer<
+  typeof ListGroupMembersResponseSchema
 >;

@@ -72,6 +72,15 @@ class UserGroupsServiceFixtures {
       ...overrides,
     };
   }
+
+  static member(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 7,
+      name: "Maria",
+      email: "maria@example.com",
+      ...overrides,
+    };
+  }
 }
 
 describe("UserGroupsService", () => {
@@ -157,6 +166,16 @@ describe("UserGroupsService", () => {
 
     expect(mockedGet).toHaveBeenCalledWith("/social/groups/3/suggestions");
     expect(result).toEqual([suggestion]);
+  });
+
+  it("listMembers chama GET /social/groups/:id/members", async () => {
+    const member = UserGroupsServiceFixtures.member();
+    mockedGet.mockResolvedValue({ data: [member] });
+
+    const result = await UserGroupsService.listMembers(3);
+
+    expect(mockedGet).toHaveBeenCalledWith("/social/groups/3/members");
+    expect(result).toEqual([member]);
   });
 
   it("listIncomingInvites chama GET /social/group-invites/incoming", async () => {
