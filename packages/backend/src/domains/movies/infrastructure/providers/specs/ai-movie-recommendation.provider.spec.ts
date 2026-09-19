@@ -311,12 +311,15 @@ describe("AiMovieRecommendationProvider", () => {
   describe("exclude-watched", () => {
     const userId = 42;
     let findWatchedTmdbIdsByUser: ReturnType<typeof vi.fn>;
+    let findWatchedTmdbIdsByUsers: ReturnType<typeof vi.fn>;
     let userMovieEntryRepository: IUserMovieEntryRepository;
 
     beforeEach(() => {
       findWatchedTmdbIdsByUser = vi.fn().mockResolvedValue([]);
+      findWatchedTmdbIdsByUsers = vi.fn().mockResolvedValue([]);
       userMovieEntryRepository = {
         findWatchedTmdbIdsByUser,
+        findWatchedTmdbIdsByUsers,
       } as unknown as IUserMovieEntryRepository;
     });
 
@@ -685,6 +688,125 @@ describe("AiMovieRecommendationProvider", () => {
       expect(structuredCallArgs.messages).toHaveLength(1);
       expect(result).toEqual(validEntity);
       expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+      expect(findWatchedTmdbIdsByUsers).not.toHaveBeenCalled();
+    });
+
+    describe("filterUserIds multi-usuário", () => {
+      const filterUserIds = [7, 12];
+
+      const buildMultiUserExcludeOptions = () => ({
+        excludeWatched: true as const,
+        filterUserIds,
+        userMovieEntryRepository,
+      });
+
+      it("REQ-5: excludeWatched=true com filterUserIds múltiplos chama findWatchedTmdbIdsByUsers", async () => {
+        const entity = MovieRecommendationFixtures.entityWithMovies([
+          MovieRecommendationFixtures.movieWithTmdbId("Assistido por 7", 550),
+          MovieRecommendationFixtures.movieWithTmdbId("Assistido por 12", 680),
+          MovieRecommendationFixtures.movieWithTmdbId("Livre", 200),
+        ]);
+        callStructuredOutput.mockResolvedValue({ response: entity });
+        findWatchedTmdbIdsByUsers.mockResolvedValue([550, 680]);
+
+        const result = await provider.getMovieRecommendation(
+          userMessage,
+          chatId,
+          buildMultiUserExcludeOptions(),
+        );
+
+        expect(findWatchedTmdbIdsByUsers).toHaveBeenCalledWith(
+          filterUserIds,
+          [550, 680, 200],
+        );
+        expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+        expect(result.movies.map((movie) => movie.tmdbId)).toEqual([200]);
+      });
+
+      it("REQ-8: excludeWatched=true com filterUserIds vazio não chama repositório e segue single-turn", async () => {
+        const validEntity = MovieRecommendationFixtures.validEntity();
+        callStructuredOutput.mockResolvedValue({ response: validEntity });
+        const expectedSystemPrompt = MovieRecommendationPrompts.unified();
+
+        const result = await provider.getMovieRecommendation(userMessage, chatId, {
+          excludeWatched: true,
+          filterUserIds: [],
+          userMovieEntryRepository,
+        });
+
+        expect(callStructuredOutput).toHaveBeenCalledTimes(1);
+        const structuredCallArgs = VitestMockCallUtils.nthArg<{
+          systemPrompt: unknown;
+          threadId: string;
+        }>(callStructuredOutput.mock.calls, 0);
+        expect(structuredCallArgs.systemPrompt).toBe(expectedSystemPrompt);
+        expect(structuredCallArgs.threadId).toBe(chatId);
+        expect(findWatchedTmdbIdsByUsers).not.toHaveBeenCalled();
+        expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+        expect(result).toEqual(validEntity);
+      });
+
+      it("excludeWatched=false com filterUserIds presente não chama findWatchedTmdbIdsByUsers", async () => {
+        const validEntity = MovieRecommendationFixtures.validEntity();
+        callStructuredOutput.mockResolvedValue({ response: validEntity });
+
+        await provider.getMovieRecommendation(userMessage, chatId, {
+          excludeWatched: false,
+          filterUserIds,
+          userMovieEntryRepository,
+        });
+
+        expect(findWatchedTmdbIdsByUsers).not.toHaveBeenCalled();
+        expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+      });
+
+      it("rodadas exclude reutilizam threads :exclude:{1..5} com filterUserIds", async () => {
+        const roundOneEntity = MovieRecommendationFixtures.entityWithMovies([
+          MovieRecommendationFixtures.movieWithTmdbId("Filme A", 100),
+        ]);
+        const roundTwoEntity = MovieRecommendationFixtures.entityWithMovies([
+          MovieRecommendationFixtures.movieWithTmdbId("Filme B", 200),
+          MovieRecommendationFixtures.movieWithTmdbId("Filme C", 300),
+        ]);
+        callStructuredOutput
+          .mockResolvedValueOnce({ response: roundOneEntity })
+          .mockResolvedValueOnce({ response: roundTwoEntity });
+
+        await provider.getMovieRecommendation(
+          userMessage,
+          chatId,
+          buildMultiUserExcludeOptions(),
+        );
+
+        const firstRoundThreadId = VitestMockCallUtils.callArg<{
+          threadId: string;
+        }>(callStructuredOutput.mock.calls, 0, 0).threadId;
+        const secondRoundThreadId = VitestMockCallUtils.callArg<{
+          threadId: string;
+        }>(callStructuredOutput.mock.calls, 1, 0).threadId;
+
+        expect(firstRoundThreadId).toBe(`${chatId}:exclude:1`);
+        expect(secondRoundThreadId).toBe(`${chatId}:exclude:2`);
+      });
+
+      it("filterUserIds undefined mantém findWatchedTmdbIdsByUser no modo single-user", async () => {
+        const entity = MovieRecommendationFixtures.entityWithMovies([
+          MovieRecommendationFixtures.movieWithTmdbId("Assistido", 100),
+          MovieRecommendationFixtures.movieWithTmdbId("Livre", 200),
+        ]);
+        callStructuredOutput.mockResolvedValue({ response: entity });
+        findWatchedTmdbIdsByUser.mockResolvedValue([100]);
+
+        const result = await provider.getMovieRecommendation(
+          userMessage,
+          chatId,
+          buildExcludeWatchedOptions(),
+        );
+
+        expect(findWatchedTmdbIdsByUser).toHaveBeenCalledWith(userId, [100, 200]);
+        expect(findWatchedTmdbIdsByUsers).not.toHaveBeenCalled();
+        expect(result.movies.map((movie) => movie.tmdbId)).toEqual([200]);
+      });
     });
   });
 

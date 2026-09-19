@@ -62,6 +62,7 @@ describe("MakeUserGroupsHttpFactory", () => {
     expect(typeof http.handlers.sendGroupInvite).toBe("function");
     expect(typeof http.handlers.leaveUserGroup).toBe("function");
     expect(typeof http.handlers.removeGroupMember).toBe("function");
+    expect(typeof http.handlers.listGroupMembers).toBe("function");
     expect(typeof http.handlers.suggestGroupFriends).toBe("function");
     expect(typeof http.handlers.acceptGroupInvite).toBe("function");
     expect(typeof http.handlers.rejectGroupInvite).toBe("function");
@@ -90,6 +91,7 @@ describe("MakeUserGroupsHttpFactory", () => {
     expect(factorySource).toMatch(/new PrismaFriendRequestRepository\(\)/);
     expect(factorySource).toMatch(/new PrismaUserRepository\(\)/);
     expect(factorySource).toMatch(/new CreateUserGroupUseCase\(/);
+    expect(factorySource).toMatch(/new ListGroupMembersUseCase\(/);
     expect(factorySource).toMatch(/new SendGroupInviteUseCase\(/);
     expect(factorySource).toMatch(/UserMovieEntryAuthHook\.createPreHandler/);
     expect(factorySource).toMatch(/UserGroupsController\.create\(/);

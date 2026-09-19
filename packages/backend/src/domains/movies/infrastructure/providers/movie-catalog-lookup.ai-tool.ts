@@ -28,6 +28,7 @@ export type MovieCatalogLookupAiToolOptions = {
   userMovieEntryRepository?: IUserMovieEntryRepository | undefined;
   userId?: number | undefined;
   excludeWatched?: boolean | undefined;
+  filterUserIds?: number[] | undefined;
 };
 
 export class MovieCatalogLookupAiTool {
@@ -39,6 +40,7 @@ export class MovieCatalogLookupAiTool {
   private readonly aiTools = new AITools();
   private readonly excludeWatched: boolean;
   private readonly userId: number | undefined;
+  private readonly filterUserIds: number[] | undefined;
   private readonly userMovieEntryRepository:
     | IUserMovieEntryRepository
     | undefined;
@@ -50,10 +52,12 @@ export class MovieCatalogLookupAiTool {
   ) {
     this.excludeWatched = options?.excludeWatched === true;
     this.userId = options?.userId;
+    this.filterUserIds = options?.filterUserIds;
     this.userMovieEntryRepository = options?.userMovieEntryRepository;
     this.maxQueries = MovieCatalogLookupAiTool.resolveMaxQueries(
       this.excludeWatched,
       this.userId,
+      this.filterUserIds,
     );
   }
 
@@ -62,6 +66,7 @@ export class MovieCatalogLookupAiTool {
     const catalogLookup = this.catalogLookup;
     const excludeWatched = this.excludeWatched;
     const userId = this.userId;
+    const filterUserIds = this.filterUserIds;
     const userMovieEntryRepository = this.userMovieEntryRepository;
     const toolFunction = async (
       input: LookupMoviesToolInput,
@@ -83,6 +88,7 @@ export class MovieCatalogLookupAiTool {
             excludeWatched,
             userId,
             userMovieEntryRepository,
+            filterUserIds,
           );
 
         const durationMs = Date.now() - startedAtMs;
@@ -109,9 +115,14 @@ export class MovieCatalogLookupAiTool {
   private static resolveMaxQueries(
     excludeWatched: boolean,
     userId?: number,
+    filterUserIds?: number[],
   ): number {
     const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    const isExcludeMode = excludeWatched && hasValidUserId;
+    const isExcludeMode = MovieCatalogLookupAiTool.isExcludeMode(
+      excludeWatched,
+      userId,
+      filterUserIds,
+    );
 
     if (isExcludeMode) {
       return ExcludeWatchedRecommendationConstants.CANDIDATE_POOL_SIZE;
@@ -128,24 +139,47 @@ export class MovieCatalogLookupAiTool {
     return userId > 0;
   }
 
+  private static isExcludeMode(
+    excludeWatched: boolean,
+    userId?: number,
+    filterUserIds?: number[],
+  ): boolean {
+    if (!excludeWatched) {
+      return false;
+    }
+
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
+    const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
+    return hasValidUserId;
+  }
+
   private static async applyWatchedFilterIfNeeded(
     results: MovieCatalogLookupResult[],
     excludeWatched: boolean,
     userId?: number,
     userMovieEntryRepository?: IUserMovieEntryRepository,
+    filterUserIds?: number[],
   ): Promise<MovieCatalogLookupResult[]> {
     if (!excludeWatched) {
       return results;
     }
 
-    const hasValidUserId = MovieCatalogLookupAiTool.hasValidUserId(userId);
-    if (!hasValidUserId) {
+    const canApplyWatchedFilter = MovieCatalogLookupAiTool.isExcludeMode(
+      excludeWatched,
+      userId,
+      filterUserIds,
+    );
+    if (!canApplyWatchedFilter) {
       return results;
     }
 
     if (!userMovieEntryRepository) {
       Logger.warn("Filtro de assistidos ignorado: repositório não injetado", {
         userId,
+        filterUserCount: filterUserIds?.length ?? 0,
       });
       return results;
     }
@@ -155,8 +189,22 @@ export class MovieCatalogLookupAiTool {
       return results;
     }
 
-    const watchedIds =
-      await userMovieEntryRepository.findWatchedTmdbIdsByUser(userId, tmdbIds);
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
+
+    let watchedIds: number[];
+    if (hasNonEmptyFilterUserIds) {
+      watchedIds = await userMovieEntryRepository.findWatchedTmdbIdsByUsers(
+        filterUserIds,
+        tmdbIds,
+      );
+    } else {
+      watchedIds = await userMovieEntryRepository.findWatchedTmdbIdsByUser(
+        userId!,
+        tmdbIds,
+      );
+    }
+
     const watchedTmdbIds = new Set(watchedIds);
     const filteredResults = WatchedMovieFilterUtils.filterLookupResults(
       results,
@@ -167,6 +215,7 @@ export class MovieCatalogLookupAiTool {
     if (removedCount > 0) {
       Logger.debug("Hits assistidos removidos do lookup batch", {
         userId,
+        filterUserCount: filterUserIds?.length ?? 0,
         removedCount,
         resultCountBefore: results.length,
         resultCountAfter: filteredResults.length,

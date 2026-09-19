@@ -5,6 +5,8 @@ import {
   GroupInviteResponseSchema,
   ListGroupFriendSuggestionsResponse,
   ListGroupFriendSuggestionsResponseSchema,
+  ListGroupMembersResponse,
+  ListGroupMembersResponseSchema,
   ListIncomingGroupInvitesResponse,
   ListIncomingGroupInvitesResponseSchema,
   ListUserGroupsResponse,
@@ -73,6 +75,16 @@ export class UserGroupsService {
     const url = `/social/groups/${groupId}/suggestions`;
     const { data } = await movieClient.get(url);
     const parsedResponse = ListGroupFriendSuggestionsResponseSchema.parse(data);
+
+    return parsedResponse;
+  }
+
+  static async listMembers(
+    groupId: number,
+  ): Promise<ListGroupMembersResponse> {
+    const url = `/social/groups/${groupId}/members`;
+    const { data } = await movieClient.get(url);
+    const parsedResponse = ListGroupMembersResponseSchema.parse(data);
 
     return parsedResponse;
   }

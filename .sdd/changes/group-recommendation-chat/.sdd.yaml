@@ -1,0 +1,16 @@
+id: group-recommendation-chat
+title: Chat de recomendações em grupo
+created: 2026-09-18
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: group-members-api
+    title: Membros do grupo (API)
+    summary: Expõe membros do grupo para o seletor de filtro de assistidos.
+  - slug: group-recommendation-chat-api
+    title: Chats e recomendação em grupo (API)
+    summary: CRUD de chats por grupo, histórico compartilhado, PATCH de filtro de membros e POST de recomendação com exclude multi-usuário.
+  - slug: group-recommendation-chat-ui
+    title: UI do chat de grupo
+    summary: Aba Chat no detalhe do grupo com CRUD de chats, conversa e seletor de membros.

@@ -204,6 +204,129 @@ describe("GetMovieRecommendationUseCase", () => {
     expect(movieRecommendationProvider).not.toHaveProperty("getChatResponse");
   });
 
+  it("REQ-5: repassa filterUserIds ao provider em modo exclude multi-usuário", async () => {
+    const userMovieEntryRepository = {
+      findWatchedTmdbIdsByUser: vi.fn(),
+      findWatchedTmdbIdsByUsers: vi.fn(),
+    } as unknown as IUserMovieEntryRepository;
+    const useCaseWithRepository = new GetMovieRecommendationUseCase(
+      movieRecommendationProvider,
+      userMovieEntryRepository,
+    );
+    const userMessage = "comédia leve";
+    const chatId = "abc-uuid";
+    const filterUserIds = [7, 12];
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Group recommendation.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).mockResolvedValue(mockRecommendation);
+
+    await useCaseWithRepository.execute(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: true,
+      filterUserIds,
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: true,
+      filterUserIds,
+      userMovieEntryRepository,
+    });
+  });
+
+  it("REQ-8: filterUserIds vazio com userId não injeta repositório (modo single-turn)", async () => {
+    const userMovieEntryRepository = {
+      findWatchedTmdbIdsByUser: vi.fn(),
+      findWatchedTmdbIdsByUsers: vi.fn(),
+    } as unknown as IUserMovieEntryRepository;
+    const useCaseWithRepository = new GetMovieRecommendationUseCase(
+      movieRecommendationProvider,
+      userMovieEntryRepository,
+    );
+    const userMessage = "comédia leve";
+    const chatId = "abc-uuid";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "Single-turn recommendation.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).mockResolvedValue(mockRecommendation);
+
+    await useCaseWithRepository.execute(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: true,
+      filterUserIds: [],
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      userId: 7,
+      excludeWatched: true,
+      filterUserIds: [],
+    });
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).not.toHaveBeenCalledWith(
+      userMessage,
+      chatId,
+      expect.objectContaining({
+        userMovieEntryRepository: expect.anything(),
+      }),
+    );
+  });
+
+  it("REQ-8: filterUserIds vazio sem userId não entra em modo exclude", async () => {
+    const userMovieEntryRepository = {
+      findWatchedTmdbIdsByUser: vi.fn(),
+      findWatchedTmdbIdsByUsers: vi.fn(),
+    } as unknown as IUserMovieEntryRepository;
+    const useCaseWithRepository = new GetMovieRecommendationUseCase(
+      movieRecommendationProvider,
+      userMovieEntryRepository,
+    );
+    const userMessage = "comédia leve";
+    const chatId = "abc-uuid";
+    const mockRecommendation: MovieRecommendationEntity = {
+      movies: [],
+      response: "No exclude mode.",
+    };
+
+    vi.mocked(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).mockResolvedValue(mockRecommendation);
+
+    await useCaseWithRepository.execute(userMessage, chatId, {
+      excludeWatched: true,
+      filterUserIds: [],
+    });
+
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).toHaveBeenCalledWith(userMessage, chatId, {
+      excludeWatched: true,
+      filterUserIds: [],
+    });
+    expect(
+      movieRecommendationProvider.getMovieRecommendation,
+    ).not.toHaveBeenCalledWith(
+      userMessage,
+      chatId,
+      expect.objectContaining({
+        userMovieEntryRepository: expect.anything(),
+      }),
+    );
+  });
+
   it("não importa IChatHistoryRepository nem chama getHistory", async () => {
     const useCasePath = path.join(
       process.cwd(),

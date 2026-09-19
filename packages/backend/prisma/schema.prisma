@@ -65,6 +65,7 @@ model UserGroup {
 
   members GroupMember[]
   invites GroupInvite[]
+  chats   GroupChat[]
 
   @@index([ownerId])
 }
@@ -95,6 +96,19 @@ model GroupInvite {
 
   @@index([inviteeId, status])
   @@index([groupId, inviteeId, createdAt])
+}
+
+model GroupChat {
+  id                  Int       @id @default(autoincrement())
+  groupId             Int
+  group               UserGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  chatId              String    @unique
+  title               String?
+  filterMemberUserIds Int[]     @default([])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([groupId, updatedAt])
 }
 
 enum MovieWatchProviderKind {

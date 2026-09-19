@@ -3,6 +3,7 @@ import {
   MAX_GROUP_DESCRIPTION_LENGTH,
   MAX_GROUP_NAME_LENGTH,
 } from "@/modules/social/domain/utils/user-group-validation.utils";
+import { UserPublicSchema } from "./friendship.dto";
 
 const emailSchema = z
   .string()
@@ -139,6 +140,12 @@ export const ListGroupFriendSuggestionsResponseSchema = z.array(
 
 export type ListGroupFriendSuggestionsResponse = z.infer<
   typeof ListGroupFriendSuggestionsResponseSchema
+>;
+
+export const ListGroupMembersResponseSchema = z.array(UserPublicSchema);
+
+export type ListGroupMembersResponse = z.infer<
+  typeof ListGroupMembersResponseSchema
 >;
 
 export const IncomingGroupInviteGroupSchema = z.object({

@@ -25,11 +25,23 @@ const userGroupsHandlers = {
   sendGroupInvite: vi.fn(),
   leaveUserGroup: vi.fn(),
   removeGroupMember: vi.fn(),
+  listGroupMembers: vi.fn(),
   suggestGroupFriends: vi.fn(),
   listIncomingGroupInvites: vi.fn(),
   acceptGroupInvite: vi.fn(),
   rejectGroupInvite: vi.fn(),
   cancelGroupInvite: vi.fn(),
+};
+
+const groupChatsPreHandler = vi.fn();
+const groupChatsHandlers = {
+  createGroupChat: vi.fn(),
+  listGroupChats: vi.fn(),
+  getGroupChat: vi.fn(),
+  updateGroupChatTitle: vi.fn(),
+  deleteGroupChat: vi.fn(),
+  updateGroupChatFilterMembers: vi.fn(),
+  recommendInGroupChat: vi.fn(),
 };
 
 vi.mock("../../../factories/make-friendship-http.factory", () => ({
@@ -50,7 +62,17 @@ vi.mock("../../../factories/make-user-groups-http.factory", () => ({
   },
 }));
 
+vi.mock("../../../factories/make-group-chats-http.factory", () => ({
+  MakeGroupChatsHttpFactory: {
+    create: vi.fn(() => ({
+      preHandler: groupChatsPreHandler,
+      handlers: groupChatsHandlers,
+    })),
+  },
+}));
+
 import { MakeFriendshipHttpFactory } from "../../../factories/make-friendship-http.factory";
+import { MakeGroupChatsHttpFactory } from "../../../factories/make-group-chats-http.factory";
 import { MakeUserGroupsHttpFactory } from "../../../factories/make-user-groups-http.factory";
 import { socialControllers } from "../routes";
 
@@ -73,6 +95,7 @@ describe("socialControllers routes", () => {
 
     expect(MakeFriendshipHttpFactory.create).toHaveBeenCalledTimes(1);
     expect(MakeUserGroupsHttpFactory.create).toHaveBeenCalledTimes(1);
+    expect(MakeGroupChatsHttpFactory.create).toHaveBeenCalledTimes(1);
 
     expect(app.post).toHaveBeenCalledWith(
       "/social/friend-requests",
@@ -159,6 +182,78 @@ describe("socialControllers routes", () => {
     );
   });
 
+  it("registra GET /social/groups/:id/members com preHandler e handler", async () => {
+    await socialControllers(app);
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/social/groups/:id/members",
+      expect.objectContaining({
+        preHandler: userGroupsPreHandler,
+      }),
+      userGroupsHandlers.listGroupMembers,
+    );
+  });
+
+  it("registra rotas de group chats com preHandler e handlers", async () => {
+    await socialControllers(app);
+
+    expect(app.post).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.createGroupChat,
+    );
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.listGroupChats,
+    );
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats/:chatId",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.getGroupChat,
+    );
+
+    expect(app.patch).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats/:id",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.updateGroupChatTitle,
+    );
+
+    expect(app.delete).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats/:id",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.deleteGroupChat,
+    );
+
+    expect(app.patch).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats/:id/filter-members",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.updateGroupChatFilterMembers,
+    );
+
+    expect(app.post).toHaveBeenCalledWith(
+      "/social/groups/:groupId/chats/:chatId/recommendation",
+      expect.objectContaining({
+        preHandler: groupChatsPreHandler,
+      }),
+      groupChatsHandlers.recommendInGroupChat,
+    );
+  });
+
   it("routes.ts referencia docs e factory de friendship no código-fonte", () => {
     const routesPath = path.join(
       process.cwd(),
@@ -180,5 +275,16 @@ describe("socialControllers routes", () => {
     expect(routesSource).toMatch(/friendshipHttp\.handlers\.sendFriendRequest/);
     expect(routesSource).toMatch(/friendshipHttp\.handlers\.acceptFriendRequest/);
     expect(routesSource).toMatch(/friendshipHttp\.handlers\.searchUserByEmail/);
+    expect(routesSource).toMatch(/MakeGroupChatsHttpFactory\.create\(\)/);
+    expect(routesSource).toMatch(/CreateGroupChatDocs/);
+    expect(routesSource).toMatch(/ListGroupChatsDocs/);
+    expect(routesSource).toMatch(/GetGroupChatDocs/);
+    expect(routesSource).toMatch(/UpdateGroupChatTitleDocs/);
+    expect(routesSource).toMatch(/DeleteGroupChatDocs/);
+    expect(routesSource).toMatch(/UpdateGroupChatFilterMembersDocs/);
+    expect(routesSource).toMatch(/RecommendInGroupChatDocs/);
+    expect(routesSource).toMatch(/groupChatsHttp\.preHandler/);
+    expect(routesSource).toMatch(/groupChatsHttp\.handlers\.createGroupChat/);
+    expect(routesSource).toMatch(/groupChatsHttp\.handlers\.recommendInGroupChat/);
   });
 });

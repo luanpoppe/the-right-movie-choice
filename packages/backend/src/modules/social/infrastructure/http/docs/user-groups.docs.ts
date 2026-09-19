@@ -7,6 +7,7 @@ import {
   GroupInviteResponseSchema,
   GroupMemberUserIdParamsSchema,
   ListGroupFriendSuggestionsResponseSchema,
+  ListGroupMembersResponseSchema,
   ListIncomingGroupInvitesResponseSchema,
   ListUserGroupsResponseSchema,
   SendGroupInviteDTOSchema,
@@ -150,6 +151,20 @@ export const SuggestGroupFriendsDocs: RouteShorthandOptions = {
     params: UserGroupIdParamsSchema,
     response: {
       200: ListGroupFriendSuggestionsResponseSchema.describe("Success"),
+      400: badRequestResponseSchema,
+      401: unauthorizedResponseSchema,
+      404: notFoundResponseSchema,
+    },
+  },
+};
+
+export const ListGroupMembersDocs: RouteShorthandOptions = {
+  schema: {
+    tags: ["social"],
+    description: "List members of a group (authenticated member only)",
+    params: UserGroupIdParamsSchema,
+    response: {
+      200: ListGroupMembersResponseSchema.describe("Success"),
       400: badRequestResponseSchema,
       401: unauthorizedResponseSchema,
       404: notFoundResponseSchema,

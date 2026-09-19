@@ -3,6 +3,7 @@ import {
   CreateUserGroupDTOSchema,
   GroupInviteIdParamsSchema,
   GroupMemberUserIdParamsSchema,
+  ListGroupMembersResponseSchema,
   SendGroupInviteDTOSchema,
   UpdateUserGroupDTOSchema,
   UserGroupIdParamsSchema,
@@ -124,6 +125,27 @@ describe("User groups DTO schemas", () => {
       const parsed = GroupInviteIdParamsSchema.parse({ id: "40" });
 
       expect(parsed.id).toBe(40);
+    });
+  });
+
+  describe("ListGroupMembersResponseSchema", () => {
+    it("REQ-4: aceita array de UserPublic", () => {
+      const parsed = ListGroupMembersResponseSchema.parse([
+        { id: 7, name: "João", email: "joao@example.com" },
+        { id: 12, name: "Maria", email: "maria@example.com" },
+      ]);
+
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0]?.id).toBe(7);
+      expect(parsed[1]?.email).toBe("maria@example.com");
+    });
+
+    it("edge: rejeita item sem email", () => {
+      expect(() =>
+        ListGroupMembersResponseSchema.parse([
+          { id: 7, name: "João" },
+        ]),
+      ).toThrow();
     });
   });
 });

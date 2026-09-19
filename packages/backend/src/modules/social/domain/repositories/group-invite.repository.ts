@@ -40,4 +40,6 @@ export interface IGroupInviteRepository {
     inviterId: number,
     inviteeId: number,
   ): Promise<GroupInviteEntity>;
+
+  findPendingInviteeUserIds(groupId: number): Promise<number[]>;
 }

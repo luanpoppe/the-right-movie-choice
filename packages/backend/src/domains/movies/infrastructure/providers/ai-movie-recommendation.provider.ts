@@ -83,7 +83,9 @@ export class AiMovieRecommendationProvider
     chatId: string,
     options: MovieRecommendationProviderOptions,
   ): Promise<MovieRecommendationEntity> {
-    const userId = options.userId!;
+    const userId = options.userId;
+    const filterUserIds = options.filterUserIds;
+    const filterUserCount = filterUserIds?.length ?? 0;
     const userMovieEntryRepository = options.userMovieEntryRepository!;
     const humanMessage = AIMessages.human(userMessage);
     const baseMessages = [humanMessage];
@@ -101,6 +103,7 @@ export class AiMovieRecommendationProvider
     Logger.info("🚀 Iniciando recomendação exclude-watched", {
       chatId,
       userId,
+      filterUserCount,
       maxRounds,
       minVerifiedUnwatched,
     });
@@ -133,6 +136,7 @@ export class AiMovieRecommendationProvider
       Logger.info("🔄 Rodada exclude-watched", {
         chatId,
         userId,
+        filterUserCount,
         round,
         maxRounds,
         hasExclusionContext: exclusionContextMessage.length > 0,
@@ -149,9 +153,10 @@ export class AiMovieRecommendationProvider
         parsedRecommendation.movies,
       );
       const watchedTmdbIds =
-        await userMovieEntryRepository.findWatchedTmdbIdsByUser(
-          userId,
+        await AiMovieRecommendationProvider.findWatchedTmdbIds(
+          userMovieEntryRepository,
           tmdbIds,
+          options,
         );
       const watchedTmdbIdSet = new Set(watchedTmdbIds);
       const roundResult = ExcludeWatchedRecommendationSanitizer.processRoundResult(
@@ -187,6 +192,7 @@ export class AiMovieRecommendationProvider
       Logger.debug("📊 Resultado da rodada exclude-watched", {
         chatId,
         userId,
+        filterUserCount,
         round,
         verifiedUnwatchedCount,
         movieCount: sanitizedRecommendation.movies.length,
@@ -232,6 +238,7 @@ export class AiMovieRecommendationProvider
     Logger.warn("⚠️ Rodadas exclude-watched esgotadas sem mínimo verificado", {
       chatId,
       userId,
+      filterUserCount,
       verifiedUnwatchedCount: bestVerifiedUnwatchedCount,
       minVerifiedUnwatched,
       maxRounds,
@@ -315,12 +322,49 @@ export class AiMovieRecommendationProvider
     options?: MovieRecommendationProviderOptions,
   ): boolean {
     const excludeWatched = options?.excludeWatched === true;
+    if (!excludeWatched) {
+      return false;
+    }
+
+    const hasRepository = options?.userMovieEntryRepository !== undefined;
+    if (!hasRepository) {
+      return false;
+    }
+
+    const filterUserIds = options?.filterUserIds;
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
     const userId = options?.userId;
     const hasValidUserId = userId !== undefined && userId > 0;
-    const hasRepository = options?.userMovieEntryRepository !== undefined;
-    const isExcludeMode = excludeWatched && hasValidUserId && hasRepository;
 
-    return isExcludeMode;
+    return hasValidUserId;
+  }
+
+  private static async findWatchedTmdbIds(
+    userMovieEntryRepository: NonNullable<
+      MovieRecommendationProviderOptions["userMovieEntryRepository"]
+    >,
+    tmdbIds: number[],
+    options: MovieRecommendationProviderOptions,
+  ): Promise<number[]> {
+    const filterUserIds = options.filterUserIds;
+    if (filterUserIds !== undefined) {
+      const watchedIds =
+        await userMovieEntryRepository.findWatchedTmdbIdsByUsers(
+          filterUserIds,
+          tmdbIds,
+        );
+      return watchedIds;
+    }
+
+    const userId = options.userId!;
+    const watchedIds = await userMovieEntryRepository.findWatchedTmdbIdsByUser(
+      userId,
+      tmdbIds,
+    );
+    return watchedIds;
   }
 
   private logSuccess(

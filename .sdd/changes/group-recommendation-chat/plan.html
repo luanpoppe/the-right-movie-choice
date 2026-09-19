@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — group-recommendation-chat</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>group-recommendation-chat</strong> / plan</p>
+    <h1>Chat de recomendações em grupo</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>group-recommendation-chat</code> · <strong>criada</strong>: 2026-09-18 · <strong>idioma</strong>: pt-BR · atualizado em 2026-09-18</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>Grupos já existem (dono, membros, convites), mas não há conversa nem recomendação coletiva. Esta mudança adiciona <strong>vários chats por grupo</strong>, onde membros pedem recomendações de filmes filtrando o que <strong>já foi assistido</strong> por um subconjunto de membros (com atalho para selecionar todos). Reutiliza o pipeline de IA/<code>excludeWatched</code> e o checkpointer Postgres já usados no chat autenticado individual.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Múltiplos chats por grupo</strong>: cada chat tem thread/histórico próprio; qualquer membro pode criar um novo chat.</li>
+        <li><strong>Navegação</strong>: lista de chats do grupo → abrir um (padrão estilo <code>/conversations</code>); aba <strong>Chat</strong> em <code>/social/groups/:id</code>.</li>
+        <li><strong>Filtro de assistidos</strong>: cada chat guarda <strong>quais membros entram no filtro</strong> (padrão reutilizável por chat); UI oferece seleção explícita com atalho “selecionar todos”.</li>
+        <li><strong>Sincronização</strong>: polling ao abrir/enviar (sem WebSocket no MVP).</li>
+        <li><strong>Reúso</strong>: módulo <code>social</code>, auth JWT existente, checkpointer Postgres, pipeline <code>excludeWatched</code> e lookup de catálogo — estender, não reescrever.</li>
+        <li><strong>Acesso</strong>: só membros autenticados do grupo; sem convidado/cota anônima no chat de grupo.</li>
+        <li><strong>Alternativa descartada</strong>: um único thread por grupo — o usuário pediu suporte a vários chats.</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>group-members-api</strong> — API para listar membros do grupo (id, nome, e-mail) usada pelo seletor.</li>
+        <li><strong>group-recommendation-chat-api</strong> — CRUD de chats do grupo, histórico compartilhado, PATCH de membros do filtro e POST de recomendação com exclude multi-usuário.</li>
+        <li><strong>group-recommendation-chat-ui</strong> — Aba Chat no detalhe do grupo: CRUD de chats, conversa e seletor de membros.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: múltiplos chats por grupo; <strong>CRUD completo de chats</strong> (criar, listar, abrir, renomear, excluir); mensagens/recomendações compartilhadas no thread do chat; filtro de assistidos por membros selecionados (com “todos”); polling.</p>
+      <p><strong>Fora</strong>: WebSocket/SSE; notificações push; editar/apagar <strong>mensagens</strong>; acesso de visitante não-membro.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

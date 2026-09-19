@@ -12,6 +12,7 @@ import type {
   GroupInviteResponse,
   IncomingGroupInviteResponse,
   ListGroupFriendSuggestionsResponse,
+  ListGroupMembersResponse,
   ListIncomingGroupInvitesResponse,
   ListUserGroupsResponse,
   UserGroupListItemResponse,
@@ -108,6 +109,18 @@ export class UserGroupsResponseMapper {
     });
 
     return suggestions;
+  }
+
+  static toListGroupMembersResponse(
+    entities: UserPublicEntity[],
+  ): ListGroupMembersResponse {
+    const members = entities.map((entity) => {
+      const item =
+        UserGroupsResponseMapper.toGroupFriendSuggestionResponse(entity);
+      return item;
+    });
+
+    return members;
   }
 
   static toIncomingGroupInviteResponse(

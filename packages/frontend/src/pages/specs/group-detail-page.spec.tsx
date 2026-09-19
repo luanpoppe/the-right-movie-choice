@@ -1,5 +1,20 @@
+jest.mock("lucide-react", () => ({
+  Loader2: () => <span />,
+  Pencil: () => <span />,
+  Trash2: () => <span />,
+}));
+
 jest.mock("@/features/auth/context/AuthContext", () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock("@/features/social/services/group-chats.service", () => ({
+  GroupChatsService: {
+    list: jest.fn(),
+    create: jest.fn(),
+    updateTitle: jest.fn(),
+    delete: jest.fn(),
+  },
 }));
 
 jest.mock("@/features/social/services/user-groups.service", () => ({
@@ -59,6 +74,7 @@ import type {
   GroupFriendSuggestionResponse,
   UserGroupListItemResponse,
 } from "@/features/social/dto/user-groups.dto";
+import { GroupChatsService } from "@/features/social/services/group-chats.service";
 import { UserGroupsService } from "@/features/social/services/user-groups.service";
 import { GroupDetailPage } from "../GroupDetailPage";
 
@@ -69,6 +85,7 @@ const mockedDelete = jest.mocked(UserGroupsService.delete);
 const mockedSendInvite = jest.mocked(UserGroupsService.sendInvite);
 const mockedLeaveGroup = jest.mocked(UserGroupsService.leaveGroup);
 const mockedListSuggestions = jest.mocked(UserGroupsService.listSuggestions);
+const mockedListChats = jest.mocked(GroupChatsService.list);
 const mockedToastError = jest.mocked(toast.error);
 const mockedToastSuccess = jest.mocked(toast.success);
 
@@ -185,6 +202,7 @@ describe("GroupDetailPage", () => {
       updatedAt: "2026-03-16T12:00:00.000Z",
     });
     mockedLeaveGroup.mockResolvedValue(undefined);
+    mockedListChats.mockResolvedValue([]);
   });
 
   it("REQ-8: shows group name, memberCount, and owner sees edit/delete", async () => {

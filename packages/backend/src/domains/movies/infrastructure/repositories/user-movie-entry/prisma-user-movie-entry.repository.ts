@@ -208,6 +208,48 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
     return watchedTmdbIds;
   }
 
+  async findWatchedTmdbIdsByUsers(
+    userIds: number[],
+    tmdbIds: number[],
+  ): Promise<number[]> {
+    const hasNoUserIds = userIds.length === 0;
+
+    if (hasNoUserIds) {
+      return [];
+    }
+
+    const hasNoTmdbIds = tmdbIds.length === 0;
+
+    if (hasNoTmdbIds) {
+      return [];
+    }
+
+    const where = {
+      userId: { in: userIds },
+      tmdbId: { in: tmdbIds },
+      watched: true,
+    };
+
+    const rows = await prisma.userMovieEntry.findMany({
+      where,
+      select: {
+        tmdbId: true,
+      },
+    });
+
+    const rowTmdbIds = rows.map((row) => row.tmdbId);
+    const watchedTmdbIdSet = new Set(rowTmdbIds);
+    const watchedTmdbIds = [...watchedTmdbIdSet];
+
+    Logger.debug("User movie entry watched multi-user batch lookup hit", {
+      userCount: userIds.length,
+      candidateCount: tmdbIds.length,
+      watchedCount: watchedTmdbIds.length,
+    });
+
+    return watchedTmdbIds;
+  }
+
   private async loadMovieSummariesByTmdbIds(
     tmdbIds: number[],
   ): Promise<Map<number, UserMovieEntryMovieSummary>> {

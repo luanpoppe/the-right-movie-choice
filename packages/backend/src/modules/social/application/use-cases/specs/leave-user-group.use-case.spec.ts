@@ -52,6 +52,7 @@ describe("LeaveUserGroupUseCase", () => {
       findOldestMemberAfterOwner: vi.fn(),
       deleteGroupAndRelated: vi.fn().mockResolvedValue(undefined),
       findMemberUserIds: vi.fn(),
+      findMemberProfiles: vi.fn(),
       leaveAsOwnerWithTransfer: vi.fn().mockResolvedValue(undefined),
     };
 

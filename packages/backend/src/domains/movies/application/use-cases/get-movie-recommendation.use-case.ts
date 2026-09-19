@@ -7,6 +7,7 @@ import type { IUserMovieEntryRepository } from "../../domain/repositories/user-m
 export type GetMovieRecommendationUseCaseOptions = {
   userId?: number;
   excludeWatched?: boolean;
+  filterUserIds?: number[];
 };
 
 export class GetMovieRecommendationUseCase {
@@ -58,6 +59,11 @@ export class GetMovieRecommendationUseCase {
       providerOptions.excludeWatched = excludeWatched;
     }
 
+    const filterUserIds = options.filterUserIds;
+    if (filterUserIds !== undefined) {
+      providerOptions.filterUserIds = filterUserIds;
+    }
+
     const isExcludeMode =
       GetMovieRecommendationUseCase.isExcludeMode(options);
     const hasRepository = userMovieEntryRepository !== undefined;
@@ -77,9 +83,18 @@ export class GetMovieRecommendationUseCase {
     options: GetMovieRecommendationUseCaseOptions,
   ): boolean {
     const excludeWatched = options.excludeWatched === true;
+    if (!excludeWatched) {
+      return false;
+    }
+
+    const filterUserIds = options.filterUserIds;
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
     const userId = options.userId;
     const hasValidUserId = userId !== undefined && userId > 0;
 
-    return excludeWatched && hasValidUserId;
+    return hasValidUserId;
   }
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { GroupDetailTabs } from "@/features/social/components/group-detail-tabs";
 import { SocialConfirmDialog } from "@/features/social/components/social-confirm-dialog";
 import type {
   GroupFriendSuggestionResponse,
@@ -360,6 +361,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
       });
       toast.success(INVITE_SENT_TOAST);
       setInviteEmail("");
+      void fetchSuggestions();
 
       console.info("[GroupDetailPanel] invite sent", {
         groupId: parsedGroupId,
@@ -400,6 +402,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         email: suggestion.email,
       });
       toast.success(INVITE_SENT_TOAST);
+      void fetchSuggestions();
 
       console.info("[GroupDetailPanel] suggested friend invited", {
         groupId: parsedGroupId,
@@ -552,23 +555,8 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
   const deleteDialogDescription = `Are you sure you want to delete "${group.name}"? This cannot be undone.`;
   const leaveDialogDescription = `Are you sure you want to leave "${group.name}"?`;
 
-  return (
-    <div className="space-y-8">
-      <Link to="/social" className="text-primary hover:underline">
-        Back to Social
-      </Link>
-
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">{group.name}</h1>
-        {group.description && (
-          <p className="text-muted-foreground">{group.description}</p>
-        )}
-        <p className="text-sm text-muted-foreground">{memberCountLabel}</p>
-        {isOwner && (
-          <p className="text-sm font-medium text-primary">You are the owner</p>
-        )}
-      </div>
-
+  const detailsContent = (
+    <>
       {isOwner && (
         <form
           onSubmit={handleUpdateSubmit}
@@ -744,6 +732,27 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         isConfirming={isLeaving}
         confirmLabel="Leave"
       />
+    </>
+  );
+
+  return (
+    <div className="space-y-8">
+      <Link to="/social" className="text-primary hover:underline">
+        Back to Social
+      </Link>
+
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">{group.name}</h1>
+        {group.description && (
+          <p className="text-muted-foreground">{group.description}</p>
+        )}
+        <p className="text-sm text-muted-foreground">{memberCountLabel}</p>
+        {isOwner && (
+          <p className="text-sm font-medium text-primary">You are the owner</p>
+        )}
+      </div>
+
+      <GroupDetailTabs groupId={group.id} detailsContent={detailsContent} />
     </div>
   );
 }

@@ -84,6 +84,7 @@ describe("SendGroupInviteUseCase", () => {
       findOldestMemberAfterOwner: vi.fn(),
       deleteGroupAndRelated: vi.fn(),
       findMemberUserIds: vi.fn(),
+      findMemberProfiles: vi.fn(),
       leaveAsOwnerWithTransfer: vi.fn(),
     };
 

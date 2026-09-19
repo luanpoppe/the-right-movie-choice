@@ -383,6 +383,68 @@ describe("PrismaUserGroupRepository", () => {
     });
   });
 
+  describe("findMemberProfiles", () => {
+    it("REQ-4: retorna perfis UserPublic com join em User", async () => {
+      vi.mocked(prisma.groupMember.findMany).mockResolvedValue([
+        {
+          groupId: 3,
+          userId: 7,
+          joinedAt: new Date("2026-03-01T10:00:00.000Z"),
+          user: { id: 7, name: "João", email: "joao@example.com" },
+        },
+        {
+          groupId: 3,
+          userId: 12,
+          joinedAt: new Date("2026-03-02T10:00:00.000Z"),
+          user: { id: 12, name: "Maria", email: "maria@example.com" },
+        },
+      ] as never);
+
+      const result = await repository.findMemberProfiles(3);
+
+      expect(prisma.groupMember.findMany).toHaveBeenCalledWith({
+        where: { groupId: 3 },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { user: { name: "asc" } },
+      });
+      expect(result).toEqual([
+        { id: 7, name: "João", email: "joao@example.com" },
+        { id: 12, name: "Maria", email: "maria@example.com" },
+      ]);
+    });
+
+    it("REQ-1: ordem name asc delegada ao Prisma", async () => {
+      vi.mocked(prisma.groupMember.findMany).mockResolvedValue([
+        {
+          groupId: 3,
+          userId: 12,
+          joinedAt: new Date("2026-03-02T10:00:00.000Z"),
+          user: { id: 12, name: "Ana", email: "ana@example.com" },
+        },
+        {
+          groupId: 3,
+          userId: 7,
+          joinedAt: new Date("2026-03-01T10:00:00.000Z"),
+          user: { id: 7, name: "João", email: "joao@example.com" },
+        },
+      ] as never);
+
+      const result = await repository.findMemberProfiles(3);
+
+      expect(result[0]?.name).toBe("Ana");
+      expect(result[1]?.name).toBe("João");
+    });
+
+    it("edge: rejeita groupId inválido", async () => {
+      await expect(repository.findMemberProfiles(0)).rejects.toThrow(
+        UserGroupValidationException,
+      );
+      expect(prisma.groupMember.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("leaveAsOwnerWithTransfer", () => {
     it("transfere ownership e remove dono em transação", async () => {
       const nextOwnerRow = UserGroupRepositoryFixtures.prismaGroupMemberRow({

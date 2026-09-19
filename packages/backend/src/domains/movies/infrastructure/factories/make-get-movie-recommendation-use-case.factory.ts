@@ -90,8 +90,16 @@ export class MakeGetMovieRecommendationUseCaseFactory {
   ): MovieCatalogLookupAiToolOptions | undefined {
     const excludeWatched = options?.excludeWatched === true;
     const userId = options?.userId;
+    const filterUserIds = options?.filterUserIds;
     const hasValidUserId = userId !== undefined && userId > 0;
-    const isExcludeMode = excludeWatched && hasValidUserId;
+    const hasNonEmptyFilterUserIds =
+      filterUserIds !== undefined && filterUserIds.length > 0;
+    const isExcludeMode =
+      MakeGetMovieRecommendationUseCaseFactory.isExcludeMode(
+        excludeWatched,
+        hasValidUserId,
+        filterUserIds,
+      );
 
     if (!isExcludeMode) {
       return undefined;
@@ -101,11 +109,36 @@ export class MakeGetMovieRecommendationUseCaseFactory {
       return undefined;
     }
 
-    return {
-      userId,
+    const lookupToolOptions: MovieCatalogLookupAiToolOptions = {
       excludeWatched: true,
       userMovieEntryRepository,
     };
+
+    if (hasValidUserId) {
+      lookupToolOptions.userId = userId;
+    }
+
+    if (hasNonEmptyFilterUserIds) {
+      lookupToolOptions.filterUserIds = filterUserIds;
+    }
+
+    return lookupToolOptions;
+  }
+
+  private static isExcludeMode(
+    excludeWatched: boolean,
+    hasValidUserId: boolean,
+    filterUserIds?: number[],
+  ): boolean {
+    if (!excludeWatched) {
+      return false;
+    }
+
+    if (filterUserIds !== undefined) {
+      return filterUserIds.length > 0;
+    }
+
+    return hasValidUserId;
   }
 
   private static buildAiConfig(

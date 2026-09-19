@@ -76,6 +76,7 @@ function captureLookupMoviesTool(
     userMovieEntryRepository?: IUserMovieEntryRepository;
     userId?: number;
     excludeWatched?: boolean;
+    filterUserIds?: number[];
   },
 ): CapturedToolConfig {
   const aiTool = new MovieCatalogLookupAiTool(catalogLookup, options);
@@ -252,6 +253,7 @@ describe("MovieCatalogLookupAiTool", () => {
 
   describe("modo exclude-watched", () => {
     let findWatchedTmdbIdsByUser: ReturnType<typeof vi.fn>;
+    let findWatchedTmdbIdsByUsers: ReturnType<typeof vi.fn>;
     let userMovieEntryRepository: IUserMovieEntryRepository;
     let excludeToolExecute: (
       input: LookupMoviesToolInput,
@@ -260,8 +262,10 @@ describe("MovieCatalogLookupAiTool", () => {
 
     beforeEach(() => {
       findWatchedTmdbIdsByUser = vi.fn();
+      findWatchedTmdbIdsByUsers = vi.fn();
       userMovieEntryRepository = {
         findWatchedTmdbIdsByUser,
+        findWatchedTmdbIdsByUsers,
       } as unknown as IUserMovieEntryRepository;
 
       const captured = captureLookupMoviesTool(catalogLookup, {
@@ -385,7 +389,7 @@ describe("MovieCatalogLookupAiTool", () => {
       expect(results).toEqual([watchedHit, unwatchedHit]);
       expect(Logger.warn).toHaveBeenCalledWith(
         "Filtro de assistidos ignorado: repositório não injetado",
-        { userId: 42 },
+        { userId: 42, filterUserCount: 0 },
       );
     });
 
@@ -436,6 +440,93 @@ describe("MovieCatalogLookupAiTool", () => {
       });
 
       expect(parseResult.success).toBe(false);
+    });
+
+    describe("filterUserIds multi-usuário", () => {
+      const filterUserIds = [7, 12];
+      let multiUserToolExecute: (
+        input: LookupMoviesToolInput,
+      ) => Promise<MovieCatalogLookupResult[]>;
+
+      beforeEach(() => {
+        const captured = captureLookupMoviesTool(catalogLookup, {
+          userMovieEntryRepository,
+          excludeWatched: true,
+          filterUserIds,
+        });
+        multiUserToolExecute = captured.toolFunction;
+      });
+
+      it("REQ-5: trata como assistido se qualquer filterUserIds marcou o filme", async () => {
+        const watchedByUser7 = MovieCatalogLookupAiToolFixtures.hit(
+          "Fight Club",
+          550,
+        );
+        const watchedByUser12 = MovieCatalogLookupAiToolFixtures.hit(
+          "Pulp Fiction",
+          680,
+        );
+        const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
+          "Livre",
+          200,
+        );
+
+        findDetailsByTitlesBatch.mockResolvedValue([
+          watchedByUser7,
+          watchedByUser12,
+          unwatchedHit,
+        ]);
+        findWatchedTmdbIdsByUsers.mockResolvedValue([550, 680]);
+
+        const results = await multiUserToolExecute({
+          queries: [
+            { query: "Fight Club" },
+            { query: "Pulp Fiction" },
+            { query: "Livre" },
+          ],
+        });
+
+        expect(findWatchedTmdbIdsByUsers).toHaveBeenCalledWith(
+          filterUserIds,
+          [550, 680, 200],
+        );
+        expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+        expect(results).toHaveLength(3);
+        expect(results[0]).toEqual({
+          found: false,
+          message: "Filme já assistido pelo usuário.",
+        });
+        expect(results[1]).toEqual({
+          found: false,
+          message: "Filme já assistido pelo usuário.",
+        });
+        expect(results[2]).toEqual(unwatchedHit);
+      });
+
+      it("REQ-8: filterUserIds vazio não filtra assistidos no lookup", async () => {
+        const watchedHit = MovieCatalogLookupAiToolFixtures.hit("Assistido", 100);
+        const unwatchedHit = MovieCatalogLookupAiToolFixtures.hit(
+          "Não assistido",
+          200,
+        );
+
+        findDetailsByTitlesBatch.mockResolvedValue([watchedHit, unwatchedHit]);
+
+        const emptyFilterCaptured = captureLookupMoviesTool(catalogLookup, {
+          userMovieEntryRepository,
+          excludeWatched: true,
+          filterUserIds: [],
+        });
+        const emptyFilterExecute = emptyFilterCaptured.toolFunction;
+
+        const results = await emptyFilterExecute({
+          queries: [{ query: "Assistido" }, { query: "Não assistido" }],
+        });
+
+        expect(results).toEqual([watchedHit, unwatchedHit]);
+        expect(findWatchedTmdbIdsByUsers).not.toHaveBeenCalled();
+        expect(findWatchedTmdbIdsByUser).not.toHaveBeenCalled();
+      });
     });
   });
 });

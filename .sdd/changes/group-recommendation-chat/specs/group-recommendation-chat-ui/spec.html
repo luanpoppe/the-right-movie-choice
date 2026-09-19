@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: group-recommendation-chat-ui — group-recommendation-chat</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">group-recommendation-chat</a> / specs / <strong>group-recommendation-chat-ui</strong> / spec</p>
+    <h1>Spec: group-recommendation-chat-ui</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>group-recommendation-chat</code></a> · atualizado em 2026-09-19</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Aba <strong>Chat</strong> no detalhe do grupo (<code>/social/groups/:id</code>) com CRUD de chats, conversa compartilhada e seletor de membros para filtro de assistidos. Reutiliza componentes de chat/conversas do SPA e consome <code>/social/groups/:groupId/chats*</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Abas Detalhes e Chat no grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado é membro do grupo <code>id = 3</code></li>
+        <li><strong>Quando</strong> abre <code>/social/groups/3</code></li>
+        <li><strong>Então</strong> vê tabs <strong>Detalhes</strong> (conteúdo atual do painel) e <strong>Chat</strong></li>
+        <li><strong>E</strong> a aba <strong>Chat</strong> mostra a lista de chats do grupo</li>
+      </ul>
+      <h3>REQ-2: Criar chat e listar</h3>
+      <ul>
+        <li><strong>Dado que</strong> o membro está na aba <strong>Chat</strong> do grupo <code>3</code></li>
+        <li><strong>Quando</strong> clica em criar novo chat</li>
+        <li><strong>Então</strong> chama <code>POST /social/groups/3/chats</code> e navega para o chat criado</li>
+        <li><strong>E</strong> a lista ordena por <code>updatedAt</code> descendente (como a API)</li>
+      </ul>
+      <h3>REQ-3: Abrir conversa com sidebar</h3>
+      <ul>
+        <li><strong>Dado que</strong> o grupo <code>3</code> tem chat <code>chatId = &quot;550e8400-e29b-41d4-a716-446655440000&quot;</code></li>
+        <li><strong>Quando</strong> o membro abre esse chat</li>
+        <li><strong>Então</strong> navega para <code>/social/groups/3/chats/550e8400-e29b-41d4-a716-446655440000</code></li>
+        <li><strong>E</strong> a tela exibe sidebar com lista de chats do grupo e área de conversa (padrão <code>ConversationChatPage</code>)</li>
+        <li><strong>E</strong> carrega mensagens via <code>GET /social/groups/3/chats/:chatId</code></li>
+      </ul>
+      <h3>REQ-4: Enviar recomendação no chat</h3>
+      <ul>
+        <li><strong>Dado que</strong> o membro está no chat aberto do grupo <code>3</code></li>
+        <li><strong>Quando</strong> envia a query <code>&quot;comédia leve&quot;</code> no formulário do chat</li>
+        <li><strong>Então</strong> chama <code>POST /social/groups/3/chats/:chatId/recommendation</code> com <code>{ &quot;query&quot;: &quot;comédia leve&quot; }</code></li>
+        <li><strong>E</strong> exibe resposta da IA e cards de filmes no histórico local</li>
+        <li><strong>E</strong> não exibe toggle pessoal <code>excludeWatched</code>  ||  o filtro vem de <code>filterMemberUserIds</code> do chat</li>
+      </ul>
+      <h3>REQ-5: Polling de mensagens compartilhadas</h3>
+      <ul>
+        <li><strong>Entrada</strong> chat aberto em <code>/social/groups/3/chats/:chatId</code></li>
+        <li><strong>Saída</strong> refetch periódico do <code>GET</code> chat a cada <code>5000</code> ms enquanto a rota permanece montada</li>
+        <li><strong>E</strong> refetch imediato após recomendação local bem-sucedida</li>
+        <li><strong>Erro</strong> falha de polling → toast genérico  ||  mantém último histórico válido na tela</li>
+      </ul>
+      <h3>REQ-6: Configurar filtro de assistidos</h3>
+      <ul>
+        <li><strong>Dado que</strong> o chat tem <code>filterMemberUserIds = [7, 12, 15]</code></li>
+        <li><strong>Quando</strong> o membro abre o dialog <strong>Filtro de assistidos</strong>, desmarca <code>15</code>, usa atalho <strong>Selecionar todos</strong> ou salva</li>
+        <li><strong>Então</strong> chama <code>PATCH /social/groups/3/chats/:id/filter-members</code> com <code>{ &quot;userIds&quot;: [...] }</code></li>
+        <li><strong>E</strong> atualiza o estado exibido do chat após <code>200</code></li>
+      </ul>
+      <h3>REQ-7: Renomear e excluir chat</h3>
+      <ul>
+        <li><strong>Dado que</strong> existe chat <code>id = 40</code> na lista do grupo <code>3</code></li>
+        <li><strong>Quando</strong> o membro renomeia inline para <code>&quot;Terror leve&quot;</code></li>
+        <li><strong>Então</strong> chama <code>PATCH /social/groups/3/chats/40</code> e atualiza a lista</li>
+        <li><strong>Quando</strong> confirma exclusão no dialog destrutivo</li>
+        <li><strong>Então</strong> chama <code>DELETE /social/groups/3/chats/40</code></li>
+        <li><strong>E</strong> se era o chat ativo, volta para a lista na aba <strong>Chat</strong></li>
+      </ul>
+      <h3>REQ-8: Erros e redirecionamentos</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>GET</code> chat retorna <code>404</code> (chat inexistente ou sem permissão)</li>
+        <li><strong>Saída</strong> navega para <code>/social/groups/3</code> com aba <strong>Chat</strong> ativa  ||  sem toast (padrão conversas)</li>
+        <li><strong>Erro</strong> usuário não autenticado em rota de chat → redirect <code>/login?redirect=&lt;path&gt;</code></li>
+      </ul>
+      <h3>REQ-9: Título provisório</h3>
+      <ul>
+        <li><strong>Entrada</strong> chat com <code>title: null</code> e <code>updatedAt</code> conhecido</li>
+        <li><strong>Saída</strong> lista/sidebar exibe rótulo no padrão <code>&quot;New Conversation · {relative time}&quot;</code>  ||  reutiliza <code>ConversationTitleUtils</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Lista vazia na aba <strong>Chat</strong> → estado vazio com CTA criar primeiro chat</li>
+        <li>Troca rápida de aba/rota → respostas obsoletas ignoradas via <code>activeFetchIdRef</code> (padrão social/conversas)</li>
+        <li>Outro membro envia turno durante polling → histórico atualiza no próximo ciclo ou refetch pós-envio</li>
+        <li><code>filterMemberUserIds: []</code> após salvar dialog → UI reflete array vazio  ||  sem exclude multi-usuário (REQ-8 da API)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><strong>Service (novo):</strong> <code>packages/frontend/src/features/social/services/group-chats.service.ts</code> — métodos espelhando rotas <code>/social/groups/:groupId/chats*</code></li>
+        <li><strong>DTO (novo):</strong> <code>packages/frontend/src/features/social/dto/group-chats.dto.ts</code> — espelha <code>packages/backend/src/modules/social/infrastructure/http/dto/group-chats.dto.ts</code></li>
+        <li><strong>Rotas:</strong> <code>packages/frontend/src/routes/index.tsx:routers</code> — child route <code>social/groups/:groupId/chats/:chatId</code> → <code>GroupChatPage</code></li>
+        <li><strong>API backend:</strong> contratos em <code>.sdd/context/social/chats-recomendacao-grupo-api.md</code> e <code>group-chats.dto.ts</code></li>
+        <li><strong>Membros para seletor:</strong> <code>GET /social/groups/:id/members</code> via <code>UserGroupsService</code> ou service dedicado já existente</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: group-members-api — group-recommendation-chat</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">group-recommendation-chat</a> / specs / <strong>group-members-api</strong> / spec</p>
+    <h1>Spec: group-members-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>group-recommendation-chat</code></a> · atualizado em 2026-09-18</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Expõe <code>GET /social/groups/:id/members</code> para membros autenticados listarem os demais integrantes do grupo com <code>id</code>, <code>name</code> e <code>email</code>, ordenados por nome. Alimenta o seletor de filtro de assistidos nas features seguintes.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Listar membros do grupo</h3>
+      <ul>
+        <li><strong>Dado que</strong> o usuário autenticado <code>id = 7</code> é membro do grupo <code>id = 3</code>, cujo integrantes são <code>7</code>, <code>12</code> e <code>15</code></li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups/3/members</code></li>
+        <li><strong>Então</strong> retorna <code>200</code> com array de <code>{ id, name, email }</code></li>
+        <li><strong>E</strong> inclui os três usuários</li>
+        <li><strong>E</strong> a ordem é <code>name</code> ascendente (locale-insensitive no banco)</li>
+      </ul>
+      <h3>REQ-2: Apenas membros acessam</h3>
+      <ul>
+        <li><strong>Dado que</strong> o grupo <code>id = 3</code> existe e o usuário autenticado <code>id = 99</code> não é membro</li>
+        <li><strong>Quando</strong> envia <code>GET /social/groups/3/members</code></li>
+        <li><strong>Então</strong> retorna <code>404</code>  ||  mesma resposta genérica das demais rotas de grupo para não-membro</li>
+      </ul>
+      <h3>REQ-3: JWT obrigatório</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>GET /social/groups/3/members</code> sem JWT válido</li>
+        <li><strong>Saída</strong> <code>401</code>  ||  nenhuma leitura de membros</li>
+      </ul>
+      <h3>REQ-4: Resolução de perfis</h3>
+      <ul>
+        <li><strong>Entrada</strong> grupo <code>id = 3</code> com <code>GroupMember</code> para <code>userId</code> <code>[7, 12]</code></li>
+        <li><strong>Saída</strong> join com <code>User</code> retorna <code>{ id: 7, name, email }</code> e <code>{ id: 12, name, email }</code>  ||  reutiliza shape <code>UserPublic</code> da feature friendship</li>
+        <li><strong>Erro</strong> membro apontando para <code>User</code> inexistente → não ocorre em operação normal  ||  se ocorrer, omitir ou falhar de forma segura no repositório (decisão de implementação; lista nunca retorna linha sem <code>id</code>)</li>
+      </ul>
+      <h3>REQ-5: Grupo inexistente</h3>
+      <ul>
+        <li><strong>Dado que</strong> não existe grupo <code>id = 999</code></li>
+        <li><strong>Quando</strong> o usuário autenticado <code>id = 7</code> envia <code>GET /social/groups/999/members</code></li>
+        <li><strong>Então</strong> retorna <code>404</code>  ||  mesmo tratamento de REQ-2 (não vaza existência)</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Grupo com um único membro (dono) → <code>200</code> com array de 1 item</li>
+        <li>Grupo no limite de 100 membros → <code>200</code> com até 100 itens  ||  sem paginação no MVP</li>
+        <li><code>id</code> de grupo inválido (não inteiro positivo) → <code>400</code></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li><strong>Rota:</strong> <code>packages/backend/src/modules/social/infrastructure/http/controllers/routes.ts</code> — <code>GET /social/groups/:id/members</code> via <code>ListGroupMembersDocs</code> e <code>userGroupsHttp.handlers.listGroupMembers</code></li>
+        <li><strong>Auth:</strong> <code>packages/backend/src/domains/movies/infrastructure/http/hooks/user-movie-entry-auth.hook.ts:UserMovieEntryAuthHook</code> (mesmo <code>preHandler</code> das rotas <code>/social/groups/*</code>)</li>
+        <li><strong>DTO:</strong> <code>packages/backend/src/modules/social/infrastructure/http/dto/user-groups.dto.ts:ListGroupMembersResponseSchema</code> (reutiliza <code>UserPublicSchema</code>)</li>
+        <li><strong>Mapper:</strong> <code>packages/backend/src/modules/social/infrastructure/http/mappers/user-groups-response.mapper.ts:toListGroupMembersResponse</code></li>
+        <li><strong>Use case:</strong> <code>packages/backend/src/modules/social/application/use-cases/list-group-members.use-case.ts:ListGroupMembersUseCase</code></li>
+        <li><strong>Repositório:</strong> <code>packages/backend/src/modules/social/domain/repositories/user-group.repository.ts:findMemberProfiles</code></li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

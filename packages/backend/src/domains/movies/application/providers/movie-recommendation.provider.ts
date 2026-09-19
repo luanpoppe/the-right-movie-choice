@@ -4,6 +4,7 @@ import type { IUserMovieEntryRepository } from "../../domain/repositories/user-m
 export type MovieRecommendationProviderOptions = {
   userId?: number;
   excludeWatched?: boolean;
+  filterUserIds?: number[];
   userMovieEntryRepository?: IUserMovieEntryRepository;
 };
 

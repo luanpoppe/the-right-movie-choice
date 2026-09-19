@@ -26,4 +26,9 @@ export interface IUserMovieEntryRepository {
     userId: number,
     tmdbIds: number[],
   ): Promise<number[]>;
+
+  findWatchedTmdbIdsByUsers(
+    userIds: number[],
+    tmdbIds: number[],
+  ): Promise<number[]>;
 }
