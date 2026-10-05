@@ -8,6 +8,7 @@ import type {
   MoviePersonKnownFor,
   MoviePersonSearchPage,
 } from "@/domains/movies/domain/entities/movie-person-search.entity";
+import type { MovieDiscoverQuery } from "@/domains/movies/domain/entities/movie-discover-query.entity";
 import type { MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 import { TmdbHttpConstants } from "@/modules/tmdb/domain/tmdb-http.constants";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
@@ -59,6 +60,12 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
       language,
     );
     const json = await this.getJson("/search/movie", searchParams);
+    return this.mapSearchPage(json);
+  }
+
+  async discoverMovies(query: MovieDiscoverQuery): Promise<MovieSearchPage> {
+    const searchParams = TmdbHttpUtils.buildDiscoverMoviesParams(query);
+    const json = await this.getJson("/discover/movie", searchParams);
     return this.mapSearchPage(json);
   }
 
