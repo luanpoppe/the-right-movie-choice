@@ -3,11 +3,21 @@ import { Logger } from "@/lib/logger/logger";
 import { DelayUtils } from "@/shared/utils/delay.utils";
 import { IMovieCatalogProvider } from "@/domains/movies/application/providers/movie-catalog.provider";
 import type { MovieCatalogDetails } from "@/domains/movies/domain/entities/movie-catalog-details.entity";
+import type { MovieKeywordSearchPage } from "@/domains/movies/domain/entities/movie-keyword-search.entity";
+import type {
+  MoviePersonKnownFor,
+  MoviePersonSearchPage,
+} from "@/domains/movies/domain/entities/movie-person-search.entity";
 import type { MovieSearchPage } from "@/domains/movies/domain/entities/movie-search.entity";
 import { TmdbHttpConstants } from "@/modules/tmdb/domain/tmdb-http.constants";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
 import { TmdbCatalogMapper } from "@/modules/tmdb/infrastructure/http/tmdb-catalog.mapper";
 import { TmdbMovieDetailsResponseSchema } from "@/modules/tmdb/infrastructure/http/tmdb-movie-details-response.schema";
+import { TmdbKeywordSearchResponseSchema } from "@/modules/tmdb/infrastructure/http/tmdb-keyword-search-response.schema";
+import {
+  type TmdbPersonSearchResponse,
+  TmdbPersonSearchResponseSchema,
+} from "@/modules/tmdb/infrastructure/http/tmdb-person-search-response.schema";
 import { TmdbSearchResponseSchema } from "@/modules/tmdb/infrastructure/http/tmdb-search-response.schema";
 import {
   TmdbFetchFn,
@@ -15,6 +25,9 @@ import {
 } from "@/modules/tmdb/infrastructure/http/tmdb-http.utils";
 
 type DelayFn = (ms: number) => Promise<void>;
+
+type TmdbPersonKnownForItem =
+  TmdbPersonSearchResponse["results"][number]["known_for"][number];
 
 export type TmdbHttpClientParams = {
   fetch?: TmdbFetchFn;
@@ -47,6 +60,29 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     );
     const json = await this.getJson("/search/movie", searchParams);
     return this.mapSearchPage(json);
+  }
+
+  async searchPeople(
+    query: string,
+    page?: number,
+    language?: string,
+  ): Promise<MoviePersonSearchPage> {
+    const searchParams = TmdbHttpClient.buildSearchPeopleParams(
+      query,
+      page,
+      language,
+    );
+    const json = await this.getJson("/search/person", searchParams);
+    return this.mapPersonSearchPage(json);
+  }
+
+  async searchKeywords(
+    query: string,
+    page?: number,
+  ): Promise<MovieKeywordSearchPage> {
+    const searchParams = TmdbHttpClient.buildSearchKeywordsParams(query, page);
+    const json = await this.getJson("/search/keyword", searchParams);
+    return this.mapKeywordSearchPage(json);
   }
 
   async getMovieDetails(
@@ -128,6 +164,32 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     throw new TmdbHttpException("TMDB request failed", 502);
   }
 
+  private static buildSearchPeopleParams(
+    query: string,
+    page?: number,
+    language?: string,
+  ): URLSearchParams {
+    const pageNumber = page ?? 1;
+    const catalogLanguage = TmdbHttpUtils.resolveLanguage(language);
+    const searchParams = new URLSearchParams();
+    searchParams.set("query", query);
+    searchParams.set("page", String(pageNumber));
+    searchParams.set("language", catalogLanguage);
+    searchParams.set("include_adult", "false");
+    return searchParams;
+  }
+
+  private static buildSearchKeywordsParams(
+    query: string,
+    page?: number,
+  ): URLSearchParams {
+    const pageNumber = page ?? 1;
+    const searchParams = new URLSearchParams();
+    searchParams.set("query", query);
+    searchParams.set("page", String(pageNumber));
+    return searchParams;
+  }
+
   private mapSearchPage(json: unknown): MovieSearchPage {
     const parsed = TmdbSearchResponseSchema.safeParse(json);
     if (!parsed.success) {
@@ -136,6 +198,73 @@ export class TmdbHttpClient implements IMovieCatalogProvider {
     }
 
     return TmdbCatalogMapper.toSearchPage(parsed.data);
+  }
+
+  private mapPersonSearchPage(json: unknown): MoviePersonSearchPage {
+    const parsed = TmdbPersonSearchResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      Logger.warn("TMDB returned an unexpected payload", {
+        path: "search/person",
+      });
+      throw new TmdbHttpException("TMDB returned an unexpected payload", 502);
+    }
+
+    const response = parsed.data;
+    const results = response.results.map((person) => {
+      const knownFor = TmdbHttpClient.mapPersonKnownFor(person.known_for);
+      const knownForDepartment = person.known_for_department ?? null;
+
+      return {
+        id: person.id,
+        name: person.name,
+        knownForDepartment,
+        knownFor,
+      };
+    });
+
+    return {
+      page: response.page,
+      results,
+    };
+  }
+
+  private static mapPersonKnownFor(
+    items: TmdbPersonKnownForItem[],
+  ): MoviePersonKnownFor[] {
+    const knownFor: MoviePersonKnownFor[] = [];
+
+    for (const item of items) {
+      const displayTitle = item.title ?? item.name;
+      const hasDisplayTitle = displayTitle !== undefined;
+      if (!hasDisplayTitle) continue;
+
+      knownFor.push({ id: item.id, title: displayTitle });
+    }
+
+    return knownFor;
+  }
+
+  private mapKeywordSearchPage(json: unknown): MovieKeywordSearchPage {
+    const parsed = TmdbKeywordSearchResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      Logger.warn("TMDB returned an unexpected payload", {
+        path: "search/keyword",
+      });
+      throw new TmdbHttpException("TMDB returned an unexpected payload", 502);
+    }
+
+    const response = parsed.data;
+    const results = response.results.map((keyword) => {
+      return {
+        id: keyword.id,
+        name: keyword.name,
+      };
+    });
+
+    return {
+      page: response.page,
+      results,
+    };
   }
 
   private mapCatalogDetails(json: unknown): MovieCatalogDetails {
