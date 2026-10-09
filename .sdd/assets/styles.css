@@ -424,3 +424,38 @@ code.file-path, .file-path {
   main > details, details.lp-sec, main section { padding-left: 18px; padding-right: 18px; }
   h1 { font-size: 23px; }
 }
+
+/* >>> customização do projeto — preservada nas atualizações <<< */
+
+/* Paleta do app, definida no lp:init. Fica abaixo do marcador para sobreviver a
+   `styles.js --update`: o que está acima é do plugin e pode ser substituído. */
+:root {
+  --lp-bg: #12141c;
+  --lp-surface: #1a2030;
+  --lp-surface-2: #222a3c;
+  --lp-surface-3: #2a3348;
+  --lp-text: #f2f5fb;
+  --lp-text-dim: #b8c4d8;
+  --lp-text-muted: #7a8aa3;
+  --lp-accent: #3d7ce0;
+  --lp-accent-2: #2ec8d8;
+  --lp-accent-hot: #38bdf8;
+  --lp-accent-soft: rgba(61, 124, 224, 0.15);
+  --lp-accent-grad: linear-gradient(135deg, #3d7ce0 0%, #3b82f6 55%, #2ec8d8 120%);
+}
+
+
+/* Alternativa descartada: informação de segunda ordem, legível mas sem competir com a
+   decisão que vigora. O conversor (render/markdown.js) marca o trecho sozinho. */
+.discarded {
+  font-size: 0.92em;
+  color: var(--lp-text-muted);
+  opacity: 0.88;
+}
+
+.discarded strong {
+  color: var(--lp-text-muted);
+  font-weight: 560;
+}
+
+.discarded code { color: var(--lp-text-muted); }
