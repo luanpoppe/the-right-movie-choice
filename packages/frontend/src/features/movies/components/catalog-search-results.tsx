@@ -46,6 +46,26 @@ function CatalogSearchResultsError({
   );
 }
 
+function CatalogSearchResultsInlineError({
+  onRetry,
+}: {
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex items-center justify-between gap-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3"
+    >
+      <p className="text-sm text-destructive">
+        Could not load more results. The catalog may be unavailable.
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  );
+}
+
 export function CatalogSearchResults({
   results,
   loading,
@@ -75,6 +95,8 @@ export function CatalogSearchResults({
 
   return (
     <div className="space-y-6">
+      {hasError && <CatalogSearchResultsInlineError onRetry={onRetry} />}
+
       <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {results.map((hit) => (
           <SearchMovieCard key={hit.id} hit={hit} />

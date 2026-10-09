@@ -95,6 +95,11 @@ export function useCatalogSearch(): UseCatalogSearchResult {
           return;
         }
 
+        if (!append) {
+          setResults([]);
+          setHasMore(false);
+        }
+
         setError(CatalogSearchHookUtils.toError(fetchError));
       } finally {
         const isCurrentFetch = fetchId === activeFetchIdRef.current;

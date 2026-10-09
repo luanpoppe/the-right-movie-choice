@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,9 +55,19 @@ export function CatalogSearchFiltersPanel({
     toDiscoverDraft(filters),
   );
 
+  const appliedDiscoverSignature = JSON.stringify(toDiscoverDraft(filters));
+  const appliedSignatureRef = useRef(appliedDiscoverSignature);
+
   useEffect(() => {
+    const hasAppliedDiscoverChanged =
+      appliedSignatureRef.current !== appliedDiscoverSignature;
+    if (!hasAppliedDiscoverChanged) {
+      return;
+    }
+
+    appliedSignatureRef.current = appliedDiscoverSignature;
     setDraft(toDiscoverDraft(filters));
-  }, [filters]);
+  }, [filters, appliedDiscoverSignature]);
 
   const updateDraft = (patch: Partial<DiscoverFiltersDraft>) => {
     setDraft((currentDraft) => ({ ...currentDraft, ...patch }));

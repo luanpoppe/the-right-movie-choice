@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MovieCatalogSearchService } from "../services/movie-catalog-search.service";
+import {
+  CandidateLabelCacheUtils,
+  type CandidateLabelKind,
+} from "../utils/candidate-label-cache.utils";
 import type { CatalogSearchLanguage } from "../utils/catalog-search-filters.utils";
 
-type CandidateKind = "person" | "keyword";
+type CandidateKind = CandidateLabelKind;
 
 interface CandidateOption {
   id: number;
@@ -40,13 +44,18 @@ export function CandidateSearchCombobox({
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [learnedLabels, setLearnedLabels] = useState<Record<number, string>>(
-    {},
+    () => CandidateLabelCacheUtils.read(kind),
   );
+
+  const requestIdRef = useRef(0);
 
   const trimmedQuery = query.trim();
   const isResultsVisible = trimmedQuery.length > 0;
 
   useEffect(() => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     if (trimmedQuery.length === 0) {
       setOptions([]);
       setIsLoading(false);
@@ -59,21 +68,34 @@ export function CandidateSearchCombobox({
       void (async () => {
         try {
           const foundOptions = await loadCandidates(kind, trimmedQuery, language);
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+
           setOptions(foundOptions);
-          setLearnedLabels((currentLabels) =>
-            mergeLabels(currentLabels, foundOptions),
-          );
+          const foundLabels = optionsToLabels(foundOptions);
+          const mergedLabels = CandidateLabelCacheUtils.merge(kind, foundLabels);
+          setLearnedLabels(mergedLabels);
           setHasError(false);
         } catch {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+
           setOptions([]);
           setHasError(true);
         } finally {
-          setIsLoading(false);
+          if (requestId === requestIdRef.current) {
+            setIsLoading(false);
+          }
         }
       })();
     }, DEBOUNCE_MS);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      requestIdRef.current += 1;
+    };
   }, [trimmedQuery, kind, language]);
 
   const resolveLabel = (id: number): string => {
@@ -205,14 +227,13 @@ async function loadCandidates(
   });
 }
 
-function mergeLabels(
-  currentLabels: Record<number, string>,
+function optionsToLabels(
   foundOptions: CandidateOption[],
 ): Record<number, string> {
-  const nextLabels = { ...currentLabels };
+  const labels: Record<number, string> = {};
   for (const option of foundOptions) {
-    nextLabels[option.id] = option.label;
+    labels[option.id] = option.label;
   }
 
-  return nextLabels;
+  return labels;
 }
