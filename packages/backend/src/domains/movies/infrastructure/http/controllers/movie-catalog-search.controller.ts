@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import z from "zod";
 import { Logger } from "@/lib/logger/logger";
+import { DiscoverCatalogMoviesUseCase } from "@/domains/movies/application/use-cases/discover-catalog-movies.use-case";
 import {
   SearchCatalogKeywordsInput,
   SearchCatalogKeywordsUseCase,
@@ -13,8 +14,11 @@ import {
   SearchCatalogPeopleInput,
   SearchCatalogPeopleUseCase,
 } from "@/domains/movies/application/use-cases/search-catalog-people.use-case";
+import type { MovieDiscoverQuery } from "@/domains/movies/domain/entities/movie-discover-query.entity";
 import { MovieCatalogSearchValidationException } from "@/domains/movies/domain/movie-catalog-search.constants";
 import {
+  MovieCatalogDiscoverQuery,
+  MovieCatalogDiscoverQuerySchema,
   MovieCatalogKeywordsQuery,
   MovieCatalogKeywordsQuerySchema,
   MovieCatalogPeopleQuery,
@@ -30,6 +34,7 @@ export type MovieCatalogSearchControllerParams = {
   searchCatalogMoviesUseCase: SearchCatalogMoviesUseCase;
   searchCatalogPeopleUseCase: SearchCatalogPeopleUseCase;
   searchCatalogKeywordsUseCase: SearchCatalogKeywordsUseCase;
+  discoverCatalogMoviesUseCase: DiscoverCatalogMoviesUseCase;
 };
 
 export type MovieCatalogSearchControllerHandlers = {
@@ -45,6 +50,10 @@ export type MovieCatalogSearchControllerHandlers = {
     request: FastifyRequest,
     reply: FastifyReply,
   ) => Promise<FastifyReply>;
+  discover: (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) => Promise<FastifyReply>;
 };
 
 export class MovieCatalogSearchController {
@@ -55,6 +64,7 @@ export class MovieCatalogSearchController {
       search: MovieCatalogSearchController.createSearchHandler(params),
       people: MovieCatalogSearchController.createPeopleHandler(params),
       keywords: MovieCatalogSearchController.createKeywordsHandler(params),
+      discover: MovieCatalogSearchController.createDiscoverHandler(params),
     };
   }
 
@@ -142,6 +152,33 @@ export class MovieCatalogSearchController {
     };
   }
 
+  private static createDiscoverHandler(
+    params: MovieCatalogSearchControllerParams,
+  ) {
+    return async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = MovieCatalogSearchController.parseOrThrow(
+        MovieCatalogDiscoverQuerySchema,
+        request.query,
+      );
+
+      Logger.info("🔎 Discovering catalog movies", {
+        page: query.page,
+        language: query.language,
+      });
+
+      const input = MovieCatalogSearchController.buildDiscoverInput(query);
+      const result = await params.discoverCatalogMoviesUseCase.execute(input);
+      const responseBody: MovieSearchPageResponseDTO = result;
+
+      Logger.debug("✅ Catalog movies discovered", {
+        page: result.page,
+        count: result.results.length,
+      });
+
+      return reply.status(200).send(responseBody);
+    };
+  }
+
   private static buildSearchInput(
     query: MovieCatalogSearchQuery,
   ): SearchCatalogMoviesInput {
@@ -185,6 +222,54 @@ export class MovieCatalogSearchController {
 
     if (query.page !== undefined) {
       input.page = query.page;
+    }
+
+    return input;
+  }
+
+  private static buildDiscoverInput(
+    query: MovieCatalogDiscoverQuery,
+  ): MovieDiscoverQuery {
+    const input: MovieDiscoverQuery = {};
+
+    if (query.genres !== undefined) {
+      input.genres = query.genres;
+    }
+    if (query.cast !== undefined) {
+      input.cast = query.cast;
+    }
+    if (query.director !== undefined) {
+      input.director = query.director;
+    }
+    if (query.keyword !== undefined) {
+      input.keyword = query.keyword;
+    }
+    if (query.minRating !== undefined) {
+      input.minRating = query.minRating;
+    }
+    if (query.yearFrom !== undefined) {
+      input.yearFrom = query.yearFrom;
+    }
+    if (query.yearTo !== undefined) {
+      input.yearTo = query.yearTo;
+    }
+    if (query.runtimeFrom !== undefined) {
+      input.runtimeFrom = query.runtimeFrom;
+    }
+    if (query.runtimeTo !== undefined) {
+      input.runtimeTo = query.runtimeTo;
+    }
+    if (query.certificationCountry !== undefined) {
+      input.certificationCountry = query.certificationCountry;
+    }
+    if (query.certification !== undefined) {
+      input.certification = query.certification;
+    }
+    if (query.page !== undefined) {
+      input.page = query.page;
+    }
+    if (query.language !== undefined) {
+      input.language = query.language;
     }
 
     return input;

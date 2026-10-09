@@ -20,7 +20,7 @@
   <header class="lp-header">
     <p class="lp-breadcrumb"><a href="../../plan.html">movie-catalog-search</a> / specs / <strong>movie-search-api</strong> / spec</p>
     <h1>Spec: movie-search-api</h1>
-    <p class="lp-meta">Parte de <a href="../../plan.html"><code>movie-catalog-search</code></a> · atualizado em 2026-10-05</p>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>movie-catalog-search</code></a> · atualizado em 2026-10-09</p>
   </header>
 
   <main class="lp-main">
@@ -123,15 +123,12 @@
 
     <details class="lp-sec" id="contratos-expostos" open>
       <summary><h2>Contratos expostos</h2></summary>
-      <p>Provisório até existir o arquivo da rota.</p>
+      <p>Quatro rotas públicas <code>GET /movie/catalog/{search,people,keywords,discover}</code> — implementadas em <code>packages/backend/src/domains/movies/infrastructure/http/controllers/movie-catalog-search.controller.ts:MovieCatalogSearchController</code>, com schemas de query/resposta em <code>.../http/dto/movie-catalog-search.dto.ts</code>, registro em <code>.../http/controllers/routes.ts</code> e docs OpenAPI em <code>.../http/docs/movie-catalog-search.docs.ts</code>.</p>
       <ul>
-        <li><code>GET /movie/catalog/search</code> — query: <code>query</code> (opcional; vazio = populares), <code>page</code> (opcional, default 1), <code>year</code> (opcional), <code>language</code> (opcional, default <code>en-US</code>, só <code>en-US</code> ou <code>pt-BR</code>)</li>
-        <li><code>GET /movie/catalog/people</code> — query: <code>query</code> (obrigatório), <code>page</code>, <code>language</code> (mesma regra). 200: <code>{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }</code></li>
-        <li><code>GET /movie/catalog/keywords</code> — query: <code>query</code> (obrigatório), <code>page</code>. 200: <code>{ page, results: [{ id, name }] }</code></li>
-        <li><code>GET /movie/catalog/discover</code> — query: <code>genres</code> (ids em &quot;ou&quot;), <code>minRating</code> (0 a 10), <code>yearFrom</code>, <code>yearTo</code>, <code>cast</code> e <code>director</code> (ids em &quot;ou&quot; dentro do papel), <code>keyword</code> (ids em &quot;ou&quot;), <code>runtimeFrom</code> e <code>runtimeTo</code> (minutos), <code>certificationCountry</code> e <code>certification</code> (os dois ou nenhum), <code>page</code>, <code>language</code></li>
-        <li>200: <code>{ page, results: [{ id, title, year, posterPath, overview }] }</code>  ||  mesmo shape de <code>MovieSearchPage</code></li>
-        <li>400: pedido inválido do REQ-5</li>
-        <li>Erro de TMDB: mesma família de erro HTTP já usada quando o client estoura retry  ||  não é 200 com <code>results: []</code></li>
+        <li>Filtros de lista (<code>genres</code>, <code>cast</code>, <code>director</code>, <code>keyword</code>) chegam na query string como ids separados por vírgula (ex: <code>?genres=28,35</code>).</li>
+        <li>200: página de <code>MovieSearchPage</code> (search e discover), <code>MoviePersonSearchPage</code> (people) e <code>MovieKeywordSearchPage</code> (keywords).</li>
+        <li>400: pedido inválido do REQ-5.</li>
+        <li>Erro de TMDB: mesma família de erro HTTP já usada quando o client estoura retry (502)  ||  não é 200 com <code>results: []</code>.</li>
       </ul>
     </details>
   </main>

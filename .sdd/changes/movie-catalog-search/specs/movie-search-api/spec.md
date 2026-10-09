@@ -94,12 +94,9 @@ Cliente HTTP (página ou tool, nas features seguintes) busca filme no TMDB por n
 
 ## Contratos expostos
 
-Provisório até existir o arquivo da rota.
+Quatro rotas públicas `GET /movie/catalog/{search,people,keywords,discover}` — implementadas em `packages/backend/src/domains/movies/infrastructure/http/controllers/movie-catalog-search.controller.ts:MovieCatalogSearchController`, com schemas de query/resposta em `.../http/dto/movie-catalog-search.dto.ts`, registro em `.../http/controllers/routes.ts` e docs OpenAPI em `.../http/docs/movie-catalog-search.docs.ts`.
 
-- `GET /movie/catalog/search` — query: `query` (opcional; vazio = populares), `page` (opcional, default 1), `year` (opcional), `language` (opcional, default `en-US`, só `en-US` ou `pt-BR`)
-- `GET /movie/catalog/people` — query: `query` (obrigatório), `page`, `language` (mesma regra). 200: `{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }`
-- `GET /movie/catalog/keywords` — query: `query` (obrigatório), `page`. 200: `{ page, results: [{ id, name }] }`
-- `GET /movie/catalog/discover` — query: `genres` (ids em "ou"), `minRating` (0 a 10), `yearFrom`, `yearTo`, `cast` e `director` (ids em "ou" dentro do papel), `keyword` (ids em "ou"), `runtimeFrom` e `runtimeTo` (minutos), `certificationCountry` e `certification` (os dois ou nenhum), `page`, `language`
-- 200: `{ page, results: [{ id, title, year, posterPath, overview }] }`  ||  mesmo shape de `MovieSearchPage`
-- 400: pedido inválido do REQ-5
-- Erro de TMDB: mesma família de erro HTTP já usada quando o client estoura retry  ||  não é 200 com `results: []`
+- Filtros de lista (`genres`, `cast`, `director`, `keyword`) chegam na query string como ids separados por vírgula (ex: `?genres=28,35`).
+- 200: página de `MovieSearchPage` (search e discover), `MoviePersonSearchPage` (people) e `MovieKeywordSearchPage` (keywords).
+- 400: pedido inválido do REQ-5.
+- Erro de TMDB: mesma família de erro HTTP já usada quando o client estoura retry (502)  ||  não é 200 com `results: []`.
