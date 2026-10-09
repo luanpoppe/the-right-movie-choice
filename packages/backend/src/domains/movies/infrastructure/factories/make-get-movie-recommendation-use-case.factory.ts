@@ -10,6 +10,8 @@ import {
   GetMovieRecommendationUseCase,
   GetMovieRecommendationUseCaseOptions,
 } from "../../application/use-cases/get-movie-recommendation.use-case";
+import { SearchCatalogMoviesUseCase } from "../../application/use-cases/search-catalog-movies.use-case";
+import { DiscoverCatalogMoviesUseCase } from "../../application/use-cases/discover-catalog-movies.use-case";
 import { PrismaMovieCatalogRepository } from "../repositories/movie-catalog/prisma-movie-catalog.repository";
 import { PrismaUserMovieEntryRepository } from "../repositories/user-movie-entry/prisma-user-movie-entry.repository";
 import { AiMovieRecommendationProvider } from "../providers/ai-movie-recommendation.provider";
@@ -19,6 +21,7 @@ import {
   MovieCatalogLookupAiToolOptions,
 } from "../providers/movie-catalog-lookup.ai-tool";
 import { MovieCatalogLookupService } from "../providers/movie-catalog-lookup.service";
+import { SearchCatalogAiTool } from "../providers/search-catalog.ai-tool";
 import { CatalogPersistEnqueuer } from "../workers/catalog-persist.enqueuer";
 import { PrismaUserConversationRepository } from "../repositories/user-conversation/prisma-user-conversation.repository";
 import { ConversationTitleGenerator } from "../providers/conversation-title.generator";
@@ -72,9 +75,23 @@ export class MakeGetMovieRecommendationUseCaseFactory {
       lookupToolOptions,
     );
     const lookupMoviesTool = lookupMoviesAiTool.createLookupMoviesTool();
+    const searchCatalogMoviesUseCase = new SearchCatalogMoviesUseCase(
+      catalog,
+      enqueuePersist,
+    );
+    const discoverCatalogMoviesUseCase = new DiscoverCatalogMoviesUseCase(
+      catalog,
+      enqueuePersist,
+    );
+    const searchCatalogAiTool = new SearchCatalogAiTool(
+      searchCatalogMoviesUseCase,
+      discoverCatalogMoviesUseCase,
+    );
+    const searchCatalogTool = searchCatalogAiTool.createSearchCatalogTool();
     const movieRecommendationProvider = new AiMovieRecommendationProvider({
       ai,
       lookupMoviesTool,
+      searchCatalogTool,
     });
 
     const useCase = new GetMovieRecommendationUseCase(

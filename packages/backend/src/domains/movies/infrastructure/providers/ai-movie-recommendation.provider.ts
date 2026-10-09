@@ -26,6 +26,7 @@ type AgentTool = NonNullable<
 type AiMovieRecommendationProviderParams = {
   ai: AI;
   lookupMoviesTool: AgentTool;
+  searchCatalogTool: AgentTool;
 };
 
 export class AiMovieRecommendationProvider
@@ -302,13 +303,14 @@ export class AiMovieRecommendationProvider
     threadId: string;
   }): Promise<MovieRecommendationEntity> {
     const lookupMoviesTool = this.params.lookupMoviesTool;
+    const searchCatalogTool = this.params.searchCatalogTool;
     const result = await this.params.ai.callStructuredOutput({
       aiModel: AiModels.PRIMARY,
       systemPrompt: params.systemPrompt,
       messages: params.messages,
       threadId: params.threadId,
       outputSchema: MovieRecommendationLlmSchema as never,
-      agent: { tools: [lookupMoviesTool] },
+      agent: { tools: [lookupMoviesTool, searchCatalogTool] },
     });
     const parseResult = MovieRecommendationSchema.safeParse(result.response);
     if (!parseResult.success) {
