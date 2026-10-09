@@ -93,6 +93,38 @@ describe("MovieCatalogSearchController", () => {
       expect(reply.send).toHaveBeenCalledWith(SEARCH_PAGE);
     });
 
+    it("REQ-1: converte posterPath relativo em URL absoluta", async () => {
+      vi.mocked(searchCatalogMoviesUseCase.execute).mockResolvedValue({
+        page: 1,
+        results: [
+          {
+            id: 2,
+            title: "Finding Nemo",
+            year: 2003,
+            posterPath: "/nemo.jpg",
+            overview: "",
+          },
+        ],
+      });
+      const reply = createReply();
+
+      await handlers.search(createRequest({ query: "Nemo" }), reply);
+
+      expect(reply.status).toHaveBeenCalledWith(200);
+      expect(reply.send).toHaveBeenCalledWith({
+        page: 1,
+        results: [
+          {
+            id: 2,
+            title: "Finding Nemo",
+            year: 2003,
+            posterPath: "https://image.tmdb.org/t/p/w500/nemo.jpg",
+            overview: "",
+          },
+        ],
+      });
+    });
+
     it("REQ-2: query ausente vai como input vazio ao use case", async () => {
       vi.mocked(searchCatalogMoviesUseCase.execute).mockResolvedValue({
         page: 1,

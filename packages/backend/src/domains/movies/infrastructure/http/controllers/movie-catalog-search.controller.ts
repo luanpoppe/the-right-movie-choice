@@ -27,8 +27,8 @@ import {
   MovieCatalogSearchQuerySchema,
   MovieKeywordSearchPageResponseDTO,
   MoviePersonSearchPageResponseDTO,
-  MovieSearchPageResponseDTO,
 } from "../dto/movie-catalog-search.dto";
+import { MovieCatalogSearchResponseMapper } from "../mappers/movie-catalog-search-response.mapper";
 
 export type MovieCatalogSearchControllerParams = {
   searchCatalogMoviesUseCase: SearchCatalogMoviesUseCase;
@@ -86,7 +86,7 @@ export class MovieCatalogSearchController {
 
       const input = MovieCatalogSearchController.buildSearchInput(query);
       const result = await params.searchCatalogMoviesUseCase.execute(input);
-      const responseBody: MovieSearchPageResponseDTO = result;
+      const responseBody = MovieCatalogSearchResponseMapper.toSearchPage(result);
 
       Logger.debug("✅ Catalog movies searched", {
         page: result.page,
@@ -168,7 +168,7 @@ export class MovieCatalogSearchController {
 
       const input = MovieCatalogSearchController.buildDiscoverInput(query);
       const result = await params.discoverCatalogMoviesUseCase.execute(input);
-      const responseBody: MovieSearchPageResponseDTO = result;
+      const responseBody = MovieCatalogSearchResponseMapper.toSearchPage(result);
 
       Logger.debug("✅ Catalog movies discovered", {
         page: result.page,

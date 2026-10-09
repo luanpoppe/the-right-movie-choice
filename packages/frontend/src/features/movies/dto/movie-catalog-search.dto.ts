@@ -8,7 +8,7 @@ export const MovieSearchHitSchema = z.object({
   id: z.number(),
   title: z.string(),
   year: z.number().nullable(),
-  posterPath: z.string().nullable(),
+  posterPath: z.string().url().nullable(),
   overview: z.string(),
 });
 

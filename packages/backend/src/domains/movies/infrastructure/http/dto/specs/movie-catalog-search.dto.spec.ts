@@ -220,7 +220,7 @@ describe("schemas de resposta", () => {
           id: 1,
           title: "Interstellar",
           year: 2014,
-          posterPath: "/poster.jpg",
+          posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
           overview: "Space",
         },
       ],
