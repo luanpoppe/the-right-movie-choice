@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: agent-search-tool — movie-catalog-search</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-catalog-search</a> / specs / <strong>agent-search-tool</strong> / spec</p>
+    <h1>Spec: agent-search-tool</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>movie-catalog-search</code></a> · atualizado em 2026-10-09</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Tool <code>searchCatalog</code> para os agentes de chat chamarem a busca de catálogo do TMDB ao vivo — por texto/populares ou por discover escalar (gênero, nota, anos, duração, certificação). Convive com a <code>lookupMovies</code>. Devolve hits enxutos e nunca derruba o turno: falha vira miss estruturado.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Busca por texto</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo decide buscar um filme por nome</li>
+        <li><strong>Quando</strong> chama <code>searchCatalog</code> com <code>query: &quot;Interstellar&quot;</code> e <code>year: 2014</code>, sem idioma</li>
+        <li><strong>Então</strong> a tool busca por texto em <code>en-US</code></li>
+        <li><strong>E</strong> devolve hits com id, título, ano, overview e URL do pôster</li>
+        <li><strong>E</strong> cada hit entra na fila de gravação do catálogo</li>
+      </ul>
+      <h3>REQ-2: Populares</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo chama <code>searchCatalog</code> sem <code>query</code> e sem nenhum filtro</li>
+        <li><strong>Quando</strong> a tool executa</li>
+        <li><strong>Então</strong> devolve os populares em <code>en-US</code></li>
+        <li><strong>E</strong> não chama a busca por texto</li>
+      </ul>
+      <h3>REQ-3: Discover por filtros</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo chama <code>searchCatalog</code> com <code>genres: [28, 35]</code>, <code>minRating: 7</code> e anos de 2010 a 2015</li>
+        <li><strong>Quando</strong> a tool executa</li>
+        <li><strong>Então</strong> pede ao TMDB gênero em &quot;ou&quot;, nota mínima e a faixa de lançamento</li>
+        <li><strong>E</strong> devolve os hits no mesmo shape do REQ-1</li>
+      </ul>
+      <h3>REQ-4: Idioma por chamada</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo chama <code>searchCatalog</code> com <code>language: &quot;pt-BR&quot;</code></li>
+        <li><strong>Quando</strong> a tool executa</li>
+        <li><strong>Então</strong> títulos e sinopses voltam em português</li>
+        <li><strong>E</strong> sem <code>language</code> o resultado sai em <code>en-US</code></li>
+      </ul>
+      <h3>REQ-5: TMDB indisponível</h3>
+      <ul>
+        <li><strong>Dado que</strong> o client HTTP esgotou os retries do TMDB</li>
+        <li><strong>Quando</strong> a tool executa</li>
+        <li><strong>Então</strong> devolve um miss estruturado (sem resultados e com aviso)</li>
+        <li><strong>E</strong> não lança erro — o turno do chat continua</li>
+      </ul>
+      <h3>REQ-6: Modos não se misturam</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo manda <code>query</code> <strong>e</strong> um filtro de discover na mesma chamada</li>
+        <li><strong>Quando</strong> a tool valida a entrada</li>
+        <li><strong>Então</strong> devolve um miss estruturado de validação</li>
+        <li><strong>E</strong> não chama o TMDB</li>
+        <li><strong>Erro</strong> nota fora de 0–10 → miss estruturado  ||  anos ou duração invertidos → miss estruturado</li>
+        <li><strong>Erro</strong> certificação sem par, ou ids de lista não positivos → miss estruturado</li>
+      </ul>
+      <h3>REQ-7: Página</h3>
+      <ul>
+        <li><strong>Dado que</strong> o modelo passa <code>page: 2</code></li>
+        <li><strong>Quando</strong> a tool executa</li>
+        <li><strong>Então</strong> devolve a página 2 dos resultados</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Lista vazia não é erro — é &quot;nada encontrado&quot;, com aviso no retorno</li>
+        <li>A fila rejeita o enqueue → a tool ainda devolve os hits  ||  a busca não depende do worker</li>
+        <li>Vários hits com o mesmo id → o job id evita duplicar o trabalho</li>
+        <li>Discover com filtros que não batem com nada → 200 do TMDB com <code>results</code> vazio, não miss</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>Tool <code>searchCatalog</code> registrada no agente de recommendation ao lado de <code>lookupMovies</code>. Params: <code>query</code> (texto), <code>year</code>, <code>page</code>, <code>language</code> (<code>en-US</code>|<code>pt-BR</code>, default <code>en-US</code>) e os filtros de discover <code>genres</code> (ids em lista, &quot;ou&quot;), <code>minRating</code>, <code>yearFrom</code>, <code>yearTo</code>, <code>runtimeFrom</code>, <code>runtimeTo</code>, <code>certificationCountry</code>, <code>certification</code>. Fonte: a implementação da tool.</li>
+        <li>Retorno: <code>{ found: boolean, results: [{ id, title, year, overview, posterUrl }], notice?: string }</code>  ||  <code>found: false</code> marca miss (TMDB fora ou pedido inválido).</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
