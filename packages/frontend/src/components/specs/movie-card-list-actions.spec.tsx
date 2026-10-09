@@ -71,13 +71,32 @@ describe("MovieCardListActions", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
       "href",
-      "/login",
+      "/login?redirect=%2F",
     );
     expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute(
       "href",
       "/register",
     );
     expect(patchEntry).not.toHaveBeenCalled();
+  });
+
+  it("REQ-8 edge: CTA de visitante preserva a URL atual em ?redirect=", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: null,
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/search?query=Interstellar&page=2"]}>
+        <MovieCardListActions tmdbId={27205} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/login?redirect=%2Fsearch%3Fquery%3DInterstellar%26page%3D2",
+    );
   });
 
   describe("usuário autenticado", () => {

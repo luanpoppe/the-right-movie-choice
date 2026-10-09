@@ -80,6 +80,36 @@ describe("Header", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
+  it("REQ-1: header expõe link Search para /search para o visitante", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: null,
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute(
+      "href",
+      "/search",
+    );
+  });
+
+  it("REQ-1: header expõe link Search para /search para o logado", () => {
+    mockedUseAuth.mockReturnValue({
+      accessToken: "token",
+      setAccessToken: jest.fn(),
+      clearSession: jest.fn(),
+    });
+
+    renderHeader();
+
+    expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute(
+      "href",
+      "/search",
+    );
+  });
+
   it("REQ-2: visitante não vê link Conversations", () => {
     mockedUseAuth.mockReturnValue({
       accessToken: null,
