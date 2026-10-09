@@ -28,6 +28,8 @@ export const MovieCatalogSearchDocs: RouteShorthandOptions = {
       200: MovieSearchPageResponseSchema.describe("Success"),
       400: badRequestResponseSchema,
       502: tmdbErrorResponseSchema,
+      503: tmdbErrorResponseSchema,
+      504: tmdbErrorResponseSchema,
     },
   },
 };
@@ -42,6 +44,8 @@ export const MovieCatalogPeopleDocs: RouteShorthandOptions = {
       200: MoviePersonSearchPageResponseSchema.describe("Success"),
       400: badRequestResponseSchema,
       502: tmdbErrorResponseSchema,
+      503: tmdbErrorResponseSchema,
+      504: tmdbErrorResponseSchema,
     },
   },
 };
@@ -56,6 +60,8 @@ export const MovieCatalogKeywordsDocs: RouteShorthandOptions = {
       200: MovieKeywordSearchPageResponseSchema.describe("Success"),
       400: badRequestResponseSchema,
       502: tmdbErrorResponseSchema,
+      503: tmdbErrorResponseSchema,
+      504: tmdbErrorResponseSchema,
     },
   },
 };
@@ -70,6 +76,8 @@ export const MovieCatalogDiscoverDocs: RouteShorthandOptions = {
       200: MovieSearchPageResponseSchema.describe("Success"),
       400: badRequestResponseSchema,
       502: tmdbErrorResponseSchema,
+      503: tmdbErrorResponseSchema,
+      504: tmdbErrorResponseSchema,
     },
   },
 };

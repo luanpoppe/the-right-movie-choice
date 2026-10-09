@@ -1,5 +1,6 @@
 import fastify from "fastify";
 import fastifyCookie from "@fastify/cookie";
+import fastifyRateLimit from "@fastify/rate-limit";
 import { moviesControllers } from "./domains/movies/infrastructure/http/controllers/routes";
 import { usersControllers } from "./modules/users/infrastructure/http/controllers/routes";
 import { authControllers } from "./modules/auth/infrastructure/http/controllers/routes";
@@ -51,6 +52,10 @@ app.register(fastifySwagger, {
 
 app.register(fastifySwaggerUi, {
   routePrefix: "/swagger",
+});
+
+app.register(fastifyRateLimit, {
+  global: false,
 });
 
 app.setErrorHandler((error, app, reply) => {

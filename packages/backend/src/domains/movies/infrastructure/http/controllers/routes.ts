@@ -24,6 +24,12 @@ import { MakeMovieRecommendationHttpFactory } from "../../factories/make-movie-r
 import { MakeUserConversationHttpFactory } from "../../factories/make-user-conversation-http.factory";
 import { MakeUserMovieEntryHttpFactory } from "../../factories/make-user-movie-entry-http.factory";
 import { MakeMovieCatalogSearchHttpFactory } from "../../factories/make-movie-catalog-search-http.factory";
+import { MovieCatalogRateLimitConstants } from "../movie-catalog-rate-limit.constants";
+
+const catalogRateLimit = {
+  max: MovieCatalogRateLimitConstants.MAX_REQUESTS_PER_WINDOW,
+  timeWindow: MovieCatalogRateLimitConstants.TIME_WINDOW,
+};
 
 export async function moviesControllers(app: FastifyInstance) {
   const { preHandler, controller } = MakeMovieRecommendationHttpFactory.create();
@@ -120,25 +126,25 @@ export async function moviesControllers(app: FastifyInstance) {
 
   app.get(
     "/movie/catalog/search",
-    { ...MovieCatalogSearchDocs } as any,
+    { ...MovieCatalogSearchDocs, config: { rateLimit: catalogRateLimit } } as any,
     movieCatalogSearchHttp.handlers.search,
   );
 
   app.get(
     "/movie/catalog/people",
-    { ...MovieCatalogPeopleDocs } as any,
+    { ...MovieCatalogPeopleDocs, config: { rateLimit: catalogRateLimit } } as any,
     movieCatalogSearchHttp.handlers.people,
   );
 
   app.get(
     "/movie/catalog/keywords",
-    { ...MovieCatalogKeywordsDocs } as any,
+    { ...MovieCatalogKeywordsDocs, config: { rateLimit: catalogRateLimit } } as any,
     movieCatalogSearchHttp.handlers.keywords,
   );
 
   app.get(
     "/movie/catalog/discover",
-    { ...MovieCatalogDiscoverDocs } as any,
+    { ...MovieCatalogDiscoverDocs, config: { rateLimit: catalogRateLimit } } as any,
     movieCatalogSearchHttp.handlers.discover,
   );
 }

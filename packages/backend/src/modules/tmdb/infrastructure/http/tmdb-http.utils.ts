@@ -26,6 +26,7 @@ export class TmdbHttpUtils {
     searchParams.set("query", query);
     searchParams.set("page", String(pageNumber));
     searchParams.set("language", catalogLanguage);
+    searchParams.set("include_adult", "false");
 
     const hasYear = year !== undefined;
     if (hasYear) {
