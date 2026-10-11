@@ -37,6 +37,16 @@ describe("MovieRecommendationPrompts", () => {
     expect(prompt).toContain("não inclua tmdbId nem imdbId");
   });
 
+  it("M4: orienta a escolha entre lookupMovies e searchCatalog por filtros amplos", () => {
+    const prompt = MovieRecommendationPrompts.unified();
+
+    expect(prompt).toContain("searchCatalog");
+    expect(prompt).toContain("filtros amplos");
+    expect(prompt).toContain("caminho por título");
+    expect(prompt).toContain("id (equivalente ao tmdbId)");
+    expect(prompt).toContain("chame a tool lookupMovies exatamente uma vez");
+  });
+
   it("REQ-4: instrui mais candidatos, uma chamada lookupMovies e cópia de ids", () => {
     const prompt = MovieRecommendationPrompts.unified();
 
@@ -147,6 +157,14 @@ describe("MovieRecommendationPrompts", () => {
       expect(prompt).toContain(
         "Não chame lookupMovies novamente para tentar corrigir, complementar ou substituir resultados da primeira chamada",
       );
+    });
+
+    it("M4: mantém a orientação de escolha de tool no fluxo excludeWatched", () => {
+      const prompt = MovieRecommendationPrompts.unifiedExcludeWatched();
+
+      expect(prompt).toContain("searchCatalog");
+      expect(prompt).toContain("filtros amplos");
+      expect(prompt).toContain("chame a tool lookupMovies exatamente uma vez");
     });
 
     it("diferencia-se de unified na quantidade de candidatos", () => {
