@@ -77,6 +77,46 @@
     {
       "key": "groupChatNumericId",
       "value": ""
+    },
+    {
+      "key": "catalogQuery",
+      "value": "Interstellar"
+    },
+    {
+      "key": "catalogYear",
+      "value": "2014"
+    },
+    {
+      "key": "catalogPage",
+      "value": "1"
+    },
+    {
+      "key": "catalogLanguage",
+      "value": "en-US"
+    },
+    {
+      "key": "catalogPersonQuery",
+      "value": "Nolan"
+    },
+    {
+      "key": "catalogKeywordQuery",
+      "value": "time travel"
+    },
+    {
+      "key": "catalogGenres",
+      "value": "28,35"
+    },
+    {
+      "key": "catalogMinRating",
+      "value": "7"
+    },
+    {
+      "key": "catalogYearFrom",
+      "value": "2010"
+    },
+    {
+      "key": "catalogYearTo",
+      "value": "2015"
     }
   ],
   "item": [
@@ -1329,6 +1369,62 @@
             "header": [],
             "url": "{{baseUrl}}/debug/tmdb/movies/{{tmdbMovieId}}?language={{tmdbLanguage}}",
             "description": "Detalhes de um filme por `tmdbId` (somente dev, loopback).\n\n**Lookup local-first:** Redis (TTL 24h) → Postgres (fresco < 30 dias) → TMDB. Miss TMDB grava no Redis e enfileira persistência no Postgres (BullMQ).\n\n**Path**\n- `id` — {{tmdbMovieId}} (603 = Matrix)\n\n**Query**\n- `language` (opcional) — {{tmdbLanguage}}; omitido no resolver → pt-BR"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Movie catalog search",
+      "description": "Busca **pública** no catálogo TMDB ao vivo (sem auth, sem cota de convidado). Rotas: texto/populares, candidatos de pessoa e palavra-chave, e discover com filtros. Filtros de lista (`genres`, `cast`, `director`, `keyword`) vão separados por vírgula (ex.: `genres=28,35`). **Rate limit:** 60 req/min por IP.\n\n**Respostas:** `200`; `400` em pedido inválido (faixas invertidas, nota fora de 0–10, certificação sem par, id inválido e **mistura de texto com filtros de discover**); `502`/`503`/`504` quando o TMDB falha (não retorna lista vazia).\n\n**Variáveis:** `catalogQuery`, `catalogYear`, `catalogPage`, `catalogLanguage` (`en-US`/`pt-BR`), `catalogPersonQuery`, `catalogKeywordQuery`, `catalogGenres`, `catalogMinRating`, `catalogYearFrom`, `catalogYearTo`.",
+      "item": [
+        {
+          "name": "Search movies (text)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/catalog/search?query={{catalogQuery}}&year={{catalogYear}}&page={{catalogPage}}&language={{catalogLanguage}}",
+            "description": "Busca filmes por texto no catálogo TMDB. Público.\n\n**Query** (todos opcionais)\n- `query` — termo de busca (`catalogQuery`); vazio/ausente = populares\n- `year` — ano de lançamento (`catalogYear`)\n- `page` — página, inteiro ≥ 1 (`catalogPage`)\n- `language` — `en-US` (default) ou `pt-BR` (`catalogLanguage`)\n\n**Resposta `200`:** `{ page, results: [{ id, title, year, posterPath, overview }] }` — `posterPath` é URL TMDB completa (ou `null`).\n\nCada hit entra na fila de gravação do catálogo (`catalog-movie-persist`).\n\nRespostas: 200, 400, 502, 503, 504."
+          },
+          "response": []
+        },
+        {
+          "name": "Popular movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/catalog/search?page={{catalogPage}}&language={{catalogLanguage}}",
+            "description": "Atalho: busca por texto sem `query` → populares (discover sem filtro). Público.\n\nRespostas: 200, 400, 502, 503, 504."
+          },
+          "response": []
+        },
+        {
+          "name": "Search people",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/catalog/people?query={{catalogPersonQuery}}&language={{catalogLanguage}}",
+            "description": "Busca candidatos de pessoa (`/search/person`) para escolher um id de ator/diretor. Público.\n\n**Query**\n- `query` — obrigatório, não vazio (`catalogPersonQuery`, ex. Nolan)\n- `page` — inteiro ≥ 1\n- `language` — `en-US`/`pt-BR`\n\n**Resposta `200`:** `{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }`.\n\nRespostas: 200, 400, 502, 503, 504."
+          },
+          "response": []
+        },
+        {
+          "name": "Search keywords",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/catalog/keywords?query={{catalogKeywordQuery}}",
+            "description": "Busca candidatos de palavra-chave (`/search/keyword`). Público.\n\n**Query**\n- `query` — obrigatório, não vazio (`catalogKeywordQuery`, ex. time travel)\n- `page` — inteiro ≥ 1\n\n**Resposta `200`:** `{ page, results: [{ id, name }] }`.\n\nRespostas: 200, 400, 502, 503, 504."
+          },
+          "response": []
+        },
+        {
+          "name": "Discover movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/movie/catalog/discover?genres={{catalogGenres}}&minRating={{catalogMinRating}}&yearFrom={{catalogYearFrom}}&yearTo={{catalogYearTo}}&page={{catalogPage}}&language={{catalogLanguage}}",
+            "description": "Discover no TMDB com filtros. Público. **Não misture com `query` de texto** (400).\n\n**Query** (todos opcionais)\n- `genres` — ids em \"ou\", separados por vírgula (`catalogGenres`, ex. `28,35`)\n- `minRating` — nota mínima 0–10 (`catalogMinRating`)\n- `yearFrom` / `yearTo` — faixa de lançamento (`catalogYearFrom`, `catalogYearTo`)\n- `runtimeFrom` / `runtimeTo` — duração em minutos\n- `cast` / `director` / `keyword` — ids em vírgula (\"ou\")\n- `certificationCountry` + `certification` — os dois ou nenhum\n- `page`, `language`\n\n**Resposta `200`:** mesmo shape do Search movies.\n\nRespostas: 200, 400, 502, 503, 504."
           },
           "response": []
         }

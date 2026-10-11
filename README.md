@@ -37,6 +37,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
 - **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
+- **Busca de catálogo (TMDB ao vivo):** Rotas públicas `GET /movie/catalog/search`, `/people`, `/keywords` e `/discover` — busca por texto/populares, candidatos de pessoa/palavra-chave e discover com filtros (gênero, nota, anos, duração, certificação; ator/diretor/palavra-chave por id). Filtros de lista em vírgula; **rate limit** de 60 req/min por IP; cada hit de filme entra na fila de gravação do catálogo. A mesma busca é exposta ao agente como a tool **`searchCatalog`** (convive com a `lookupMovies`).
 - **Excluir assistidos (autenticado):** Com Bearer, o body pode enviar `excludeWatched` (padrão `true` se omitido). O backend filtra filmes marcados como assistidos após o lookup no catálogo, amplia o pool de candidatos (até 25 queries por rodada) e repete até obter pelo menos 2 filmes verificados não-assistidos ou esgotar 5 rodadas. Convidados ignoram a flag.
 - **Listas do usuário:** `GET`/`PATCH /movie/user-entries` exigem **JWT** (`Authorization: Bearer`). Uma linha por `(userId, tmdbId)` com flags `watched`, `favorite`, `inWatchlist` e metadados opcionais de assistido (`rating` 1–10, `watchedAt`). Listagens aceitam filtros por flag e podem enriquecer com resumo do catálogo (`title`, `year`, `posterPath` como URL TMDB).
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
@@ -56,6 +57,7 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Toggle "Exclude watched movies":** visível só para usuário autenticado (welcome e chat); padrão ligado; envia `excludeWatched` no POST de recomendação.
 - **Ações nos cards:** marcar assistido (nota/data opcionais), favorito e watchlist com PATCH otimista.
 - **Biblioteca `/my-movies`:** abas Assistidos, Quero ver e Favoritos; link no header quando autenticado.
+- **Busca de filmes (`/search`):** página **pública** com busca por texto e discover completo (gênero, nota, anos, duração, certificação; ator/diretor/palavra-chave por *combobox* de candidatos). Filtros, idioma e página ficam na **URL** (compartilhável; voltar/recarregar restaura), com "Carregar mais" e toggle `en-US`/`pt-BR`. Logado reusa as ações dos cards (assistido/favorito/quero ver); visitante é levado ao login com retorno à busca. Link **Search** no header.
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
 - **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
 - **Autenticação:** telas `/login` e `/register` com senha ou botão Google (`@react-oauth/google`).
@@ -237,18 +239,20 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**; `searchEmail`, `friendRequestId`, `friendUserId`, `groupId`, `groupInviteId`, `groupMemberUserId`, `groupChatId` (UUID) e `groupChatNumericId` (id numérico) para rotas sociais.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**; `searchEmail`, `friendRequestId`, `friendUserId`, `groupId`, `groupInviteId`, `groupMemberUserId`, `groupChatId` (UUID) e `groupChatNumericId` (id numérico) para rotas sociais; `catalogQuery`, `catalogYear`, `catalogPage`, `catalogLanguage`, `catalogPersonQuery`, `catalogKeywordQuery`, `catalogGenres`, `catalogMinRating`, `catalogYearFrom`, `catalogYearTo` para `/movie/catalog/*`.
 
-Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Social — Friends**, **Social — Groups**, **Social — Group chats** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback).
+Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Social — Friends**, **Social — Groups**, **Social — Group chats** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback), **Movie catalog search** (público — busca no catálogo TMDB: texto/populares, pessoas, keywords e discover com filtros).
 
 **Fluxo autenticado no Postman (conversas):** Login → **Create conversation** (salva `conversationId` e `chatId`) → **Movie recommendation (Bearer)** com `chatid: {{chatId}}`.
 
 **Fluxo social no Postman:** Login → **Send friend request** ou **Create group** (ajuste `searchEmail` para uma conta cadastrada) → troque de usuário (novo Login) para **Accept friend request** / **Accept group invite**.
 
 **Fluxo group chat no Postman:** Login → **Create group** → **Create group chat** (salva `groupChatId` e `groupChatNumericId`) → **Group chat recommendation** → **Get group chat** (histórico em `messages`).
+
+**Fluxo busca de catálogo no Postman:** pasta **Movie catalog search** (pública) — **Search movies (text)**, **Popular movies**, **Search people**, **Search keywords** e **Discover movies**; ajuste as variáveis `catalog*` conforme o pedido.
 ## Referência da API
 
-`POST /movie/recommendation` e `GET /movie/queries` são **públicas**. `GET`/`PATCH /movie/user-entries`, todas as rotas `/movie/conversations` e **todas as rotas `/social/*`** exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+`POST /movie/recommendation`, `GET /movie/queries` e as rotas `GET /movie/catalog/*` são **públicas**. `GET`/`PATCH /movie/user-entries`, todas as rotas `/movie/conversations` e **todas as rotas `/social/*`** exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
 
 > Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
 
@@ -324,6 +328,39 @@ curl http://localhost:3333/movie/queries
 **Respostas:** `200`, `500` (erro interno / falha também no fallback IA).
 
 **Operação do pool (backend):** seed manual ou pós-migrate (`pnpm seed:query-suggestions`); rotação semanal em produção (+5 novas / −5 mais antigas, com top-up se `count < 100`). Detalhes em `.sdd/context/recomendacoes-filmes/pool-sugestoes-busca.md`.
+
+### Rotas de busca de catálogo (`/movie/catalog/*`)
+
+Todas **públicas** (sem auth, sem cota de convidado) e com **rate limit** de 60 req/min por IP. Buscam no **TMDB ao vivo** (não no catálogo local); cada hit de **filme** entra na fila de gravação `catalog-movie-persist`. Filtros de lista (`genres`, `cast`, `director`, `keyword`) usam ids separados por vírgula (ex.: `genres=28,35`).
+
+**Erros:** `400` em pedido inválido (faixa de ano/duração invertida, nota fora de 0–10, certificação sem par, id não positivo e **mistura de `query` de texto com filtros de discover**); `502`/`503`/`504` quando o TMDB falha (nunca um `200` com lista vazia no lugar do erro).
+
+- **`GET /movie/catalog/search`** — texto/populares. Query (opcional): `query` (vazio = populares), `page`, `year`, `language` (`en-US` default | `pt-BR`).
+- **`GET /movie/catalog/people`** — candidatos de pessoa. Query: `query` (obrigatório, não vazio), `page`, `language`.
+- **`GET /movie/catalog/keywords`** — candidatos de palavra-chave. Query: `query` (obrigatório, não vazio), `page`.
+- **`GET /movie/catalog/discover`** — discover com filtros. Query: `genres`, `minRating`, `yearFrom`/`yearTo`, `runtimeFrom`/`runtimeTo`, `cast`, `director`, `keyword`, `certificationCountry` + `certification` (os dois ou nenhum), `page`, `language`.
+
+**Resposta `200`** (search e discover):
+```json
+{
+  "page": 1,
+  "results": [
+    {
+      "id": 157336,
+      "title": "Interestelar",
+      "year": 2014,
+      "posterPath": "https://image.tmdb.org/t/p/w500/...",
+      "overview": "..."
+    }
+  ]
+}
+```
+`people` retorna `{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }`; `keywords`, `{ page, results: [{ id, name }] }`.
+
+**Exemplo (local):**
+```bash
+curl "http://localhost:3333/movie/catalog/search?query=Interstellar&year=2014&language=pt-BR"
+```
 
 ### `GET /movie/user-entries`
 
@@ -653,7 +690,7 @@ curl "http://localhost:3333/debug/tmdb/movies/603?language=pt-BR"
 pnpm test
 ```
 
-Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **970+** testes cobrindo filmes (recomendação, catálogo, lookup em lote, pool de sugestões, listas do usuário), auth, users, social (amizades e grupos), TMDB e mappers Prisma.
+Roda os testes unitários do pacote `packages/backend` (projeto Vitest `unit`). Atualmente **1.300+** testes cobrindo filmes (recomendação, catálogo local, busca de catálogo no TMDB, lookup em lote, tool `searchCatalog`, pool de sugestões, listas do usuário), auth, users, social (amizades e grupos), TMDB e mappers Prisma.
 
 ### Lookup em lote no catálogo (`lookupMovies`)
 
