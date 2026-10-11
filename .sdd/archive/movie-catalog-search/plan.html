@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano — movie-catalog-search</title>
+  <link rel="stylesheet" href="../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#contexto">Contexto</a></li>
+      <li><a href="#decisoes-macro">Decisões macro</a></li>
+      <li><a href="#features-executadas-sequencialmente">Features (executadas sequencialmente)</a></li>
+      <li><a href="#escopo">Escopo</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><strong>movie-catalog-search</strong> / plan</p>
+    <h1>Busca de filmes no TMDB para a biblioteca</h1>
+    <p class="lp-meta"><strong>id</strong>: <code>movie-catalog-search</code> · <strong>criada</strong>: 2026-10-05 · <strong>idioma</strong>: pt-BR · atualizado em 2026-10-05</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="contexto" open>
+      <summary><h2>Contexto</h2></summary>
+      <p>A pessoa já marca assistido (com nota), quero ver e favorito no chat e em <code>/my-movies</code>, mas só nos filmes que o agente devolveu. Esta mudança abre uma busca direta no TMDB — por nome e por discover — numa página própria, e depois a mesma busca vira tool dos chats.</p>
+    </details>
+
+    <details class="lp-sec" id="decisoes-macro" open>
+      <summary><h2>Decisões macro</h2></summary>
+      <ul>
+        <li><strong>Decisão</strong>: resultados vêm do TMDB ao vivo (<code>/search/movie</code> e <code>/discover/movie</code>), não do Postgres primeiro. <strong>Por quê</strong>: achar filme que o catálogo local ainda não tem. <span class="discarded"><strong>Alternativa descartada</strong>: local primeiro, TMDB no miss.</span></li>
+        <li><strong>Decisão</strong>: um contrato só para API, página e tool — texto (com página e ano) e discover (gênero, nota, anos, ator, diretor, palavra-chave, duração, certificação). <strong>Por quê</strong>: marcar um título conhecido e também explorar. <span class="discarded"><strong>Alternativa descartada</strong>: só um dos dois endpoints.</span></li>
+        <li><strong>Decisão</strong>: idioma padrão inglês, com troca fácil para pt-BR. <strong>Por quê</strong>: quem busca escolhe título/sinopse. <span class="discarded"><strong>Alternativa descartada</strong>: pt-BR fixo.</span></li>
+        <li><strong>Decisão</strong>: a página é pública; assistido, nota, quero ver e favorito exigem login e reusam o <code>UserMovieEntry</code> e as ações do card da biblioteca. <strong>Por quê</strong>: visitante pesquisa; a biblioteca continua a mesma. <span class="discarded"><strong>Alternativa descartada</strong>: página só logada, ou esconder favorito.</span></li>
+        <li><strong>Decisão</strong>: filme vindo do TMDB entra na fila de gravação do catálogo, sem upsert síncrono. <strong>Por quê</strong>: o mesmo caminho do lookup atual. <span class="discarded"><strong>Alternativa descartada</strong>: só exibir, ou gravar na hora.</span></li>
+        <li><strong>Decisão</strong>: reusar o client HTTP do TMDB, a fila, o PATCH de listas e os cards. Discover é método novo no provider, não <code>searchMovies</code>. <strong>Por quê</strong>: <code>/discover/movie</code> não é o search que já existe. <span class="discarded"><strong>Alternativa descartada</strong>: client paralelo ou persistência nova de listas.</span></li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="features-executadas-sequencialmente" open>
+      <summary><h2>Features (executadas sequencialmente)</h2></summary>
+      <ol>
+        <li><strong>movie-search-api</strong> — Endpoint público de busca por texto e discover no TMDB (gênero, nota, anos, pessoa, palavra-chave, duração, certificação), com idioma e fila de gravação do catálogo.</li>
+        <li><strong>movie-search-ui</strong> — Página dedicada para pesquisar e, logado, marcar o filme como na biblioteca.</li>
+        <li><strong>agent-search-tool</strong> — Tool para os agentes de chat chamarem a mesma busca.</li>
+      </ol>
+    </details>
+
+    <details class="lp-sec" id="escopo" open>
+      <summary><h2>Escopo</h2></summary>
+      <p><strong>Dentro</strong>: <code>/search/movie</code> e <code>/discover/movie</code>; discover com gênero, nota, anos, ator, diretor, palavra-chave, duração e certificação; página pública; login só na ação; ações iguais à biblioteca; fila de catálogo; tool do agente em cima do mesmo caso de uso; inglês padrão e pt-BR.</p>
+      <p><strong>Fora</strong>: onde assistir (provedor de streaming); mudar o chat de recomendação; modelo novo de listas.</p>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:new-feature</code> a partir do <code>plan.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

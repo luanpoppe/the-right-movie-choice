@@ -10,4 +10,5 @@
 - [Pool de sugestões de busca](pool-sugestoes-busca.md) — 100 textos no Postgres, seed/rotate, cron semanal em prod.
 - [Exemplos de queries](exemplos-de-queries.md) — `GET /movie/queries` lê 3 aleatórias do pool; fallback IA se insuficiente.
 - [Lookup no catálogo TMDB](lookup-catalogo-tmdb.md) — serviço `MovieCatalogLookupService` sobre `IMovieCatalogProvider`; miss estruturado se o TMDB cair; tool de IA em `MovieCatalogLookupAiTool`.
+- [Tool de busca no catálogo (agente)](agente-tool-busca-catalogo.md) — tool `searchCatalog` (texto/populares + discover escalar) no agente de recommendation, convivendo com `lookupMovies`; miss estruturado.
 - [Pipeline exclude-watched](exclude-watched-pipeline.md) — filtro de assistidos na tool, loop no provider e wiring por request na factory.

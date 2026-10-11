@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: movie-search-ui — movie-catalog-search</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-catalog-search</a> / specs / <strong>movie-search-ui</strong> / spec</p>
+    <h1>Spec: movie-search-ui</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>movie-catalog-search</code></a> · atualizado em 2026-10-09</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Página pública <code>/search</code> para achar filme no catálogo TMDB — por texto ou por filtros de discover — e, logado, marcar na biblioteca com as mesmas ações dos cards do chat. Busca, filtros, idioma e página vivem na URL; resultados em <code>en-US</code> por padrão, com toggle para <code>pt-BR</code>.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Abrir sem busca mostra populares</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa abre <code>/search</code> sem nenhum filtro</li>
+        <li><strong>Quando</strong> a página carrega</li>
+        <li><strong>Então</strong> o SPA chama a busca por texto sem <code>query</code></li>
+        <li><strong>E</strong> mostra os populares em <code>en-US</code></li>
+        <li><strong>E</strong> a URL permanece <code>/search</code></li>
+      </ul>
+      <h3>REQ-2: Busca por texto</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa está em <code>/search</code></li>
+        <li><strong>Quando</strong> digita <code>Interstellar</code> e aperta Enter (ou o botão Buscar)</li>
+        <li><strong>Então</strong> o SPA chama <code>GET /movie/catalog/search</code> com <code>query=Interstellar</code>, <code>page=1</code> e <code>language=en-US</code></li>
+        <li><strong>E</strong> mostra os cards (título, ano, pôster, sinopse)</li>
+        <li><strong>E</strong> a URL passa a <code>/search?query=Interstellar</code></li>
+      </ul>
+      <h3>REQ-3: Filtros de discover</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa escolhe gênero Drama, nota mínima 7 e anos de 2010 a 2015</li>
+        <li><strong>Quando</strong> aplica a busca</li>
+        <li><strong>Então</strong> o SPA chama <code>GET /movie/catalog/discover</code> com esses filtros</li>
+        <li><strong>E</strong> a URL reflete os filtros (ex.: <code>?genres=18&amp;minRating=7&amp;yearFrom=2010&amp;yearTo=2015</code>)</li>
+        <li><strong>E</strong> mostra a página 1 em <code>en-US</code></li>
+      </ul>
+      <h3>REQ-4: Candidatos de pessoa e palavra-chave</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa digita <code>Nolan</code> no filtro de diretor</li>
+        <li><strong>Quando</strong> escolhe o candidato <code>Christopher Nolan</code> da lista</li>
+        <li><strong>Então</strong> o SPA adiciona o id <code>525</code> ao filtro de direção como um chip</li>
+        <li><strong>E</strong> a busca usa <code>director=525</code></li>
+        <li><strong>E</strong> vários valores no mesmo filtro entram em &quot;ou&quot;</li>
+      </ul>
+      <h3>REQ-5: Carregar mais</h3>
+      <ul>
+        <li><strong>Dado que</strong> a página 1 está exibida e existe próxima página</li>
+        <li><strong>Quando</strong> a pessoa clica em &quot;Carregar mais&quot;</li>
+        <li><strong>Então</strong> o SPA busca a próxima página com os mesmos filtros</li>
+        <li><strong>E</strong> anexa os novos cards aos anteriores</li>
+        <li><strong>E</strong> a URL passa a <code>page=2</code></li>
+      </ul>
+      <h3>REQ-6: Troca de idioma</h3>
+      <ul>
+        <li><strong>Dado que</strong> a busca atual está em <code>en-US</code></li>
+        <li><strong>Quando</strong> a pessoa alterna o toggle para Português</li>
+        <li><strong>Então</strong> o SPA refaz a mesma busca com <code>language=pt-BR</code></li>
+        <li><strong>E</strong> títulos e sinopses voltam em português</li>
+      </ul>
+      <h3>REQ-7: Marcar na biblioteca (logado)</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa está logada e vê um card de resultado</li>
+        <li><strong>Quando</strong> marca favorito, quero ver ou assistido (com nota)</li>
+        <li><strong>Então</strong> o card age como na biblioteca, com persistência otimista</li>
+        <li><strong>E</strong> a marcação aparece em <code>/my-movies</code></li>
+      </ul>
+      <h3>REQ-8: Visitante tenta agir</h3>
+      <ul>
+        <li><strong>Dado que</strong> a pessoa não está logada</li>
+        <li><strong>Quando</strong> clica em uma ação do card</li>
+        <li><strong>Então</strong> o SPA redireciona para <code>/login?redirect=&lt;url atual&gt;</code></li>
+        <li><strong>E</strong> após entrar volta para a mesma busca e filtros</li>
+      </ul>
+      <h3>REQ-9: TMDB indisponível ou limite</h3>
+      <ul>
+        <li><strong>Dado que</strong> o backend responde erro (TMDB fora do ar ou limite excedido)</li>
+        <li><strong>Quando</strong> a página faz a busca</li>
+        <li><strong>Então</strong> o SPA mostra uma mensagem de erro com &quot;Tentar novamente&quot;</li>
+        <li><strong>E</strong> não apresenta a lista vazia como se fossem resultados</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>URL com filtros inválidos (nota fora de 0–10, anos ou duração invertidos, certificação sem par) → o SPA normaliza/explica sem chamar a API</li>
+        <li>Combobox de candidato sem resultados → estado &quot;nenhum resultado&quot;</li>
+        <li>Voltar/avançar do navegador restaura busca, filtros, idioma e página</li>
+        <li>Resultado sem pôster ou sem ano → card mostra placeholder</li>
+        <li>Múltiplos valores no mesmo filtro de candidato → OR</li>
+        <li>Resposta 429 (rate limit do backend) → mesma mensagem de erro com retry</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>URL <code>/search</code> com query string: <code>query</code>, <code>page</code>, <code>language</code> (<code>en-US</code>|<code>pt-BR</code>), <code>genres</code>, <code>minRating</code>, <code>yearFrom</code>, <code>yearTo</code>, <code>runtimeFrom</code>, <code>runtimeTo</code>, <code>certificationCountry</code>, <code>certification</code>, <code>cast</code>, <code>director</code>, <code>keyword</code> (listas separadas por vírgula). Fonte: a implementação da página.</li>
+        <li>Consome a API de busca de catálogo da feature <code>movie-search-api</code> — contrato por referência.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

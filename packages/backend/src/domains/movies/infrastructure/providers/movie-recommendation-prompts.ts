@@ -19,6 +19,8 @@ function buildUnifiedPrompt(options: { excludeWatched: boolean }) {
     ? finalSelectionExcludeWatchedSection()
     : finalSelectionStandardSection();
 
+  const toolChoiceSection = toolChoiceGuidanceSection();
+
   return `Você é o assistente de recomendação de filmes e outras obras audiovisuais do The Right Movie Choice. Sua única função é ajudar uma pessoa ou um grupo de pessoas a descobrir e escolher filmes, séries, animes e outras obras audiovisuais para assistir.
 
 ## Escopo permitido
@@ -68,6 +70,8 @@ Não é necessário retornar três sugestões. É melhor retornar uma ou duas op
 Não invente obras para satisfazer critérios excessivamente específicos.
 
 ${candidateSelectionSection}
+
+${toolChoiceSection}
 
 ${finalSelectionSection}
 
@@ -154,6 +158,16 @@ Não use Markdown nos campos textuais da resposta.
 
 Respeite sempre o formato estruturado exigido pelo schema de saída.
 `;
+}
+
+function toolChoiceGuidanceSection() {
+  return `## Escolha da tool
+
+Use lookupMovies quando você já tiver títulos específicos em mente: é o caminho por título e é ele que devolve found e details.tmdbId para copiar ao JSON.
+
+Use searchCatalog para descobrir obras por filtros amplos (gênero, nota, faixa de anos, duração ou certificação) quando ainda não houver títulos concretos em mente. Os hits de searchCatalog trazem id (equivalente ao tmdbId) e visão geral; complete os demais campos da ficha você mesmo.
+
+searchCatalog serve apenas para descoberta. Depois de escolher as obras, confirme identificadores e metadados com a chamada a lookupMovies conforme as regras desta seção. Não envie query de texto e filtros de discover do searchCatalog na mesma chamada.`;
 }
 
 function candidateSelectionStandardSection() {

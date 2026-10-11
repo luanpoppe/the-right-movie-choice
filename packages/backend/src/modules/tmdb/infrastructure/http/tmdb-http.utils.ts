@@ -1,3 +1,4 @@
+import type { MovieDiscoverQuery } from "@/domains/movies/domain/entities/movie-discover-query.entity";
 import { StringUtils } from "@/shared/utils/string.utils";
 import { TmdbHttpConstants } from "@/modules/tmdb/domain/tmdb-http.constants";
 import { TmdbHttpException } from "@/modules/tmdb/domain/exceptions/tmdb-http.exception";
@@ -25,10 +26,83 @@ export class TmdbHttpUtils {
     searchParams.set("query", query);
     searchParams.set("page", String(pageNumber));
     searchParams.set("language", catalogLanguage);
+    searchParams.set("include_adult", "false");
 
     const hasYear = year !== undefined;
     if (hasYear) {
       searchParams.set("primary_release_year", String(year));
+    }
+
+    return searchParams;
+  }
+
+  static buildDiscoverMoviesParams(
+    query: MovieDiscoverQuery,
+  ): URLSearchParams {
+    const pageNumber = query.page ?? 1;
+    const catalogLanguage = TmdbHttpUtils.resolveLanguage(query.language);
+    const searchParams = new URLSearchParams();
+    searchParams.set("page", String(pageNumber));
+    searchParams.set("language", catalogLanguage);
+    searchParams.set("include_adult", "false");
+    searchParams.set("sort_by", "popularity.desc");
+
+    const withGenres = TmdbHttpUtils.joinIdsPipe(query.genres);
+    if (withGenres !== undefined) {
+      searchParams.set("with_genres", withGenres);
+    }
+
+    const withCast = TmdbHttpUtils.joinIdsPipe(query.cast);
+    if (withCast !== undefined) {
+      searchParams.set("with_cast", withCast);
+    }
+
+    const withCrew = TmdbHttpUtils.joinIdsPipe(query.director);
+    if (withCrew !== undefined) {
+      searchParams.set("with_crew", withCrew);
+    }
+
+    const withKeywords = TmdbHttpUtils.joinIdsPipe(query.keyword);
+    if (withKeywords !== undefined) {
+      searchParams.set("with_keywords", withKeywords);
+    }
+
+    const hasMinRating = query.minRating !== undefined;
+    if (hasMinRating) {
+      searchParams.set("vote_average.gte", String(query.minRating));
+    }
+
+    const hasYearFrom = query.yearFrom !== undefined;
+    if (hasYearFrom) {
+      const releaseDateGte = `${query.yearFrom}-01-01`;
+      searchParams.set("primary_release_date.gte", releaseDateGte);
+    }
+
+    const hasYearTo = query.yearTo !== undefined;
+    if (hasYearTo) {
+      const releaseDateLte = `${query.yearTo}-12-31`;
+      searchParams.set("primary_release_date.lte", releaseDateLte);
+    }
+
+    const hasRuntimeFrom = query.runtimeFrom !== undefined;
+    if (hasRuntimeFrom) {
+      searchParams.set("with_runtime.gte", String(query.runtimeFrom));
+    }
+
+    const hasRuntimeTo = query.runtimeTo !== undefined;
+    if (hasRuntimeTo) {
+      searchParams.set("with_runtime.lte", String(query.runtimeTo));
+    }
+
+    const certificationCountry = query.certificationCountry;
+    const certification = query.certification;
+    const hasCertificationCountry =
+      !StringUtils.isEmptyString(certificationCountry);
+    const hasCertification = !StringUtils.isEmptyString(certification);
+    const hasBothCertifications = hasCertificationCountry && hasCertification;
+    if (hasBothCertifications) {
+      searchParams.set("certification_country", certificationCountry);
+      searchParams.set("certification", certification);
     }
 
     return searchParams;
@@ -120,6 +194,15 @@ export class TmdbHttpUtils {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  private static joinIdsPipe(ids: number[] | undefined): string | undefined {
+    if (ids === undefined) return undefined;
+
+    const isEmpty = ids.length === 0;
+    if (isEmpty) return undefined;
+
+    return ids.join("|");
   }
 
   private static isAbortError(error: unknown): boolean {

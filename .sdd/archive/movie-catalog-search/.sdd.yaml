@@ -1,0 +1,17 @@
+id: movie-catalog-search
+title: Busca de filmes no TMDB para a biblioteca
+created: 2026-10-05
+archived: 2026-10-11
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: movie-search-api
+    title: API de busca no TMDB
+    summary: Endpoint público de busca por texto e discover no TMDB (gênero, nota, anos, pessoa, palavra-chave, duração, certificação), com idioma e fila de gravação do catálogo.
+  - slug: movie-search-ui
+    title: Página de busca
+    summary: Página dedicada para pesquisar e, logado, marcar o filme como na biblioteca.
+  - slug: agent-search-tool
+    title: Tool de busca para o agente
+    summary: Tool para os agentes de chat chamarem a mesma busca.

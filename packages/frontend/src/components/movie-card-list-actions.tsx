@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Bookmark, Eye, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -49,11 +49,16 @@ function ListToggleButton({
 }
 
 function GuestListActionsCta() {
+  const location = useLocation();
+  const currentUrl = `${location.pathname}${location.search}`;
+  const encodedRedirect = encodeURIComponent(currentUrl);
+  const loginPath = `/login?redirect=${encodedRedirect}`;
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
       <span>Save your lists by creating an account:</span>
       <Button variant="ghost" size="sm" asChild>
-        <Link to="/login">Sign in</Link>
+        <Link to={loginPath}>Sign in</Link>
       </Button>
       <Button size="sm" asChild>
         <Link to="/register">Create account</Link>

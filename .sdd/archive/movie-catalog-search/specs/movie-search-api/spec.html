@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: movie-search-api — movie-catalog-search</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">movie-catalog-search</a> / specs / <strong>movie-search-api</strong> / spec</p>
+    <h1>Spec: movie-search-api</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>movie-catalog-search</code></a> · atualizado em 2026-10-09</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Cliente HTTP (página ou tool, nas features seguintes) busca filme no TMDB por nome ou por discover. Pessoa e palavra-chave têm busca de candidatos para quem chama escolher o id. A resposta de filme não espera a fila.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Busca por nome</h3>
+      <ul>
+        <li><strong>Dado que</strong> o TMDB responde <code>/search/movie</code> para &quot;Interstellar&quot; em 2014</li>
+        <li><strong>Quando</strong> o cliente chama a busca por texto com <code>query=Interstellar</code>, <code>year=2014</code>, <code>page=1</code> e sem idioma</li>
+        <li><strong>Então</strong> o backend chama o TMDB com <code>include_adult=false</code> e idioma <code>en-US</code></li>
+        <li><strong>E</strong> responde 200 com a página 1 e os hits (id, título, ano, poster, sinopse)</li>
+        <li><strong>E</strong> enfileira cada hit da página em <code>catalog-movie-persist</code> para <code>en-US</code></li>
+        <li><strong>E</strong> devolve o 200 sem esperar o worker</li>
+      </ul>
+      <h3>REQ-2: Nome vazio vira populares</h3>
+      <ul>
+        <li><strong>Dado que</strong> o discover sem filtro devolve a página popular em <code>pt-BR</code></li>
+        <li><strong>Quando</strong> o cliente chama a busca por texto com <code>query</code> vazio ou só espaços e <code>language=pt-BR</code></li>
+        <li><strong>Então</strong> responde 200 com essa página popular</li>
+        <li><strong>E</strong> não chama <code>/search/movie</code></li>
+      </ul>
+      <h3>REQ-3: Discover com filtros</h3>
+      <ul>
+        <li><strong>Dado que</strong> o TMDB responde <code>/discover/movie</code></li>
+        <li><strong>Quando</strong> o cliente pede gêneros 28 e 35, nota mínima 7, anos 2010 a 2015, página 2 e <code>language=pt-BR</code></li>
+        <li><strong>Então</strong> o backend pede ao TMDB gênero em &quot;ou&quot; (<code>28|35</code>), <code>vote_average.gte=7</code>, lançamento de 2010 a 2015 e <code>sort_by=popularity.desc</code></li>
+        <li><strong>E</strong> manda <code>include_adult=false</code></li>
+        <li><strong>E</strong> responde 200 com a página 2 no idioma <code>pt-BR</code></li>
+        <li><strong>E</strong> enfileira cada hit dessa página</li>
+      </ul>
+      <h3>REQ-4: Discover sem filtro</h3>
+      <ul>
+        <li><strong>Dado que</strong> nenhum filtro de discover foi enviado</li>
+        <li><strong>Quando</strong> o cliente chama o discover com <code>page=1</code> e sem idioma</li>
+        <li><strong>Então</strong> responde 200 com a primeira página popular em <code>en-US</code></li>
+        <li><strong>E</strong> a ordenação continua <code>popularity.desc</code></li>
+      </ul>
+      <h3>REQ-5: Pedido inválido</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente chama um dos endpoints desta feature</li>
+        <li><strong>Quando</strong> o idioma não é <code>en-US</code> nem <code>pt-BR</code>, ou a página é menor que 1, ou o ano do texto não é inteiro positivo</li>
+        <li><strong>Então</strong> responde 400</li>
+        <li><strong>E</strong> não chama o TMDB</li>
+        <li><strong>E</strong> não enfileira nada</li>
+        <li><strong>Erro</strong> discover com <code>yearFrom=2015</code> e <code>yearTo=2010</code> → 400</li>
+        <li><strong>Erro</strong> discover com nota mínima 11 ou negativa → 400</li>
+        <li><strong>Erro</strong> discover com <code>runtimeFrom=140</code> e <code>runtimeTo=90</code> → 400</li>
+        <li><strong>Erro</strong> discover com certificação sem país, ou país sem selo → 400</li>
+        <li><strong>Erro</strong> busca por texto que também manda filtro de discover → 400  ||  os modos não se misturam</li>
+      </ul>
+      <h3>REQ-7: Candidatos de pessoa e de palavra-chave</h3>
+      <ul>
+        <li><strong>Dado que</strong> <code>/search/person</code> para &quot;Nolan&quot; devolve mais de uma pessoa</li>
+        <li><strong>Quando</strong> o cliente chama a busca de pessoas com <code>query=Nolan</code> e sem idioma</li>
+        <li><strong>Então</strong> responde 200 com a lista de candidatos em <code>en-US</code></li>
+        <li><strong>E</strong> cada candidato traz id, nome, departamento (<code>known_for_department</code>) e os títulos de <code>known_for</code></li>
+        <li><strong>E</strong> não chama <code>/discover/movie</code> e não enfileira filme</li>
+        <li><strong>Erro</strong> <code>query</code> vazio → 400</li>
+      </ul>
+      <ul>
+        <li><strong>Dado que</strong> <code>/search/keyword</code> para &quot;time travel&quot; devolve mais de um termo</li>
+        <li><strong>Quando</strong> o cliente chama a busca de palavras-chave com <code>query=time travel</code></li>
+        <li><strong>Então</strong> responde 200 com a lista (id e nome de cada termo)</li>
+        <li><strong>E</strong> não chama <code>/discover/movie</code></li>
+      </ul>
+      <h3>REQ-8: Discover com ids escolhidos, duração e certificação</h3>
+      <ul>
+        <li><strong>Dado que</strong> o cliente já escolheu os ids 234352 (Margot Robbie) e 6193 (Leonardo DiCaprio), o diretor 525 (Christopher Nolan) e a palavra-chave 4379</li>
+        <li><strong>Quando</strong> pede <code>cast</code> com esses dois ids, <code>director=525</code>, <code>keyword=4379</code>, <code>runtimeFrom=90</code>, <code>runtimeTo=140</code>, <code>certificationCountry=BR</code> e <code>certification=14</code></li>
+        <li><strong>Então</strong> o discover pede elenco em &quot;ou&quot; (<code>234352|6193</code>) e direção <code>525</code></li>
+        <li><strong>E</strong> elenco e direção juntos significam &quot;e&quot; (tem um desses atores e esse diretor)</li>
+        <li><strong>E</strong> pede a palavra-chave <code>4379</code>, <code>with_runtime.gte=90</code>, <code>with_runtime.lte=140</code>, <code>certification_country=BR</code> e <code>certification=14</code></li>
+        <li><strong>E</strong> várias palavras-chave no mesmo pedido entram em &quot;ou&quot;, no mesmo espírito do elenco</li>
+        <li><strong>E</strong> responde 200 e enfileira os hits, como no REQ-3</li>
+        <li><strong>Erro</strong> <code>cast</code>, <code>director</code> ou <code>keyword</code> com id que não é inteiro positivo → 400  ||  o discover não resolve nome</li>
+      </ul>
+      <h3>REQ-6: TMDB indisponível</h3>
+      <ul>
+        <li><strong>Dado que</strong> o client HTTP esgotou os retries do TMDB</li>
+        <li><strong>Quando</strong> o cliente busca por texto ou por discover</li>
+        <li><strong>Então</strong> responde erro</li>
+        <li><strong>E</strong> o corpo não é uma página com zero hits</li>
+        <li><strong>E</strong> não enfileira filme</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>A fila rejeita o enqueue → a API ainda responde 200 com a página  ||  a busca não depende do worker</li>
+        <li>Várias buscas ao mesmo tempo enfileiram os mesmos <code>tmdbId</code> → o job id existente (<code>tmdbId</code> + idioma) evita duplicar o trabalho</li>
+        <li>Página acima do que o TMDB aceita → o erro do TMDB sobe como erro da API, não como lista vazia</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <p>Quatro rotas públicas <code>GET /movie/catalog/{search,people,keywords,discover}</code> — implementadas em <code>packages/backend/src/domains/movies/infrastructure/http/controllers/movie-catalog-search.controller.ts:MovieCatalogSearchController</code>, com schemas de query/resposta em <code>.../http/dto/movie-catalog-search.dto.ts</code>, registro em <code>.../http/controllers/routes.ts</code> e docs OpenAPI em <code>.../http/docs/movie-catalog-search.docs.ts</code>.</p>
+      <ul>
+        <li>Filtros de lista (<code>genres</code>, <code>cast</code>, <code>director</code>, <code>keyword</code>) chegam na query string como ids separados por vírgula (ex: <code>?genres=28,35</code>).</li>
+        <li>200: página de <code>MovieSearchPage</code> (search e discover), <code>MoviePersonSearchPage</code> (people) e <code>MovieKeywordSearchPage</code> (keywords).</li>
+        <li>400: pedido inválido do REQ-5.</li>
+        <li>Erro de TMDB: mesma família de erro HTTP já usada quando o client estoura retry (502)  ||  não é 200 com <code>results: []</code>.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>

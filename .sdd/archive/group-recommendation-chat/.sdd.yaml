@@ -14,3 +14,4 @@ features:
   - slug: group-recommendation-chat-ui
     title: UI do chat de grupo
     summary: Aba Chat no detalhe do grupo com CRUD de chats, conversa e seletor de membros.
+archived: 2026-10-08

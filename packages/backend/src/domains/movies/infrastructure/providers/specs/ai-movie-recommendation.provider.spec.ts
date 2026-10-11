@@ -142,6 +142,7 @@ describe("AiMovieRecommendationProvider", () => {
   let callStructuredOutput: ReturnType<typeof vi.fn>;
   let call: ReturnType<typeof vi.fn>;
   let lookupMoviesTool: AgentTool;
+  let searchCatalogTool: AgentTool;
   let provider: AiMovieRecommendationProvider;
 
   beforeEach(() => {
@@ -149,8 +150,13 @@ describe("AiMovieRecommendationProvider", () => {
     callStructuredOutput = vi.fn();
     call = vi.fn();
     lookupMoviesTool = { name: "lookupMovies" } as AgentTool;
+    searchCatalogTool = { name: "searchCatalog" } as AgentTool;
     const ai = { callStructuredOutput, call } as unknown as AI;
-    provider = new AiMovieRecommendationProvider({ ai, lookupMoviesTool });
+    provider = new AiMovieRecommendationProvider({
+      ai,
+      lookupMoviesTool,
+      searchCatalogTool,
+    });
   });
 
   describe("getMovieRecommendation", () => {
@@ -178,8 +184,9 @@ describe("AiMovieRecommendationProvider", () => {
       expect(structuredCallArgs.threadId).toBe(chatId);
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs.messages).toHaveLength(1);
-      expect(structuredCallArgs.agent.tools).toHaveLength(1);
+      expect(structuredCallArgs.agent.tools).toHaveLength(2);
       expect(structuredCallArgs.agent.tools[0]).toBe(lookupMoviesTool);
+      expect(structuredCallArgs.agent.tools[1]).toBe(searchCatalogTool);
       expect(result).toEqual(validEntity);
     });
 

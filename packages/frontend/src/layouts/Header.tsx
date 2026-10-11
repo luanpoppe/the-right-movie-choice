@@ -118,6 +118,9 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ModeToggle />
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/search">Search</Link>
+          </Button>
           <AuthActions />
         </div>
       </div>
