@@ -12,7 +12,10 @@ import type {
   MovieCatalogSearchToolInput,
   MovieCatalogSearchToolResult,
 } from "@/domains/movies/domain/entities/movie-catalog-search-tool.entity";
-import { MovieCatalogSearchToolInputSchema } from "@/domains/movies/domain/entities/movie-catalog-search-tool.entity";
+import {
+  MovieCatalogSearchToolInputSchema,
+  MovieCatalogSearchToolModelSchema,
+} from "@/domains/movies/domain/entities/movie-catalog-search-tool.entity";
 import type { MovieSearchHit } from "@/domains/movies/domain/entities/movie-search.entity";
 import { MovieCatalogSearchValidationException } from "@/domains/movies/domain/movie-catalog-search.constants";
 import { Logger } from "@/lib/logger/logger";
@@ -31,6 +34,8 @@ export class SearchCatalogAiTool {
   private static readonly EMPTY_RESULTS_NOTICE = "Nenhum filme encontrado";
   private static readonly MIXED_MODES_NOTICE =
     "query de texto e filtros de discover não podem ser usados na mesma chamada";
+  private static readonly YEAR_WITHOUT_QUERY_NOTICE =
+    "o ano só é aceito junto de uma busca por texto";
   private static readonly TMDB_UNAVAILABLE_NOTICE =
     "Catálogo indisponível no momento. Tente novamente.";
 
@@ -58,6 +63,15 @@ export class SearchCatalogAiTool {
       const isTextQuery = SearchCatalogAiTool.hasTextQuery(input);
       const hasDiscoverFilters =
         SearchCatalogAiTool.hasDiscoverFilters(input);
+      const hasYearWithoutQuery = input.year !== undefined && !isTextQuery;
+
+      if (hasYearWithoutQuery) {
+        return SearchCatalogAiTool.buildMiss(
+          SearchCatalogAiTool.YEAR_WITHOUT_QUERY_NOTICE,
+          startedAtMs,
+          "year-without-query",
+        );
+      }
 
       if (isTextQuery && hasDiscoverFilters) {
         return SearchCatalogAiTool.buildMiss(
@@ -108,7 +122,7 @@ export class SearchCatalogAiTool {
     const structuredTool = this.aiTools.createTool({
       name: SearchCatalogAiTool.TOOL_NAME,
       description: SearchCatalogAiTool.TOOL_DESCRIPTION,
-      schema: MovieCatalogSearchToolInputSchema as never,
+      schema: MovieCatalogSearchToolModelSchema as never,
       toolFunction: toolFunction as never,
     });
 
