@@ -1,6 +1,7 @@
 id: movie-catalog-search
 title: Busca de filmes no TMDB para a biblioteca
 created: 2026-10-05
+archived: 2026-10-11
 format: both
 lang: pt-BR
 chunk_size: small
