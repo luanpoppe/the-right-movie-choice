@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cinéfilo Noir - protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --surface: #151518;
+    --surface-2: #1c1c21;
+    --line: #2b2b31;
+    --text: #f3f1ec;
+    --muted: #9a968d;
+    --accent: #e6a532;
+    --accent-ink: #1a1206;
+    --shadow: 0 24px 60px rgba(0,0,0,.55);
+    --grain-opacity: .05;
+  }
+  /* "Matinée" - light mode, designed on purpose, not an inversion */
+  [data-theme="light"] {
+    --bg: #f2f0ec;
+    --surface: #ffffff;
+    --surface-2: #eae7e1;
+    --line: #dcd8d0;
+    --text: #17161a;
+    --muted: #6c6862;
+    --accent: #b8791a;
+    --accent-ink: #fff9ee;
+    --shadow: 0 20px 50px rgba(40,32,18,.14);
+    --grain-opacity: .04;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+    overflow-x: hidden;
+  }
+  /* fixed, pointer-events-none grain */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .display { font-family: "Bricolage Grotesque", sans-serif; letter-spacing: -.03em; font-weight: 700; line-height: .98; }
+  .kicker {
+    font-family: "Bricolage Grotesque", sans-serif; text-transform: uppercase;
+    letter-spacing: .24em; font-size: 11px; font-weight: 600; color: var(--accent);
+  }
+
+  /* header */
+  header {
+    position: sticky; top: 0; z-index: 40;
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(14px) saturate(140%);
+    background: color-mix(in oklab, var(--bg) 78%, transparent);
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 20px; }
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--text); }
+  .mark {
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(160deg, var(--accent), color-mix(in oklab, var(--accent) 55%, #000));
+    color: var(--accent-ink); font-weight: 800; font-family: "Bricolage Grotesque", sans-serif; font-size: 15px;
+  }
+  .brand b { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 1.02rem; letter-spacing: -.02em; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: .875rem; padding: 7px 12px; border-radius: 8px;
+    transition: color .2s, background .2s;
+  }
+  nav a:hover { color: var(--text); background: var(--surface-2); }
+  nav a[aria-current] { color: var(--text); }
+  .iconbtn {
+    width: 38px; height: 38px; border-radius: 9px; border: 1px solid var(--line); background: transparent;
+    color: var(--text); cursor: pointer; font-size: 15px; display: grid; place-items: center;
+    transition: background .2s, transform .15s;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+  .iconbtn:active { transform: translateY(1px); }
+
+  /* hero */
+  .hero { position: relative; padding: clamp(48px, 8vw, 96px) 0 40px; }
+  .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: center; }
+  h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); margin: 16px 0 20px; text-wrap: balance; }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { color: var(--muted); font-size: 1.05rem; max-width: 46ch; margin: 0 0 30px; text-wrap: pretty; }
+
+  .search { display: flex; gap: 10px; max-width: 560px; }
+  .search input {
+    flex: 1; height: 58px; padding: 0 18px; font-size: 1rem; font-family: inherit;
+    color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .search input::placeholder { color: var(--muted); }
+  .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
+  .btn {
+    height: 58px; padding: 0 26px; border: 0; border-radius: 12px; cursor: pointer;
+    font-family: inherit; font-size: .95rem; font-weight: 600; letter-spacing: .01em;
+    background: var(--accent); color: var(--accent-ink);
+    transition: transform .18s cubic-bezier(.16,1,.3,1), filter .2s;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+  .btn:active { transform: translateY(0) scale(.985); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip {
+    font-size: .8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 13px; cursor: pointer; background: transparent; font-family: inherit;
+    transition: color .2s, border-color .2s;
+  }
+  .chip:hover { color: var(--text); border-color: color-mix(in oklab, var(--accent) 55%, var(--line)); }
+
+  /* hero poster stack */
+  .stack { position: relative; height: 400px; }
+  .stack .poster {
+    position: absolute; width: 200px; aspect-ratio: 2/3; border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface);
+  }
+  .stack .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .stack .p1 { left: 4%; top: 34px; transform: rotate(-6deg); z-index: 1; }
+  .stack .p2 { left: 30%; top: 0; z-index: 3; }
+  .stack .p3 { left: 56%; top: 40px; transform: rotate(6deg); z-index: 2; }
+  .stack .poster { transition: transform .45s cubic-bezier(.16,1,.3,1); }
+  .stack:hover .p1 { transform: rotate(-8deg) translateY(-8px); }
+  .stack:hover .p2 { transform: translateY(-12px); }
+  .stack:hover .p3 { transform: rotate(8deg) translateY(-8px); }
+
+  /* section */
+  section { padding: 56px 0; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
+  .sec-head h2 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.6rem; letter-spacing: -.02em; margin: 0; }
+  .sec-head a { color: var(--accent); text-decoration: none; font-size: .875rem; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .movie {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    transition: transform .35s cubic-bezier(.16,1,.3,1), border-color .3s;
+  }
+  .movie:hover { transform: translateY(-6px); border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+  .movie .poster { aspect-ratio: 2/3; background: var(--surface-2); position: relative; overflow: hidden; }
+  .movie .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .movie .poster::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, color-mix(in oklab, var(--bg) 92%, transparent), transparent 42%);
+  }
+  .rating {
+    position: absolute; left: 12px; bottom: 12px; z-index: 2;
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: .95rem;
+    background: color-mix(in oklab, var(--bg) 70%, transparent); border: 1px solid var(--line);
+    padding: 3px 10px; border-radius: 8px; backdrop-filter: blur(6px);
+  }
+  .body { padding: 16px 18px 20px; }
+  .body h3 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.12rem; margin: 0 0 3px; letter-spacing: -.01em; }
+  .body .sub { color: var(--muted); font-size: .82rem; margin: 0 0 12px; }
+  .why { color: var(--muted); font-size: .86rem; line-height: 1.55; margin: 0 0 14px; }
+  .actions { display: flex; gap: 8px; }
+  .ghost {
+    flex: 1; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: transparent;
+    color: var(--text); font-family: inherit; font-size: .8rem; cursor: pointer;
+    transition: background .2s, border-color .2s;
+  }
+  .ghost:hover { background: var(--surface-2); border-color: var(--accent); }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--muted); font-size: .82rem; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .stack { display: none; }
+    .cards { grid-template-columns: 1fr; }
+    nav .navlinks { display: none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap bar">
+      <a class="brand" href="#">
+        <span class="mark">R</span>
+        <b>The Right Movie Choice</b>
+      </a>
+      <nav>
+        <span class="navlinks" style="display:flex;gap:2px">
+          <a href="#" aria-current="page">Discover</a>
+          <a href="#">Search</a>
+          <a href="#">My movies</a>
+          <a href="#">Social</a>
+        </span>
+        <button class="iconbtn" id="theme" aria-label="Toggle theme">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="wrap hero">
+    <div class="hero-grid">
+      <div>
+        <div class="kicker">Tonight's programme</div>
+        <h1 class="display">Find the film that <em>fits the mood</em>, not the algorithm.</h1>
+        <p class="lede">Tell us the feeling you're after. We return three films worth your evening, with the reason each one belongs.</p>
+
+        <form class="search" onsubmit="return false">
+          <input placeholder="A slow, rainy-night noir... or something funny for four people" />
+          <button class="btn" type="submit">Recommend</button>
+        </form>
+        <div class="chips">
+          <button class="chip">rainy-day noir</button>
+          <button class="chip">cozy with friends</button>
+          <button class="chip">mind-bending sci-fi</button>
+        </div>
+      </div>
+
+      <div class="stack" aria-hidden="true">
+        <div class="poster p1"><img src="https://picsum.photos/seed/noir-back-1/400/600" alt="" /></div>
+        <div class="poster p2"><img src="https://picsum.photos/seed/noir-front/400/600" alt="" /></div>
+        <div class="poster p3"><img src="https://picsum.photos/seed/noir-back-2/400/600" alt="" /></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="wrap">
+    <div class="sec-head">
+      <h2>Three picks, one evening</h2>
+      <a href="#">See the full library -&gt;</a>
+    </div>
+    <div class="cards">
+      <article class="movie">
+        <div class="poster">
+          <span class="rating">8.8</span>
+          <img src="https://picsum.photos/seed/noir-card-1/400/600" alt="Poster" />
+        </div>
+        <div class="body">
+          <h3>Inception</h3>
+          <p class="sub">Christopher Nolan - 2010 - 148 min</p>
+          <p class="why">A heist inside dreams; you wanted something to untangle, and this rewards the rewatching.</p>
+          <div class="actions"><button class="ghost">Watched</button><button class="ghost">Watchlist</button></div>
+        </div>
+      </article>
+      <article class="movie">
+        <div class="poster">
+          <span class="rating">8.2</span>
+          <img src="https://picsum.photos/seed/noir-card-2/400/600" alt="Poster" />
+        </div>
+        <div class="body">
+          <h3>Blade Runner 2049</h3>
+          <p class="sub">Denis Villeneuve - 2017 - 164 min</p>
+          <p class="why">Slow, gorgeous, melancholic. The rainy-night mood you described, in widescreen.</p>
+          <div class="actions"><button class="ghost">Watched</button><button class="ghost">Watchlist</button></div>
+        </div>
+      </article>
+      <article class="movie">
+        <div class="poster">
+          <span class="rating">8.0</span>
+          <img src="https://picsum.photos/seed/noir-card-3/400/600" alt="Poster" />
+        </div>
+        <div class="body">
+          <h3>Parasite</h3>
+          <p class="sub">Bong Joon-ho - 2019 - 132 min</p>
+          <p class="why">Sharp and unpredictable; good pick when you want the room talking afterwards.</p>
+          <div class="actions"><button class="ghost">Watched</button><button class="ghost">Watchlist</button></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>The Right Movie Choice</span>
+      <span>Privacy - Terms</span>
+    </div>
+  </footer>
+
+  <script>
+    const root = document.documentElement;
+    document.getElementById("theme").addEventListener("click", () => {
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    });
+  </script>
+</body>
+</html>

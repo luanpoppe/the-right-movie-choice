@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Direções visuais - The Right Movie Choice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #151518;
+    --line: #2a2a30;
+    --text: #f3f1ec;
+    --muted: #96938c;
+    --accent: #e6a532;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(230,165,50,.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Geist", system-ui, -apple-system, Segoe UI, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 28px 96px; }
+  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 12px; }
+  .kicker {
+    font-family: "Bricolage Grotesque", sans-serif;
+    text-transform: uppercase; letter-spacing: .22em; font-size: 11px; font-weight: 600;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-size: clamp(2rem, 4.2vw, 3.4rem);
+    line-height: 1; letter-spacing: -.03em; font-weight: 700; margin: 14px 0 10px;
+    text-wrap: balance;
+  }
+  .lede { color: var(--muted); max-width: 62ch; line-height: 1.6; margin: 0 0 6px; }
+  .rule { height: 1px; background: var(--line); margin: 34px 0 30px; border: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 22px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; display: flex; flex-direction: column;
+    transition: transform .3s cubic-bezier(.16,1,.3,1), border-color .3s;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(230,165,50,.45); }
+  .shot { position: relative; height: 230px; overflow: hidden; background: #0a0a0c; border-bottom: 1px solid var(--line); }
+  .shot iframe {
+    width: 1400px; height: 1000px; border: 0; transform: scale(.26); transform-origin: top left;
+    pointer-events: none;
+  }
+  .meta { padding: 18px 20px 22px; }
+  .meta .no { font-family: "Bricolage Grotesque", sans-serif; font-size: 12px; color: var(--accent); letter-spacing: .16em; }
+  .meta h2 { font-family: "Bricolage Grotesque", sans-serif; font-size: 1.25rem; margin: 6px 0 8px; letter-spacing: -.02em; }
+  .meta p { color: var(--muted); font-size: .9rem; line-height: 1.55; margin: 0 0 14px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  a.open {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    color: #0c0c0e; background: var(--accent); font-weight: 600; font-size: .875rem;
+    padding: 9px 16px; border-radius: 9px; transition: transform .2s, filter .2s;
+  }
+  a.open:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  footer.note { margin-top: 48px; color: var(--muted); font-size: .82rem; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 22px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <div class="kicker">The Right Movie Choice / Redesign</div>
+        <h1>Direções visuais para decidir antes do código</h1>
+        <p class="lede">Direções visuais diferentes, cada uma prototipando a mesma tela. O card destacado é a evolução do Cinéfilo Noir (sua escolha), com camadas de modernidade e motion. Clique em "Abrir protótipo" para ver em tela cheia. Nada aqui toca o código existente.</p>
+      </div>
+    </header>
+
+    <hr class="rule" />
+
+    <div class="grid">
+      <article class="card" style="border-color: rgba(230,165,50,.6); box-shadow: 0 0 0 1px rgba(230,165,50,.25);">
+        <div class="shot"><iframe src="06-cinefilo-noir-v2.html" title="Cinefilo noir v2" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">01 - EVOLUÇÃO (a sua escolha, refinada)</div>
+          <h2>Cinéfilo Noir 2.0</h2>
+          <p>Mesma espinha dorsal, mais moderna: título com revelação cinética, spotlight que segue o cursor, cards com borda iluminada, revelação por scroll e barra de progresso. Só usa o que já existe (nota, três ações de lista, sugestões de busca). Temas escuro e claro.</p>
+          <div class="tags"><span class="tag">dark-first + claro</span><span class="tag">âmbar</span><span class="tag">motion contido</span><span class="tag">sem feature nova</span></div>
+          <a class="open" href="06-cinefilo-noir-v2.html">Abrir protótipo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="shot"><iframe src="01-cinefilo-noir.html" title="Cinefilo noir" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">01b - base</div>
+          <h2>Cinéfilo Noir</h2>
+          <p>Dark-first cinematográfico. Off-black, um único accent âmbar, textura de grão, hero tipo letreiro com a imagem do pôster grande. Tema claro vira "matinée", desenhado à parte.</p>
+          <div class="tags"><span class="tag">dark-first</span><span class="tag">âmbar</span><span class="tag">grão</span><span class="tag">pôster vertical</span></div>
+          <a class="open" href="01-cinefilo-noir.html">Abrir protótipo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="shot"><iframe src="02-editorial-claro.html" title="Editorial claro" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">02</div>
+          <h2>Editorial Claro</h2>
+          <p>Light-first de revista de cinema. Papel frio, tinta, serifa display (justificada: publicação), grid assimétrico com fios e legendas. Mais "repertório" que "streaming".</p>
+          <div class="tags"><span class="tag">light-first</span><span class="tag">serifa</span><span class="tag">grid de revista</span><span class="tag">vermelho</span></div>
+          <a class="open" href="02-editorial-claro.html">Abrir protótipo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="shot"><iframe src="03-arthouse-grafico.html" title="Arthouse grafico" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">03</div>
+          <h2>Art-house Gráfico</h2>
+          <p>Estética tipo selo de acervo: branco total, tipo grotesca pesada em caixa alta, blocos de cor chapada e pôsteres dominando. Um accent vívido por bloco. O mais "de marca" dos cinco.</p>
+          <div class="tags"><span class="tag">flat</span><span class="tag">cor chapada</span><span class="tag">caixa alta</span><span class="tag">poster-first</span></div>
+          <a class="open" href="03-arthouse-grafico.html">Abrir protótipo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="shot"><iframe src="04-suico-utilitario.html" title="Suico utilitario" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">04</div>
+          <h2>Suíço Utilitário</h2>
+          <p>Grid internacional: branco, preto e um vermelho. Tipografia como estrutura, fios finos, dados em mono, quase sem imagem. O mais anti-IA e anti-enfeite. Muito "ferramenta de cinéfilo".</p>
+          <div class="tags"><span class="tag">grid</span><span class="tag">tipográfico</span><span class="tag">vermelho</span><span class="tag">mono</span></div>
+          <a class="open" href="04-suico-utilitario.html">Abrir protótipo</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="shot"><iframe src="05-evolucao-contida.html" title="Evolucao contida" loading="lazy"></iframe></div>
+        <div class="meta">
+          <div class="no">05</div>
+          <h2>Evolução Contida</h2>
+          <p>Mesma estrutura atual, só limpa: sai o azul-IA, entra neutro + um accent esmeralda, tipografia melhor, mais respiro. Menor risco e menor salto visual. Baseline de comparação.</p>
+          <div class="tags"><span class="tag">menor risco</span><span class="tag">dual theme</span><span class="tag">esmeralda</span><span class="tag">evolução</span></div>
+          <a class="open" href="05-evolucao-contida.html">Abrir protótipo</a>
+        </div>
+      </article>
+    </div>
+
+    <footer class="note">
+      Protótipos estáticos para decisão de direção visual. Imagens são placeholders (picsum) e fontes vêm do Google Fonts, então os arquivos precisam de internet ao abrir. Depois que você escolher, eu aplico só a direção vencedora no <code>packages/frontend</code>, com Motion + tokens reais e sem quebrar os testes.
+    </footer>
+  </div>
+</body>
+</html>
