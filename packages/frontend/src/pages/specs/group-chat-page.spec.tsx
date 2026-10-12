@@ -2,6 +2,7 @@ jest.mock("lucide-react", () => ({
   Send: () => <span />,
   RotateCcw: () => <span />,
   Loader2: () => <span />,
+  MessageSquare: () => <span />,
   Pencil: () => <span />,
   Trash2: () => <span />,
   X: () => <span />,

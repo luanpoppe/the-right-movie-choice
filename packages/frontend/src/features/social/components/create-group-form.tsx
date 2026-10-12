@@ -75,7 +75,7 @@ export function CreateGroupForm({ onCreated }: CreateGroupFormProps) {
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="mb-8 space-y-4 rounded-lg border border-border/50 bg-card/50 p-4"
+      className="mb-8 space-y-4 rounded-xl border border-border bg-card p-4"
     >
       <h2 className="text-lg font-semibold">Create a group</h2>
 

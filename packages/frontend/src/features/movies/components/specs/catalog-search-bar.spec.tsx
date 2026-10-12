@@ -40,13 +40,13 @@ describe("CatalogSearchBar", () => {
     expect(onSearch).toHaveBeenCalledWith("Interstellar");
   });
 
-  it("REQ-2: clicar em Buscar envia o texto digitado", async () => {
+  it("REQ-2: clicar em Search envia o texto digitado", async () => {
     const user = userEvent.setup();
     const { onSearch } = renderBar();
 
     const input = screen.getByPlaceholderText("Search movies by title");
     await user.type(input, "Interstellar");
-    await user.click(screen.getByRole("button", { name: /buscar/i }));
+    await user.click(screen.getByRole("button", { name: /search/i }));
 
     expect(onSearch).toHaveBeenCalledWith("Interstellar");
   });
@@ -55,7 +55,7 @@ describe("CatalogSearchBar", () => {
     const user = userEvent.setup();
     const { onSearch } = renderBar();
 
-    await user.click(screen.getByRole("button", { name: /buscar/i }));
+    await user.click(screen.getByRole("button", { name: /search/i }));
 
     expect(onSearch).toHaveBeenCalledWith("");
   });

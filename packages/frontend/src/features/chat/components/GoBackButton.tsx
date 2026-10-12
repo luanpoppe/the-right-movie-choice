@@ -7,14 +7,14 @@ interface GoBackButtonProps {
 
 export function GoBackButton({ handleReset }: GoBackButtonProps) {
   return (
-    <div className="flex items-center justify-center mb-6 pb-4 border-b border-border/50">
+    <div className="mb-6 flex items-center justify-center border-b border-border pb-4">
       <Button
         onClick={handleReset}
         variant="outline"
         size="sm"
-        className="rounded-xl gap-2 hover:bg-accent/10 hover:text-accent hover:border-accent/50 transition-colors bg-transparent"
+        className="gap-2 rounded-lg"
       >
-        <RotateCcw className="w-4 h-4" />
+        <RotateCcw className="h-4 w-4" />
         Start Again
       </Button>
     </div>

@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthCard, AuthOrDivider } from "../components/AuthCard";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { AuthService } from "../services/auth.service";
 import { getAuthErrorMessage } from "../utils/auth-error.util";
@@ -37,76 +38,63 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="container mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col justify-center px-6 py-12">
-      <div className="space-y-6 rounded-2xl border border-border/50 bg-card/80 p-8 shadow-lg">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">Create account</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign up with a password or use Google on the same account.
-          </p>
+    <AuthCard
+      title="Create account"
+      subtitle="Sign up with a password or use Google on the same account."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            name="name"
+            type="text"
+            required
+            autoComplete="name"
+            disabled={isLoading}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              required
-              autoComplete="name"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              disabled={isLoading}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create account"}
-          </Button>
-        </form>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border/50" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            disabled={isLoading}
+          />
         </div>
 
-        <GoogleSignInButton />
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            disabled={isLoading}
+          />
+        </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link to="/login" className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "Creating..." : "Create account"}
+        </Button>
+      </form>
+
+      <AuthOrDivider />
+
+      <GoogleSignInButton />
+
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link to="/login" className="text-primary hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthCard>
   );
 }

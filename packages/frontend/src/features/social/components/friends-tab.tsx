@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import type { UserPublicResponse } from "../dto/friendship.dto";
 import { FriendshipService } from "../services/friendship.service";
 import { AddFriendForm } from "./add-friend-form";
@@ -134,7 +135,7 @@ export function FriendsTab() {
       <AddFriendForm onSent={handleFriendSent} />
 
       {isLoading && (
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton label="Loading your friends..." />
       )}
 
       {hasLoadError && !isLoading && (
@@ -159,7 +160,7 @@ export function FriendsTab() {
           {friends.map((friend) => (
             <li
               key={friend.id}
-              className="flex items-center justify-between gap-4 rounded-lg border p-4"
+              className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4"
             >
               <div>
                 <p className="font-medium">{friend.name}</p>

@@ -26,24 +26,24 @@ interface GenreOption {
 }
 
 const COMMON_GENRES: ReadonlyArray<GenreOption> = [
-  { id: 28, label: "Ação" },
-  { id: 12, label: "Aventura" },
-  { id: 16, label: "Animação" },
-  { id: 35, label: "Comédia" },
+  { id: 28, label: "Action" },
+  { id: 12, label: "Adventure" },
+  { id: 16, label: "Animation" },
+  { id: 35, label: "Comedy" },
   { id: 80, label: "Crime" },
-  { id: 99, label: "Documentário" },
+  { id: 99, label: "Documentary" },
   { id: 18, label: "Drama" },
-  { id: 10751, label: "Família" },
-  { id: 14, label: "Fantasia" },
-  { id: 36, label: "História" },
-  { id: 27, label: "Terror" },
-  { id: 10402, label: "Música" },
-  { id: 9648, label: "Mistério" },
+  { id: 10751, label: "Family" },
+  { id: 14, label: "Fantasy" },
+  { id: 36, label: "History" },
+  { id: 27, label: "Horror" },
+  { id: 10402, label: "Music" },
+  { id: 9648, label: "Mystery" },
   { id: 10749, label: "Romance" },
-  { id: 878, label: "Ficção científica" },
-  { id: 53, label: "Suspense" },
-  { id: 10752, label: "Guerra" },
-  { id: 37, label: "Faroeste" },
+  { id: 878, label: "Science Fiction" },
+  { id: 53, label: "Thriller" },
+  { id: 10752, label: "War" },
+  { id: 37, label: "Western" },
 ];
 
 export function CatalogSearchFiltersPanel({
@@ -96,9 +96,9 @@ export function CatalogSearchFiltersPanel({
   };
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-border/50 bg-card/80 p-4 shadow-lg">
+    <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-2">
-        <Label>Gêneros</Label>
+        <Label>Genres</Label>
         <div className="flex flex-wrap gap-1.5">
           {COMMON_GENRES.map((genre) => {
             const isSelected = (draft.genres ?? []).includes(genre.id);
@@ -123,7 +123,7 @@ export function CatalogSearchFiltersPanel({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <CatalogSearchNumberField
           id="filter-min-rating"
-          label="Nota mínima"
+          label="Minimum rating"
           value={draft.minRating}
           onChange={(value) => updateDraft({ minRating: value })}
           placeholder="0–10"
@@ -133,14 +133,14 @@ export function CatalogSearchFiltersPanel({
         <div className="grid grid-cols-2 gap-3">
           <CatalogSearchNumberField
             id="filter-year-from"
-            label="Ano de"
+            label="Year from"
             value={draft.yearFrom}
             onChange={(value) => updateDraft({ yearFrom: value })}
             placeholder="2010"
           />
           <CatalogSearchNumberField
             id="filter-year-to"
-            label="Ano até"
+            label="Year to"
             value={draft.yearTo}
             onChange={(value) => updateDraft({ yearTo: value })}
             placeholder="2015"
@@ -149,14 +149,14 @@ export function CatalogSearchFiltersPanel({
         <div className="grid grid-cols-2 gap-3">
           <CatalogSearchNumberField
             id="filter-runtime-from"
-            label="Duração de"
+            label="Runtime from"
             value={draft.runtimeFrom}
             onChange={(value) => updateDraft({ runtimeFrom: value })}
             placeholder="60"
           />
           <CatalogSearchNumberField
             id="filter-runtime-to"
-            label="Duração até"
+            label="Runtime to"
             value={draft.runtimeTo}
             onChange={(value) => updateDraft({ runtimeTo: value })}
             placeholder="180"
@@ -164,7 +164,7 @@ export function CatalogSearchFiltersPanel({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="filter-certification-country">País</Label>
+            <Label htmlFor="filter-certification-country">Country</Label>
             <Input
               id="filter-certification-country"
               value={draft.certificationCountry ?? ""}
@@ -176,7 +176,7 @@ export function CatalogSearchFiltersPanel({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="filter-certification">Certificação</Label>
+            <Label htmlFor="filter-certification">Certification</Label>
             <Input
               id="filter-certification"
               value={draft.certification ?? ""}
@@ -193,35 +193,35 @@ export function CatalogSearchFiltersPanel({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <CandidateSearchCombobox
           kind="person"
-          label="Ator"
+          label="Actor"
           value={draft.cast ?? []}
           onChange={(ids) => updateDraft({ cast: ids })}
-          placeholder="Buscar por ator"
+          placeholder="Search by actor"
           language={language}
         />
         <CandidateSearchCombobox
           kind="person"
-          label="Diretor"
+          label="Director"
           value={draft.director ?? []}
           onChange={(ids) => updateDraft({ director: ids })}
-          placeholder="Buscar por diretor"
+          placeholder="Search by director"
           language={language}
         />
         <CandidateSearchCombobox
           kind="keyword"
-          label="Palavra-chave"
+          label="Keyword"
           value={draft.keyword ?? []}
           onChange={(ids) => updateDraft({ keyword: ids })}
-          placeholder="Buscar por palavra-chave"
+          placeholder="Search by keyword"
         />
       </div>
 
       <div className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={handleClear}>
-          Limpar
+          Clear
         </Button>
         <Button type="button" onClick={handleApply}>
-          Aplicar filtros
+          Apply filters
         </Button>
       </div>
     </div>

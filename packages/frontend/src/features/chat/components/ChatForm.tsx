@@ -36,21 +36,22 @@ export function ChatForm({
         isLoading={isLoading}
         isGuestLocked={isGuestLocked}
       />
-      <div className="flex gap-3 p-2 rounded-3xl bg-card/80 border border-border/50 shadow-lg">
+      <div className="flex gap-2 rounded-xl border border-border bg-card p-2 shadow-sm">
         <Input
           name="message"
           placeholder="Describe the type of movie you want to watch..."
           disabled={isDisabled}
-          className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+          className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 focus-visible:ring-offset-0"
           autoComplete="off"
         />
         <Button
           type="submit"
           disabled={isDisabled}
           size="icon"
-          className="rounded-2xl h-11 w-11 bg-gradient-to-br from-primary to-accent hover:shadow-lg hover:shadow-primary/30 transition-all"
+          aria-label="Send message"
+          className="h-11 w-11 rounded-lg"
         >
-          <Send className="w-4 h-4" />
+          <Send className="h-4 w-4" />
         </Button>
       </div>
     </form>

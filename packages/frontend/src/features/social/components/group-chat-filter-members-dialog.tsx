@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -250,7 +251,7 @@ export function GroupChatFilterMembersDialog({
           </div>
 
           {isLoadingMembers && (
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <ListSkeleton compact rows={3} label="Loading members..." />
           )}
 
           {hasLoadError && !isLoadingMembers && (
@@ -274,8 +275,8 @@ export function GroupChatFilterMembersDialog({
                     <Label
                       htmlFor={checkboxId}
                       className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-md border border-border/60 p-3",
-                        "hover:bg-muted/40",
+                        "flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3",
+                        "hover:bg-secondary",
                         isActionDisabled && "cursor-not-allowed opacity-60",
                       )}
                     >

@@ -17,15 +17,17 @@ export class GroupChatListUtils {
     return sortedChats;
   }
 
-  static formatDisplayTitle(
-    title: string | null,
-    updatedAt: string,
-  ): string {
-    const displayTitle = ConversationTitleUtils.formatDisplayTitle(
-      title,
-      updatedAt,
-    );
+  static formatTitle(title: string | null): string {
+    const trimmedTitle = title?.trim() ?? "";
+    const hasTitle = trimmedTitle.length > 0;
+    if (hasTitle) {
+      return trimmedTitle;
+    }
 
-    return displayTitle;
+    return ConversationTitleUtils.NULL_TITLE_LABEL;
+  }
+
+  static formatUpdatedAt(updatedAt: string): string {
+    return ConversationTitleUtils.formatUpdatedAt(updatedAt);
   }
 }

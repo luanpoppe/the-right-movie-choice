@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import toast from "react-hot-toast";
+import { MessageSquare } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { Button } from "@/components/ui/button";
 import { ConversationListItem } from "@/features/conversations/components/conversation-list-item";
 import type { UserConversationSummaryResponse } from "@/features/conversations/dto/user-conversation.dto";
@@ -183,16 +186,22 @@ function ConversationsListPageContent() {
   const shouldShowEmptyState = !isLoading && !hasLoadError && !hasConversations;
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Conversations</h1>
-        <p className="text-muted-foreground">
-          Browse, rename, and delete your past movie recommendation chats.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+      <PageHeader
+        title="Conversations"
+        description="Browse, rename, and delete your past movie recommendation chats."
+        action={
+          <Button asChild>
+            <Link to="/">New conversation</Link>
+          </Button>
+        }
+      />
 
       {isLoading && (
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton
+          className="mx-auto max-w-3xl"
+          label="Loading your conversations..."
+        />
       )}
 
       {hasLoadError && !isLoading && (
@@ -207,23 +216,32 @@ function ConversationsListPageContent() {
       )}
 
       {shouldShowEmptyState && (
-        <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-muted-foreground">
-            You do not have any conversations yet.
-          </p>
-          <Link to="/" className="text-primary hover:underline">
-            Start a new conversation on the home page
-          </Link>
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-16 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-primary">
+            <MessageSquare className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="space-y-1">
+            <p className="font-display text-lg font-semibold tracking-tight">
+              No conversations yet
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Start a chat and your recommendation history shows up here.
+            </p>
+          </div>
+          <Button asChild>
+            <Link to="/">Start a conversation</Link>
+          </Button>
         </div>
       )}
 
       {hasConversations && !isLoading && !hasLoadError && (
-        <ul className="mx-auto flex max-w-2xl flex-col gap-1">
+        <ul className="mx-auto flex max-w-3xl flex-col gap-2">
           {conversations.map((conversation) => (
             <li key={conversation.id}>
               <ConversationListItem
                 conversation={conversation}
                 isDisabled={isMutating}
+                variant="card"
                 onOpen={handleOpenConversation}
                 onRename={handleRenameConversation}
                 onDelete={handleDeleteConversation}

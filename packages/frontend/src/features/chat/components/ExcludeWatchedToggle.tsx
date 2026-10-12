@@ -31,20 +31,20 @@ export function ExcludeWatchedToggle({
   };
 
   const labelClassName = cn(
-    "inline-flex items-center gap-2.5 rounded-full border border-border/40 bg-card/50 px-3 py-1.5",
-    "text-sm font-normal text-muted-foreground shadow-sm backdrop-blur-sm",
-    "transition-colors hover:bg-card/70",
+    "inline-flex items-center gap-2.5 rounded-full border border-border bg-card px-3 py-1.5",
+    "text-sm font-normal text-muted-foreground shadow-sm",
+    "transition-colors hover:bg-secondary",
     isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
   );
 
   const switchTrackClassName = cn(
-    "relative inline-flex h-5 w-9 shrink-0 rounded-full border border-border/30 bg-muted/60",
+    "relative inline-flex h-5 w-9 shrink-0 rounded-full border border-border bg-secondary",
     "transition-all duration-200 ease-out",
     "after:pointer-events-none after:absolute after:left-[2px] after:top-[2px]",
     "after:block after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm",
     "after:transition-transform after:duration-200 after:ease-out",
-    "peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
-    "peer-checked:border-primary/40 peer-checked:bg-gradient-to-r peer-checked:from-primary peer-checked:to-accent",
+    "peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
+    "peer-checked:border-primary peer-checked:bg-primary",
     "peer-checked:after:translate-x-4",
     "peer-disabled:cursor-not-allowed",
   );

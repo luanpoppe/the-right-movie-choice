@@ -28,7 +28,7 @@ function SearchMovieCardPosterPlaceholder() {
     <div
       className={cn(
         "flex aspect-[2/3] w-full items-center justify-center",
-        "bg-muted text-muted-foreground",
+        "bg-secondary text-muted-foreground",
       )}
       aria-hidden
     >
@@ -67,25 +67,25 @@ export function SearchMovieCard({ hit }: SearchMovieCardProps) {
   const yearLabel = hasYear ? String(hit.year) : MISSING_YEAR_LABEL;
 
   return (
-    <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+    <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
       <SearchMovieCardPoster posterUrl={posterUrl} title={hit.title} />
 
       <CardHeader className="space-y-1 p-4 pb-2">
-        <CardTitle className="line-clamp-2 text-base leading-tight">
+        <CardTitle className="line-clamp-2 font-display text-base leading-tight tracking-tight">
           {hit.title}
         </CardTitle>
-        <CardDescription className="flex items-center gap-1.5 text-xs">
+        <CardDescription className="tnum flex items-center gap-1.5 text-xs">
           <Calendar className="h-3.5 w-3.5" />
           <span>{yearLabel}</span>
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-3 p-4 pt-0">
-        <p className="line-clamp-4 text-sm text-muted-foreground leading-relaxed">
+        <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground">
           {hit.overview}
         </p>
 
-        <div className="border-t border-border/50 pt-3">
+        <div className="border-t border-border pt-3">
           <MovieCardListActions tmdbId={hit.id} />
         </div>
       </CardContent>

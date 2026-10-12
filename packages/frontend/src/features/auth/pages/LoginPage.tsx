@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthCard, AuthOrDivider } from "../components/AuthCard";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { useAuth } from "../context/AuthContext";
 import { AuthService } from "../services/auth.service";
@@ -57,64 +58,51 @@ export function LoginPage() {
   }
 
   return (
-    <div className="container mx-auto flex min-h-[calc(100vh-8rem)] max-w-md flex-col justify-center px-6 py-12">
-      <div className="space-y-6 rounded-2xl border border-border/50 bg-card/80 p-8 shadow-lg">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">Sign in</h1>
-          <p className="text-sm text-muted-foreground">
-            Use your password or continue with Google.
-          </p>
+    <AuthCard
+      title="Sign in"
+      subtitle="Use your password or continue with Google."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            disabled={isLoading}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="current-password"
-              disabled={isLoading}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border/50" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="current-password"
+            disabled={isLoading}
+          />
         </div>
 
-        <GoogleSignInButton redirectPath={redirectPath} />
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? "Signing in..." : "Sign in"}
+        </Button>
+      </form>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link to="/register" className="text-primary hover:underline">
-            Create account
-          </Link>
-        </p>
-      </div>
-    </div>
+      <AuthOrDivider />
+
+      <GoogleSignInButton redirectPath={redirectPath} />
+
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link to="/register" className="text-primary hover:underline">
+          Create account
+        </Link>
+      </p>
+    </AuthCard>
   );
 }

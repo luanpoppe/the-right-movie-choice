@@ -144,7 +144,7 @@ export function CandidateSearchCombobox({
               <button
                 type="button"
                 onClick={() => removeId(id)}
-                aria-label={`Remover ${resolveLabel(id)}`}
+                aria-label={`Remove ${resolveLabel(id)}`}
                 className="rounded-full hover:bg-muted-foreground/20"
               >
                 <X className="h-3 w-3" />
@@ -164,22 +164,22 @@ export function CandidateSearchCombobox({
       />
 
       {isResultsVisible && (
-        <div className="max-h-48 overflow-y-auto rounded-md border border-border/60 bg-popover shadow-sm">
+        <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-sm">
           {isLoading && (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Buscando...
+              Searching...
             </p>
           )}
 
           {!isLoading && hasError && (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Não foi possível buscar candidatos.
+              Could not load candidates.
             </p>
           )}
 
           {!isLoading && !hasError && options.length === 0 && (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Nenhum resultado
+              No results
             </p>
           )}
 

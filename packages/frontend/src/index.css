@@ -4,69 +4,103 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Cinéfilo Noir design tokens.
+   * Dark-first: the .dark block is the primary composition ("screen light").
+   * :root is the deliberate light counterpart ("matinee"), not an inversion.
+   * Single accent (amber) shared by both themes; neutrals stay on one warm family.
+   *
+   * Values are RGB channels (r g b) so Tailwind opacity modifiers work,
+   * e.g. bg-card/80 -> rgb(var(--card) / 0.8).
+   */
   :root {
-    /* Modern blue and cyan palette for fresh, tech-forward look */
-    --background: oklch(0.98 0.01 240);
-    --foreground: oklch(0.15 0.02 240);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.15 0.02 240);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.15 0.02 240);
-    --primary: oklch(0.5 0.15 240);
-    --primary-foreground: oklch(0.98 0.01 240);
-    --secondary: oklch(0.96 0.01 240);
-    --secondary-foreground: oklch(0.15 0.02 240);
-    --muted: oklch(0.96 0.01 240);
-    --muted-foreground: oklch(0.5 0.03 240);
-    --accent: oklch(0.65 0.14 200);
-    --accent-foreground: oklch(0.98 0.01 240);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.98 0.01 240);
-    --border: oklch(0.92 0.01 240);
-    --input: oklch(0.94 0.01 240);
-    --ring: oklch(0.5 0.15 240);
-    --chart-1: oklch(0.5 0.15 240);
-    --chart-2: oklch(0.65 0.14 200);
-    --chart-3: oklch(0.55 0.12 220);
-    --chart-4: oklch(0.6 0.13 210);
-    --chart-5: oklch(0.58 0.14 230);
-    --radius: 1rem;
-    /* Suas outras variáveis de sidebar aqui... */
+    --background: 241 239 234;
+    --foreground: 22 21 26;
+    --card: 255 255 255;
+    --card-foreground: 22 21 26;
+    --popover: 255 255 255;
+    --popover-foreground: 22 21 26;
+    --primary: 138 82 9;
+    --primary-foreground: 255 249 238;
+    --secondary: 233 230 224;
+    --secondary-foreground: 22 21 26;
+    --muted: 233 230 224;
+    --muted-foreground: 99 95 87;
+    --accent: 138 82 9;
+    --accent-foreground: 255 249 238;
+    --destructive: 168 51 31;
+    --destructive-foreground: 255 249 238;
+    --border: 220 216 208;
+    --input: 138 133 124;
+    --ring: 138 82 9;
+    --chart-1: 167 107 18;
+    --chart-2: 201 144 31;
+    --chart-3: 125 90 23;
+    --chart-4: 217 178 90;
+    --chart-5: 138 90 15;
+    --radius: 0.75rem;
   }
 
   .dark {
-    /* Dark theme with deep blue and vibrant cyan accents */
-    --background: oklch(0.12 0.02 240);
-    --foreground: oklch(0.95 0.01 240);
-    --card: oklch(0.16 0.025 240);
-    --card-foreground: oklch(0.95 0.01 240);
-    --popover: oklch(0.16 0.025 240);
-    --popover-foreground: oklch(0.95 0.01 240);
-    --primary: oklch(0.6 0.16 240);
-    --primary-foreground: oklch(0.98 0.01 240);
-    --secondary: oklch(0.22 0.03 240);
-    --secondary-foreground: oklch(0.95 0.01 240);
-    --muted: oklch(0.22 0.03 240);
-    --muted-foreground: oklch(0.6 0.03 240);
-    --accent: oklch(0.7 0.16 200);
-    --accent-foreground: oklch(0.12 0.02 240);
-    --destructive: oklch(0.5 0.2 25);
-    --destructive-foreground: oklch(0.95 0.01 240);
-    --border: oklch(0.25 0.03 240);
-    --input: oklch(0.22 0.03 240);
-    --ring: oklch(0.7 0.16 200);
-    --chart-1: oklch(0.6 0.16 240);
-    --chart-2: oklch(0.7 0.16 200);
-    --chart-3: oklch(0.65 0.14 220);
-    --chart-4: oklch(0.68 0.15 210);
-    --chart-5: oklch(0.62 0.15 230);
-    /* Suas outras variáveis de sidebar do modo dark aqui... */
+    --background: 10 10 12;
+    --foreground: 243 241 236;
+    --card: 20 20 24;
+    --card-foreground: 243 241 236;
+    --popover: 20 20 24;
+    --popover-foreground: 243 241 236;
+    --primary: 230 165 50;
+    --primary-foreground: 26 18 6;
+    --secondary: 27 27 33;
+    --secondary-foreground: 243 241 236;
+    --muted: 27 27 33;
+    --muted-foreground: 154 150 141;
+    --accent: 230 165 50;
+    --accent-foreground: 26 18 6;
+    --destructive: 210 74 58;
+    --destructive-foreground: 26 18 6;
+    --border: 42 42 49;
+    --input: 96 96 108;
+    --ring: 230 165 50;
+    --chart-1: 230 165 50;
+    --chart-2: 255 207 107;
+    --chart-3: 201 144 31;
+    --chart-4: 240 215 154;
+    --chart-5: 167 107 18;
   }
 
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fixed film-grain overlay. pointer-events-none keeps it out of the way. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .dark body::after {
+    opacity: 0.06;
+  }
+
+  ::selection {
+    background: rgb(var(--primary) / 0.35);
+  }
+}
+
+@layer utilities {
+  /* Tabular figures for ratings, years and runtimes. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
   }
 }

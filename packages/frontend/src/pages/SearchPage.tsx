@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { CatalogSearchBar } from "@/features/movies/components/catalog-search-bar";
 import { CatalogSearchFiltersPanel } from "@/features/movies/components/catalog-search-filters-panel";
@@ -31,14 +32,11 @@ function SearchPageContent() {
   const hasValidationErrors = validationMessages.length > 0;
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Search movies</h1>
-        <p className="text-muted-foreground">
-          Find a movie by title or discover by filters, then save it to your
-          lists.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+      <PageHeader
+        title="Search movies"
+        description="Find a movie by title or discover by filters, then save it to your lists."
+      />
 
       <div className="mb-6 space-y-4">
         <CatalogSearchBar

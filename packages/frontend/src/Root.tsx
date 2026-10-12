@@ -11,7 +11,7 @@ export function Root() {
     <GoogleOAuthProvider clientId={env.VITE_GOOGLE_CLIENT_ID}>
       <AuthProvider>
         <GlobalContext>
-          <ThemeProvider>
+          <ThemeProvider defaultTheme="dark">
             <Toaster />
             <App />
           </ThemeProvider>

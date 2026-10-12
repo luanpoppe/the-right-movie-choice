@@ -1,5 +1,7 @@
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MovieGridSkeleton } from "@/components/movie-grid-skeleton";
 import { SearchMovieCard } from "@/components/search-movie-card";
 import type { MovieSearchHit } from "@/features/movies/dto/movie-catalog-search.dto";
 
@@ -16,17 +18,7 @@ interface CatalogSearchResultsProps {
 const DEFAULT_EMPTY_MESSAGE = "No movies found. Try another search.";
 
 function CatalogSearchResultsLoading() {
-  return (
-    <div
-      className="flex items-center justify-center gap-2 py-12 text-muted-foreground"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-      <span>Searching movies...</span>
-    </div>
-  );
+  return <MovieGridSkeleton count={4} label="Searching movies..." />;
 }
 
 function CatalogSearchResultsError({
@@ -66,6 +58,47 @@ function CatalogSearchResultsInlineError({
   );
 }
 
+function LoadMoreOnScroll({
+  onLoadMore,
+  disabled,
+}: {
+  onLoadMore: () => void;
+  disabled: boolean;
+}) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (disabled) {
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    const sentinel = sentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const isVisible = entries.some((entry) => entry.isIntersecting);
+        if (isVisible) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [onLoadMore, disabled]);
+
+  return <div ref={sentinelRef} aria-hidden className="h-px w-full" />;
+}
+
 export function CatalogSearchResults({
   results,
   loading,
@@ -78,6 +111,7 @@ export function CatalogSearchResults({
   const hasError = error !== null;
   const hasResults = results.length > 0;
   const isInitialLoading = loading && !hasResults;
+  const isLoadMoreDisabled = loading || hasError;
 
   if (isInitialLoading) {
     return <CatalogSearchResultsLoading />;
@@ -102,6 +136,13 @@ export function CatalogSearchResults({
           <SearchMovieCard key={hit.id} hit={hit} />
         ))}
       </div>
+
+      {hasMore && (
+        <LoadMoreOnScroll
+          onLoadMore={onLoadMore}
+          disabled={isLoadMoreDisabled}
+        />
+      )}
 
       {hasMore && (
         <div className="flex justify-center">

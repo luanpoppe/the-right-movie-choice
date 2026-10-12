@@ -1,39 +1,49 @@
-import { Send, Film, Sparkles } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+const FEATURES = [
+  {
+    title: "AI-powered",
+    description:
+      "Recommendations matched to your preferences and mood, not just genre tags.",
+  },
+  {
+    title: "Curated selection",
+    description:
+      "Three films, each with the details that matter: director, cast, runtime and where to watch.",
+  },
+  {
+    title: "Interactive chat",
+    description:
+      "Refine the search with follow-up questions until the pick is right.",
+  },
+];
 
 export function Features() {
-  const contents = [
-    {
-      Icon: () => <Sparkles className="w-6 h-6 text-primary" />,
-      title: "AI-Powered",
-      description: "Smart recommendations based on your preferences and mood",
-    },
-    {
-      Icon: () => <Film className="w-6 h-6 text-accent" />,
-      title: "Curated Selection",
-      description: "Three carefully chosen movies with detailed information",
-    },
-    {
-      Icon: () => <Send className="w-6 h-6 text-primary" />,
-      title: "Interactive Chat",
-      description: "Refine your search with follow-up questions anytime",
-    },
-  ];
+  const reduce = useReducedMotion() ?? false;
 
   return (
-    <div className="grid md:grid-cols-3 gap-6">
-      {contents.map(({ description, Icon, title }) => (
-        <div
-          key={title}
-          className="rounded-2xl bg-card/50 border border-border/50 p-6 space-y-3 backdrop-blur-sm"
+    <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
+      {FEATURES.map((feature, index) => (
+        <motion.div
+          key={feature.title}
+          className="border-t border-border pt-5"
+          initial={reduce ? false : { opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.6, delay: index * 0.06, ease: EASE }}
         >
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon />
-          </div>
-          <h3 className="font-semibold text-lg">{title}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {description}
+          <span className="font-display text-xs font-semibold tracking-[0.1em] text-primary">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <h3 className="mt-3 text-base font-semibold tracking-tight">
+            {feature.title}
+          </h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            {feature.description}
           </p>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

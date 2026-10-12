@@ -39,7 +39,7 @@ export function Form({
           name="message"
           placeholder="What kind of movie are you looking for? (e.g., 'a thrilling sci-fi movie' or 'something funny to watch with friends')"
           disabled={isDisabled}
-          className="h-16 text-lg rounded-2xl bg-card/80 border-border/50 pr-16 shadow-lg focus-visible:ring-2 focus-visible:ring-primary/20 dark:text-black"
+          className="h-16 rounded-xl border-border bg-card/80 pr-16 text-base shadow-lg focus-visible:ring-2 focus-visible:ring-primary/40"
           autoComplete="off"
           autoFocus
         />
@@ -47,9 +47,10 @@ export function Form({
           type="submit"
           disabled={isDisabled}
           size="icon"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl h-12 w-12 bg-gradient-to-br from-primary to-accent hover:shadow-lg hover:shadow-primary/30 transition-all"
+          aria-label="Get recommendations"
+          className="absolute right-2 top-1/2 h-12 w-12 -translate-y-1/2 rounded-lg"
         >
-          <Send className="w-5 h-5" />
+          <Send className="h-5 w-5" />
         </Button>
       </div>
 

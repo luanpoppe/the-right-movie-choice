@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import type {
   IncomingFriendRequestResponse,
   OutgoingFriendRequestResponse,
@@ -218,7 +219,7 @@ export function RequestsTab() {
   const hasGroupInvites = groupInvites.length > 0;
 
   if (isLoading) {
-    return <p className="text-center text-muted-foreground">Loading...</p>;
+    return <ListSkeleton label="Loading requests..." />;
   }
 
   if (hasLoadError) {
@@ -267,7 +268,7 @@ export function RequestsTab() {
               return (
                 <li
                   key={request.id}
-                  className="flex flex-col gap-3 rounded-md border border-border/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="font-medium">{requesterLabel}</span>
                   <div className="flex gap-2">
@@ -334,7 +335,7 @@ export function RequestsTab() {
               return (
                 <li
                   key={request.id}
-                  className="flex flex-col gap-3 rounded-md border border-border/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="font-medium">{addresseeLabel}</span>
                   <Button
@@ -383,7 +384,7 @@ export function RequestsTab() {
               return (
                 <li
                   key={invite.id}
-                  className="flex flex-col gap-3 rounded-md border border-border/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <span className="block font-medium">{invite.group.name}</span>

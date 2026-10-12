@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router";
+import { PageHeader } from "@/components/page-header";
 import {
   Tabs,
   TabsContent,
@@ -26,13 +27,11 @@ function SocialPageContent() {
   }
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Social</h1>
-        <p className="text-muted-foreground">
-          Manage your friends, requests, and groups.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+      <PageHeader
+        title="Social"
+        description="Manage your friends, requests, and groups."
+      />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-6">

@@ -1,5 +1,6 @@
 jest.mock("lucide-react", () => ({
   Loader2: () => <span />,
+  MessageSquare: () => <span />,
   Pencil: () => <span />,
   Trash2: () => <span />,
 }));
@@ -161,7 +162,7 @@ describe("GroupChatsTab", () => {
     renderGroupChatsTab();
 
     const chatButton = await screen.findByRole("button", {
-      name: /^New Conversation · /,
+      name: "New Conversation",
     });
 
     expect(chatButton).toBeInTheDocument();

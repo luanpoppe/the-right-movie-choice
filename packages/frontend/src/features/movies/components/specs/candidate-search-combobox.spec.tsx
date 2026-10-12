@@ -155,13 +155,13 @@ describe("CandidateSearchCombobox", () => {
     expect(onChange).toHaveBeenCalledWith([525, 1032]);
   });
 
-  it("edge: combobox sem resultados mostra 'Nenhum resultado'", async () => {
+  it("edge: combobox sem resultados mostra 'No results'", async () => {
     mockedSearchPeople.mockResolvedValue(personPage([]));
 
     renderCombobox();
     await typeTerm("Zzzzz");
 
-    expect(screen.getByText("Nenhum resultado")).toBeInTheDocument();
+    expect(screen.getByText("No results")).toBeInTheDocument();
   });
 
   it("edge: falha na busca mostra mensagem de erro", async () => {
@@ -171,7 +171,7 @@ describe("CandidateSearchCombobox", () => {
     await typeTerm("Nolan");
 
     expect(
-      screen.getByText("Não foi possível buscar candidatos."),
+      screen.getByText("Could not load candidates."),
     ).toBeInTheDocument();
   });
 
@@ -193,7 +193,7 @@ describe("CandidateSearchCombobox", () => {
 
     expect(screen.getByText("Christopher Nolan")).toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: "Remover Christopher Nolan" }),
+      screen.getByRole("button", { name: "Remove Christopher Nolan" }),
     );
 
     expect(onChange).toHaveBeenCalledWith([]);
@@ -215,14 +215,14 @@ describe("CandidateSearchCombobox", () => {
     expect(screen.getByText("dream")).toBeInTheDocument();
   });
 
-  it("edge: exibe Buscando... enquanto carrega", () => {
+  it("edge: exibe Searching... enquanto carrega", () => {
     renderCombobox();
 
     fireEvent.change(screen.getByLabelText("Diretor"), {
       target: { value: "Nolan" },
     });
 
-    expect(screen.getByText("Buscando...")).toBeInTheDocument();
+    expect(screen.getByText("Searching...")).toBeInTheDocument();
   });
 
   it("edge: clicar em candidato já selecionado remove o id", async () => {

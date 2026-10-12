@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { CreateGroupForm } from "@/features/social/components/create-group-form";
 import type { UserGroupListItemResponse } from "@/features/social/dto/user-groups.dto";
 import { UserGroupsService } from "@/features/social/services/user-groups.service";
+import { cn, focusRingClassName } from "@/lib/utils";
 
 const GENERIC_ERROR_TOAST =
   "Unexpected Error. Try again or get in contact with the staff.";
@@ -89,7 +91,7 @@ export function GroupsTab() {
     return (
       <div>
         <CreateGroupForm onCreated={handleGroupCreated} />
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton label="Loading your groups..." />
       </div>
     );
   }
@@ -133,7 +135,10 @@ export function GroupsTab() {
               <li key={group.id}>
                 <Link
                   to={groupPath}
-                  className="block rounded-md border border-border/50 px-4 py-3 transition-colors hover:bg-accent/40"
+                  className={cn(
+                    "block rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary",
+                    focusRingClassName,
+                  )}
                 >
                   <span className="block font-medium">{group.name}</span>
                   <span className="mt-1 block text-sm text-muted-foreground">

@@ -8,6 +8,7 @@ import { UserConversationService } from "@/features/conversations/services/user-
 import { MovieRecommendationRequestDTO } from "@/features/movies/dto/movie-recommendation.dto";
 import { MovieRecommendationService } from "@/features/movies/services/movie-recommendation.service";
 import { GuestChatLockUtils } from "@/features/movies/utils/guest-chat-lock.utils";
+import { UserMovieEntriesProvider } from "@/features/movies/context/user-movie-entries.context";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { StringUtils } from "@/utils/string.utils";
 
@@ -190,14 +191,16 @@ export function Home() {
 
   if (hasAccessToken) {
     return (
-      <Welcome
-        handleSubmit={handleAuthenticatedSubmit}
-        isLoading={isLoading}
-        isGuestLocked={false}
-        excludeWatched={excludeWatched}
-        onExcludeWatchedChange={setExcludeWatched}
-        hasAccessToken={hasAccessToken}
-      />
+      <UserMovieEntriesProvider>
+        <Welcome
+          handleSubmit={handleAuthenticatedSubmit}
+          isLoading={isLoading}
+          isGuestLocked={false}
+          excludeWatched={excludeWatched}
+          onExcludeWatchedChange={setExcludeWatched}
+          hasAccessToken={hasAccessToken}
+        />
+      </UserMovieEntriesProvider>
     );
   }
 

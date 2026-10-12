@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ChatSkeleton } from "@/components/chat-skeleton";
 import { Chat } from "@/features/chat";
 import { ChatEntity } from "@/features/chat/entities/chat.entity";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -136,7 +137,7 @@ function GroupChatLoadedContent({
       />
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b border-border/50 px-6 py-3">
+        <div className="border-b border-border px-6 py-3">
           <Button
             type="button"
             variant="outline"
@@ -248,11 +249,7 @@ function GroupChatPageContent({ groupId, chatId }: GroupChatPageContentProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <ChatSkeleton label="Loading chat..." />;
   }
 
   if (!chat) {

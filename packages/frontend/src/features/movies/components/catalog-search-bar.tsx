@@ -32,7 +32,7 @@ function LanguageToggle({ language, onLanguageChange }: LanguageToggleProps) {
     <div
       role="group"
       aria-label="Result language"
-      className="inline-flex items-center gap-1 rounded-xl border border-border/50 bg-card/80 p-1 shadow-sm"
+      className="inline-flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-sm"
     >
       {LANGUAGE_OPTIONS.map((option) => {
         const isActive = option.value === language;
@@ -83,14 +83,14 @@ export function CatalogSearchBar({
           onChange={(event) => setText(event.target.value)}
           placeholder="Search movies by title"
           autoComplete="off"
-          className="h-11 rounded-xl border-border/50 bg-card/80 pr-28 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/20"
+          className="h-12 rounded-xl border-border bg-card pr-32 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <Button
           type="submit"
-          className="absolute right-1.5 top-1/2 h-8 -translate-y-1/2 rounded-lg"
+          className="absolute right-1.5 top-1/2 h-9 -translate-y-1/2 rounded-lg"
         >
           <Search className="h-4 w-4" />
-          Buscar
+          Search
         </Button>
       </div>
       <LanguageToggle

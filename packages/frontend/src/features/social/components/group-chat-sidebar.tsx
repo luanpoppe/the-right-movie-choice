@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { GroupChatListItem } from "@/features/social/components/group-chat-list-item";
 import type { GroupChatSummaryResponse } from "@/features/social/dto/group-chats.dto";
 import { GroupChatsService } from "@/features/social/services/group-chats.service";
@@ -234,10 +235,10 @@ export function GroupChatSidebar({
 
   return (
     <aside
-      className="flex w-72 shrink-0 flex-col border-r border-border/50 bg-card/40"
+      className="flex w-72 shrink-0 flex-col border-r border-border bg-background"
       aria-label="Group chats"
     >
-      <div className="border-b border-border/50 p-3">
+      <div className="border-b border-border p-3">
         <Button
           type="button"
           variant="outline"
@@ -251,9 +252,7 @@ export function GroupChatSidebar({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
         {isLoading && (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-            Loading...
-          </p>
+          <ListSkeleton compact rows={4} label="Loading chats..." />
         )}
 
         {hasLoadError && !isLoading && (

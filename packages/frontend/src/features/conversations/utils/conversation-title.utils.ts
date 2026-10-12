@@ -13,14 +13,20 @@ export class ConversationTitleUtils {
       return title.trim();
     }
 
+    const relativeTime = ConversationTitleUtils.formatUpdatedAt(updatedAt);
+    const displayTitle = `${ConversationTitleUtils.NULL_TITLE_LABEL} · ${relativeTime}`;
+
+    return displayTitle;
+  }
+
+  static formatUpdatedAt(updatedAt: string): string {
     const updatedDate = new Date(updatedAt);
     const relativeTime = formatDistanceToNow(updatedDate, {
       addSuffix: true,
       locale: enUS,
     });
-    const displayTitle = `${ConversationTitleUtils.NULL_TITLE_LABEL} · ${relativeTime}`;
 
-    return displayTitle;
+    return relativeTime;
   }
 
   static canSubmitRename(value: string): boolean {
