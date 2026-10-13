@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import type { UserPublicResponse } from "../dto/friendship.dto";
 import { FriendshipService } from "../services/friendship.service";
 import { AddFriendForm } from "./add-friend-form";
@@ -134,7 +136,7 @@ export function FriendsTab() {
       <AddFriendForm onSent={handleFriendSent} />
 
       {isLoading && (
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton label="Loading your friends..." />
       )}
 
       {hasLoadError && !isLoading && (
@@ -155,19 +157,27 @@ export function FriendsTab() {
       )}
 
       {hasFriends && !isLoading && !hasLoadError && (
-        <ul className="mx-auto flex max-w-2xl flex-col gap-4">
+        <ul className="mx-auto flex max-w-2xl flex-col gap-2">
           {friends.map((friend) => (
             <li
               key={friend.id}
-              className="flex items-center justify-between gap-4 rounded-lg border p-4"
+              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-secondary/40"
             >
-              <div>
-                <p className="font-medium">{friend.name}</p>
-                <p className="text-sm text-muted-foreground">{friend.email}</p>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                <UserRound className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-display text-sm font-semibold tracking-tight">
+                  {friend.name}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {friend.email}
+                </p>
               </div>
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => handleOpenRemoveDialog(friend)}
               >
                 Remove friend

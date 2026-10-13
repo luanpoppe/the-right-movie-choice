@@ -1,4 +1,6 @@
 import { createRoot } from "react-dom/client";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/bricolage-grotesque";
 import "./index.css";
 import { RouterProvider } from "react-router";
 import { routers } from "./routes";

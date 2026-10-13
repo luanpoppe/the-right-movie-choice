@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { ConversationListItem } from "@/features/conversations/components/conversation-list-item";
 import type { UserConversationSummaryResponse } from "@/features/conversations/dto/user-conversation.dto";
 import { UserConversationService } from "@/features/conversations/services/user-conversation.service";
@@ -206,10 +207,10 @@ export function ConversationSidebar({
 
   return (
     <aside
-      className="flex w-72 shrink-0 flex-col border-r border-border/50 bg-card/40"
+      className="flex w-72 shrink-0 flex-col border-r border-border bg-background"
       aria-label="Conversation history"
     >
-      <div className="border-b border-border/50 p-3">
+      <div className="border-b border-border p-3">
         <Button type="button" variant="outline" className="w-full" asChild>
           <Link to="/">New conversation</Link>
         </Button>
@@ -217,9 +218,7 @@ export function ConversationSidebar({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
         {isLoading && (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-            Loading...
-          </p>
+          <ListSkeleton compact rows={4} label="Loading conversations..." />
         )}
 
         {hasLoadError && !isLoading && (
@@ -250,6 +249,8 @@ export function ConversationSidebar({
                     conversation={conversation}
                     isActive={isActive}
                     isDisabled={isMutating}
+                    variant="card"
+                    dense
                     onOpen={handleOpenConversation}
                     onRename={handleRenameConversation}
                     onDelete={handleDeleteConversation}

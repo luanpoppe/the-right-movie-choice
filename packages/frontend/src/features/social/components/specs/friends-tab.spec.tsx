@@ -6,6 +6,18 @@ import type { UserPublicResponse } from "../../dto/friendship.dto";
 import { FriendshipService } from "../../services/friendship.service";
 import { FriendsTab } from "../friends-tab";
 
+jest.mock(
+  "lucide-react",
+  () =>
+    new Proxy(
+      { __esModule: true } as Record<string, unknown>,
+      {
+        get: (target, prop) =>
+          typeof prop === "string" && prop in target ? target[prop] : () => null,
+      },
+    ),
+);
+
 jest.mock("../../services/friendship.service", () => ({
   FriendshipService: {
     listFriends: jest.fn(),

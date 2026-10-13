@@ -79,6 +79,7 @@ describe("TmdbCatalogMapper", () => {
             year: 1977,
             posterPath: "/poster.jpg",
             overview: "A long time ago",
+            tmdbVoteAverage: null,
           },
           {
             id: 22,
@@ -86,6 +87,7 @@ describe("TmdbCatalogMapper", () => {
             year: null,
             posterPath: null,
             overview: "",
+            tmdbVoteAverage: null,
           },
         ],
       });

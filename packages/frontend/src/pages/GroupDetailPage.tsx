@@ -12,7 +12,7 @@ function GroupDetailPageContent() {
   const groupId = id ?? "";
 
   return (
-    <div className="container mx-auto px-6 py-8">
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
       <GroupDetailPanel groupId={groupId} />
     </div>
   );

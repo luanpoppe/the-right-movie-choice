@@ -2,6 +2,7 @@ export type UserMovieEntryMovieSummary = {
   title: string;
   year: number | null;
   posterPath: string | null;
+  voteAverage: number | null;
 };
 
 export type UserMovieEntryEntity = {

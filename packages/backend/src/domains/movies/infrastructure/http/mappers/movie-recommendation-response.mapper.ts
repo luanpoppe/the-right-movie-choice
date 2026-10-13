@@ -9,6 +9,16 @@ import type {
   SingleMovieReccomendationResponse,
 } from "../dto/movie-recommendation.dto";
 
+type CatalogFields = {
+  posterPath: string | null;
+  tmdbVoteAverage: number | null;
+};
+
+const EMPTY_CATALOG_FIELDS: CatalogFields = {
+  posterPath: null,
+  tmdbVoteAverage: null,
+};
+
 export class MovieRecommendationResponseMapper {
   constructor(private readonly catalogRepository: IMovieCatalogRepository) {}
 
@@ -31,29 +41,33 @@ export class MovieRecommendationResponseMapper {
     movie: SingleMovieReccomendationInternalEntity,
   ): Promise<SingleMovieReccomendationResponse> {
     const publicMovie = SingleMovieReccomendationSchema.parse(movie);
-    const posterPath = await this.resolvePosterPath(publicMovie.tmdbId);
+    const catalogFields = await this.resolveCatalogFields(publicMovie.tmdbId);
 
     const response: SingleMovieReccomendationResponse = {
       ...publicMovie,
-      posterPath,
+      posterPath: catalogFields.posterPath,
+      tmdbVoteAverage: catalogFields.tmdbVoteAverage,
     };
     return response;
   }
 
-  private async resolvePosterPath(
+  private async resolveCatalogFields(
     tmdbId?: number,
-  ): Promise<string | null> {
+  ): Promise<CatalogFields> {
     if (tmdbId === undefined) {
-      return null;
+      return EMPTY_CATALOG_FIELDS;
     }
 
     const catalogRecord = await this.catalogRepository.findByTmdbId(tmdbId);
     if (catalogRecord === null) {
-      return null;
+      return EMPTY_CATALOG_FIELDS;
     }
 
-    const posterPathFromCatalog = catalogRecord.details.posterPath;
-    const posterUrl = TmdbPosterUtils.buildPosterUrl(posterPathFromCatalog);
-    return posterUrl;
+    const details = catalogRecord.details;
+
+    return {
+      posterPath: TmdbPosterUtils.buildPosterUrl(details.posterPath),
+      tmdbVoteAverage: details.tmdbVoteAverage,
+    };
   }
 }

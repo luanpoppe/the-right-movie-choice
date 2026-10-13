@@ -10,6 +10,7 @@ export const MovieSearchHitSchema = z.object({
   year: z.number().nullable(),
   posterPath: z.string().url().nullable(),
   overview: z.string(),
+  voteAverage: z.number().nullable(),
 });
 
 export const MovieSearchPageSchema = z.object({

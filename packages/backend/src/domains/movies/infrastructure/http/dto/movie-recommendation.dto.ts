@@ -14,6 +14,7 @@ export const SingleMovieReccomendationResponseSchema =
   SingleMovieReccomendationSchema.and(
     z.object({
       posterPath: z.string().nullable(),
+      tmdbVoteAverage: z.number().nullable(),
     }),
   );
 

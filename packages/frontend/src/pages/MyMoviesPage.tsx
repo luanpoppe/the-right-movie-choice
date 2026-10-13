@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router";
 import toast from "react-hot-toast";
 import { LibraryMovieCard } from "@/components/library-movie-card";
+import { MovieGridSkeleton } from "@/components/movie-grid-skeleton";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Tabs,
@@ -172,13 +174,11 @@ function MyMoviesPageContent() {
     !isPageLoading && !hasLoadError && !hasVisibleEntries;
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">My movies</h1>
-        <p className="text-muted-foreground">
-          Manage your watched movies, watchlist, and favorites.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+      <PageHeader
+        title="My movies"
+        description="Manage your watched movies, watchlist, and favorites."
+      />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-6">
@@ -189,7 +189,7 @@ function MyMoviesPageContent() {
 
         <TabsContent value={activeTab}>
           {isPageLoading && (
-            <p className="text-center text-muted-foreground">Loading...</p>
+            <MovieGridSkeleton count={8} label="Loading your movies..." />
           )}
 
           {hasLoadError && !isPageLoading && (

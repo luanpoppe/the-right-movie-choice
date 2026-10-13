@@ -24,6 +24,8 @@ import { MakeMovieRecommendationHttpFactory } from "../../factories/make-movie-r
 import { MakeUserConversationHttpFactory } from "../../factories/make-user-conversation-http.factory";
 import { MakeUserMovieEntryHttpFactory } from "../../factories/make-user-movie-entry-http.factory";
 import { MakeMovieCatalogSearchHttpFactory } from "../../factories/make-movie-catalog-search-http.factory";
+import { MakePopularMoviesHttpFactory } from "../../factories/make-popular-movies-http.factory";
+import { PopularMoviesDocs } from "../docs/popular-movies.docs";
 import { MovieCatalogRateLimitConstants } from "../movie-catalog-rate-limit.constants";
 
 const catalogRateLimit = {
@@ -36,6 +38,7 @@ export async function moviesControllers(app: FastifyInstance) {
   const userMovieEntryHttp = MakeUserMovieEntryHttpFactory.create();
   const userConversationHttp = MakeUserConversationHttpFactory.create();
   const movieCatalogSearchHttp = MakeMovieCatalogSearchHttpFactory.create();
+  const popularMoviesHttp = MakePopularMoviesHttpFactory.create();
 
   app.post(
     "/movie/recommendation",
@@ -146,5 +149,11 @@ export async function moviesControllers(app: FastifyInstance) {
     "/movie/catalog/discover",
     { ...MovieCatalogDiscoverDocs, config: { rateLimit: catalogRateLimit } } as any,
     movieCatalogSearchHttp.handlers.discover,
+  );
+
+  app.get(
+    "/movie/popular",
+    { ...PopularMoviesDocs, config: { rateLimit: catalogRateLimit } } as any,
+    popularMoviesHttp.handlers.list,
   );
 }

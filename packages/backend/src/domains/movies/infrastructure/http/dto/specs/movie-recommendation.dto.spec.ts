@@ -21,6 +21,7 @@ class MovieRecommendationDtoFixtures {
       whySuggestion: "Fits a mind-bending request",
       durationInMinutes: 148,
       posterPath: null,
+      tmdbVoteAverage: null,
     };
   }
 }

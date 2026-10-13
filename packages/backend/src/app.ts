@@ -21,6 +21,7 @@ import {
 } from "fastify-type-provider-zod";
 import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { MovieQuerySuggestionPoolRotationScheduler } from "./domains/movies/infrastructure/schedulers/movie-query-suggestion-pool-rotation.scheduler";
+import { PopularMoviesRefreshScheduler } from "./domains/movies/infrastructure/schedulers/popular-movies-refresh.scheduler";
 import { CatalogPersistWorkerStarter } from "./domains/movies/infrastructure/workers/start-catalog-persist-worker";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
@@ -97,6 +98,7 @@ app.addHook("onReady", () => {
 
   if (env.NODE_ENV === "prod") {
     MovieQuerySuggestionPoolRotationScheduler.start();
+    PopularMoviesRefreshScheduler.start();
   }
 });
 

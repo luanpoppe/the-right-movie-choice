@@ -1,6 +1,9 @@
 import { Hero } from "./components/Hero";
 import { Features } from "./components/Features";
 import { Form } from "./components/Form";
+import { GenreMarquee } from "./components/GenreMarquee";
+import { PopularMoviesSection } from "./components/PopularMoviesSection";
+import { usePopularMovies } from "@/features/movies/hooks/use-popular-movies.hook";
 
 interface WelcomeProps {
   isLoading: boolean;
@@ -19,13 +22,22 @@ export function Welcome({
   onExcludeWatchedChange,
   hasAccessToken,
 }: WelcomeProps) {
+  const { movies: popularMovies, isLoading: isLoadingPopular } =
+    usePopularMovies();
+  const heroPosters = popularMovies
+    .slice(0, 3)
+    .map((movie) => movie.posterPath);
+  const popularSectionMovies = popularMovies.slice(3, 9);
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-      <div className="max-w-3xl w-full space-y-12">
-        <Hero />
+    <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
+      <Hero heroPosters={heroPosters} />
 
-        <Features />
+      <div className="mt-12">
+        <GenreMarquee />
+      </div>
 
+      <div className="mt-10 sm:mt-12">
         <Form
           isLoading={isLoading}
           handleSubmit={handleSubmit}
@@ -35,6 +47,15 @@ export function Welcome({
           hasAccessToken={hasAccessToken}
         />
       </div>
+
+      <div className="mt-16">
+        <Features />
+      </div>
+
+      <PopularMoviesSection
+        movies={popularSectionMovies}
+        isLoading={isLoadingPopular}
+      />
     </div>
   );
 }

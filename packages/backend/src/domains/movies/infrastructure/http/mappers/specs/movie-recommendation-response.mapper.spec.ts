@@ -57,6 +57,7 @@ describe("MovieRecommendationResponseMapper", () => {
     expect(response.movies[0]?.posterPath).toBe(
       "https://image.tmdb.org/t/p/w500/poster.jpg",
     );
+    expect(response.movies[0]?.tmdbVoteAverage).toBe(8.8);
     expect(response.movies[0]).toMatchObject({
       tmdbId: INTERNAL_MOVIE.tmdbId,
       imdbId: INTERNAL_MOVIE.imdbId,
@@ -75,6 +76,7 @@ describe("MovieRecommendationResponseMapper", () => {
     );
 
     expect(response.movies[0]?.posterPath).toBeNull();
+    expect(response.movies[0]?.tmdbVoteAverage).toBeNull();
     expect(catalogRepository.findByTmdbId).not.toHaveBeenCalled();
   });
 
@@ -89,6 +91,7 @@ describe("MovieRecommendationResponseMapper", () => {
     );
 
     expect(response.movies[0]?.posterPath).toBeNull();
+    expect(response.movies[0]?.tmdbVoteAverage).toBeNull();
   });
 
   it("não expõe campos internos fora do schema público", async () => {

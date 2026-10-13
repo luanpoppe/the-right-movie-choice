@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import { GroupDetailTabs } from "@/features/social/components/group-detail-tabs";
 import { SocialConfirmDialog } from "@/features/social/components/social-confirm-dialog";
@@ -511,7 +512,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         <Link to="/social" className="text-primary hover:underline">
           Back to Social
         </Link>
-        <p className="mt-8 text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton label="Loading group..." />
       </div>
     );
   }
@@ -560,7 +561,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
       {isOwner && (
         <form
           onSubmit={handleUpdateSubmit}
-          className="space-y-4 rounded-lg border border-border/50 bg-card/50 p-4"
+          className="space-y-4 rounded-xl border border-border bg-card p-4"
         >
           <h2 className="text-lg font-semibold">Edit group</h2>
 
@@ -621,7 +622,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         </div>
       )}
 
-      <section className="space-y-4 rounded-lg border border-border/50 bg-card/50 p-4">
+      <section className="space-y-4 rounded-xl border border-border bg-card p-4">
         <h2 className="text-lg font-semibold">Invite by email</h2>
 
         <form
@@ -689,7 +690,7 @@ export function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
                 return (
                   <li
                     key={suggestion.id}
-                    className="flex items-center justify-between gap-4 rounded-md border border-border/50 px-4 py-3"
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3"
                   >
                     <div>
                       <p className="font-medium">{suggestion.name}</p>

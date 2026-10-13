@@ -24,6 +24,7 @@ const SEARCH_PAGE_DTO = {
       year: 2020,
       posterPath: null,
       overview: "",
+      tmdbVoteAverage: null,
     },
   ],
 };

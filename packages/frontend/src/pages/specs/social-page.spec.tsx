@@ -2,6 +2,18 @@ jest.mock("@/features/auth/context/AuthContext", () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock(
+  "lucide-react",
+  () =>
+    new Proxy(
+      { __esModule: true } as Record<string, unknown>,
+      {
+        get: (target, prop) =>
+          typeof prop === "string" && prop in target ? target[prop] : () => null,
+      },
+    ),
+);
+
 jest.mock("@/features/social/services/friendship.service", () => ({
   FriendshipService: {
     listFriends: jest.fn(),
@@ -102,23 +114,23 @@ describe("SocialPage", () => {
       });
     });
 
-    it("REQ-1: exibe abas Friends, Requests e Groups com Friends selecionada", async () => {
+    it("REQ-1: exibe abas Groups, Friends e Requests com Groups selecionada", async () => {
       renderSocialPage();
 
+      const groupsTab = screen.getByRole("tab", { name: "Groups" });
       const friendsTab = screen.getByRole("tab", { name: "Friends" });
       const requestsTab = screen.getByRole("tab", { name: "Requests" });
-      const groupsTab = screen.getByRole("tab", { name: "Groups" });
 
+      expect(groupsTab).toBeInTheDocument();
       expect(friendsTab).toBeInTheDocument();
       expect(requestsTab).toBeInTheDocument();
-      expect(groupsTab).toBeInTheDocument();
-      expect(friendsTab).toHaveAttribute("data-state", "active");
+      expect(groupsTab).toHaveAttribute("data-state", "active");
+      expect(friendsTab).toHaveAttribute("data-state", "inactive");
       expect(requestsTab).toHaveAttribute("data-state", "inactive");
-      expect(groupsTab).toHaveAttribute("data-state", "inactive");
 
       await waitFor(() => {
         expect(
-          screen.getByLabelText("Add friend by email"),
+          screen.getByRole("button", { name: /new group/i }),
         ).toBeInTheDocument();
       });
     });
@@ -130,9 +142,17 @@ describe("SocialPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByLabelText("Add friend by email"),
+          screen.getByRole("button", { name: /new group/i }),
         ).toBeInTheDocument();
       });
+
+      const friendsTab = screen.getByRole("tab", { name: "Friends" });
+      await user.click(friendsTab);
+
+      expect(friendsTab).toHaveAttribute("data-state", "active");
+      expect(
+        await screen.findByLabelText("Add friend by email"),
+      ).toBeInTheDocument();
 
       const requestsTab = screen.getByRole("tab", { name: "Requests" });
       await user.click(requestsTab);
@@ -140,14 +160,6 @@ describe("SocialPage", () => {
       expect(requestsTab).toHaveAttribute("data-state", "active");
       expect(
         await screen.findByText(/you have no incoming friend requests/i),
-      ).toBeInTheDocument();
-
-      const groupsTab = screen.getByRole("tab", { name: "Groups" });
-      await user.click(groupsTab);
-
-      expect(groupsTab).toHaveAttribute("data-state", "active");
-      expect(
-        await screen.findByText(/you are not in any groups yet/i),
       ).toBeInTheDocument();
     });
   });

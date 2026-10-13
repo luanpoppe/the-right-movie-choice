@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { GroupChatListItem } from "@/features/social/components/group-chat-list-item";
 import {
   type GroupChatSummaryResponse,
@@ -211,7 +212,7 @@ export function GroupChatsTab({ groupId }: GroupChatsTabProps) {
       </div>
 
       {isLoading && (
-        <p className="text-center text-muted-foreground">Loading...</p>
+        <ListSkeleton label="Loading chats..." />
       )}
 
       {hasLoadError && !isLoading && (

@@ -4,6 +4,7 @@ export type MovieSearchHit = {
   year: number | null;
   posterPath: string | null;
   overview: string;
+  tmdbVoteAverage: number | null;
 };
 
 export type MovieSearchPage = {

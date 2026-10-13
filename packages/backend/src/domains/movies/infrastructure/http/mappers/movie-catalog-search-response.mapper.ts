@@ -24,8 +24,12 @@ export class MovieCatalogSearchResponseMapper {
     const posterPath = TmdbPosterUtils.buildPosterUrl(hit.posterPath);
 
     const responseHit: MovieSearchHitResponseDTO = {
-      ...hit,
+      id: hit.id,
+      title: hit.title,
+      year: hit.year,
       posterPath,
+      overview: hit.overview,
+      voteAverage: hit.tmdbVoteAverage,
     };
     return responseHit;
   }

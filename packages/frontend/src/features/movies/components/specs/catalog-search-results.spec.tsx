@@ -8,7 +8,7 @@ jest.mock("lucide-react", () => ({
   Loader2: () => <span data-testid="icon-loader" />,
 }));
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MovieSearchHit } from "../../dto/movie-catalog-search.dto";
 import { CatalogSearchResults } from "../catalog-search-results";
@@ -150,5 +150,73 @@ describe("CatalogSearchResults", () => {
     expect(
       screen.queryByRole("button", { name: /load more/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("CatalogSearchResults infinite scroll", () => {
+  let lastCallback: IntersectionObserverCallback | null = null;
+  let observedElement: Element | null = null;
+
+  class FakeIntersectionObserver {
+    root = null;
+    rootMargin = "";
+    thresholds = [];
+    constructor(callback: IntersectionObserverCallback) {
+      lastCallback = callback;
+    }
+    observe(element: Element) {
+      observedElement = element;
+    }
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  }
+
+  beforeEach(() => {
+    lastCallback = null;
+    observedElement = null;
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      FakeIntersectionObserver;
+  });
+
+  afterEach(() => {
+    delete (globalThis as unknown as { IntersectionObserver?: unknown })
+      .IntersectionObserver;
+  });
+
+  it("carrega a próxima página quando o sentinela entra na viewport", () => {
+    const { onLoadMore } = renderResults({ results: [hit()], hasMore: true });
+
+    expect(observedElement).not.toBeNull();
+
+    act(() => {
+      lastCallback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    });
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("não carrega quando o sentinela está fora da viewport", () => {
+    const { onLoadMore } = renderResults({ results: [hit()], hasMore: true });
+
+    act(() => {
+      lastCallback?.(
+        [{ isIntersecting: false } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    });
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it("não observa o sentinela durante loading", () => {
+    renderResults({ results: [hit()], hasMore: true, loading: true });
+
+    expect(observedElement).toBeNull();
   });
 });

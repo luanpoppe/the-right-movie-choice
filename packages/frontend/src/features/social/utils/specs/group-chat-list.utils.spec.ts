@@ -63,44 +63,35 @@ describe("GroupChatListUtils.sortByUpdatedAtDesc", () => {
   });
 });
 
-describe("GroupChatListUtils.formatDisplayTitle", () => {
-  const updatedAt = "2026-03-15T12:00:00.000Z";
+describe("GroupChatListUtils.formatTitle", () => {
+  it("REQ-9: título customizado é trimado", () => {
+    const title = GroupChatListUtils.formatTitle("  Terror leve  ");
 
-  it("REQ-9: delega título customizado para ConversationTitleUtils", () => {
-    const displayTitle = GroupChatListUtils.formatDisplayTitle(
-      "  Terror leve  ",
-      updatedAt,
-    );
-
-    const expectedTitle = ConversationTitleUtils.formatDisplayTitle(
-      "  Terror leve  ",
-      updatedAt,
-    );
-
-    expect(displayTitle).toBe(expectedTitle);
-    expect(displayTitle).toBe("Terror leve");
+    expect(title).toBe("Terror leve");
   });
 
-  it("REQ-9: delega título null para label padrão com tempo relativo", () => {
-    const displayTitle = GroupChatListUtils.formatDisplayTitle(null, updatedAt);
+  it("REQ-9: título null usa o label padrão", () => {
+    const title = GroupChatListUtils.formatTitle(null);
 
-    const expectedTitle = ConversationTitleUtils.formatDisplayTitle(
-      null,
-      updatedAt,
-    );
-
-    expect(displayTitle).toBe(expectedTitle);
-    expect(displayTitle).toMatch(/^New Conversation · .+/);
+    expect(title).toBe(ConversationTitleUtils.NULL_TITLE_LABEL);
   });
 
-  it("edge: título vazio ou só espaços usa label padrão com tempo relativo", () => {
-    const emptyTitle = GroupChatListUtils.formatDisplayTitle("", updatedAt);
-    const whitespaceTitle = GroupChatListUtils.formatDisplayTitle(
-      "   ",
-      updatedAt,
-    );
+  it("edge: título vazio ou só espaços usa o label padrão", () => {
+    const emptyTitle = GroupChatListUtils.formatTitle("");
+    const whitespaceTitle = GroupChatListUtils.formatTitle("   ");
 
-    expect(emptyTitle).toMatch(/^New Conversation · .+/);
-    expect(whitespaceTitle).toMatch(/^New Conversation · .+/);
+    expect(emptyTitle).toBe(ConversationTitleUtils.NULL_TITLE_LABEL);
+    expect(whitespaceTitle).toBe(ConversationTitleUtils.NULL_TITLE_LABEL);
+  });
+});
+
+describe("GroupChatListUtils.formatUpdatedAt", () => {
+  it("delega para ConversationTitleUtils.formatUpdatedAt", () => {
+    const updatedAt = "2026-03-15T12:00:00.000Z";
+
+    const formatted = GroupChatListUtils.formatUpdatedAt(updatedAt);
+
+    expect(formatted).toBe(ConversationTitleUtils.formatUpdatedAt(updatedAt));
+    expect(formatted.length).toBeGreaterThan(0);
   });
 });

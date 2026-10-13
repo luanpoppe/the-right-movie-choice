@@ -81,6 +81,7 @@ export class TmdbCatalogMapper {
       year,
       posterPath: result.poster_path,
       overview: result.overview,
+      tmdbVoteAverage: result.vote_average ?? null,
     };
   }
 

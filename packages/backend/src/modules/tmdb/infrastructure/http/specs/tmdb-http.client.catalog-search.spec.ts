@@ -23,6 +23,7 @@ const SEARCH_DTO = {
       year: 2003,
       posterPath: "/nemo.jpg",
       overview: "Fish",
+      tmdbVoteAverage: null,
     },
   ],
 };

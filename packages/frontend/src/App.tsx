@@ -1,9 +1,14 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
+import { CursorGlow } from "./components/cursor-glow";
 import { Header } from "./layouts/Header";
 
 export default function App() {
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
+
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-accent/5">
+    <main className="relative flex min-h-[100dvh] flex-col text-foreground">
+      {isHomePage && <CursorGlow />}
       <Header />
       <Outlet />
     </main>

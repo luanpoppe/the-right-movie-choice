@@ -21,6 +21,7 @@ export const SingleMovieReccomendationSchema = z.object({
     z.string().min(1).optional(),
   ),
   posterPath: z.string().nullable().optional(),
+  tmdbVoteAverage: z.number().nullable().optional(),
 }).transform((movie) => {
   const result = { ...movie };
   if (result.tmdbId === undefined) {

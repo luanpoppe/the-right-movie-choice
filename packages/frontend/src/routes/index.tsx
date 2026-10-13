@@ -1,15 +1,5 @@
 import { createBrowserRouter } from "react-router";
 import { Root } from "../Root";
-import { Home } from "../pages/Home";
-import { MyMoviesPage } from "../pages/MyMoviesPage";
-import { SearchPage } from "../pages/SearchPage";
-import { ConversationsListPage } from "../pages/ConversationsListPage";
-import { ConversationChatPage } from "../pages/ConversationChatPage";
-import { SocialPage } from "../pages/SocialPage";
-import { GroupChatPage } from "../pages/GroupChatPage";
-import { GroupDetailPage } from "../pages/GroupDetailPage";
-import { LoginPage } from "../features/auth/pages/LoginPage";
-import { RegisterPage } from "../features/auth/pages/RegisterPage";
 
 export const routers = createBrowserRouter([
   {
@@ -18,43 +8,71 @@ export const routers = createBrowserRouter([
     children: [
       {
         index: true,
-        Component: Home,
+        lazy: async () => ({ Component: (await import("../pages/Home")).Home }),
       },
       {
         path: "login",
-        Component: LoginPage,
+        lazy: async () => ({
+          Component: (await import("../features/auth/pages/LoginPage"))
+            .LoginPage,
+        }),
       },
       {
         path: "register",
-        Component: RegisterPage,
+        lazy: async () => ({
+          Component: (await import("../features/auth/pages/RegisterPage"))
+            .RegisterPage,
+        }),
       },
       {
         path: "my-movies",
-        Component: MyMoviesPage,
+        lazy: async () => ({
+          Component: (await import("../pages/MyMoviesPage")).MyMoviesPage,
+        }),
       },
       {
         path: "search",
-        Component: SearchPage,
+        lazy: async () => ({
+          Component: (await import("../pages/SearchPage")).SearchPage,
+        }),
       },
       {
         path: "conversations",
-        Component: ConversationsListPage,
+        lazy: async () => ({
+          Component: (await import("../pages/ConversationsListPage"))
+            .ConversationsListPage,
+        }),
       },
       {
         path: "conversations/:id",
-        Component: ConversationChatPage,
+        lazy: async () => ({
+          Component: (await import("../pages/ConversationChatPage"))
+            .ConversationChatPage,
+        }),
       },
       {
         path: "social",
-        Component: SocialPage,
+        lazy: async () => ({
+          Component: (await import("../pages/SocialPage")).SocialPage,
+        }),
       },
       {
         path: "social/groups/:groupId/chats/:chatId",
-        Component: GroupChatPage,
+        lazy: async () => ({
+          Component: (await import("../pages/GroupChatPage")).GroupChatPage,
+        }),
       },
       {
         path: "social/groups/:id",
-        Component: GroupDetailPage,
+        lazy: async () => ({
+          Component: (await import("../pages/GroupDetailPage")).GroupDetailPage,
+        }),
+      },
+      {
+        path: "*",
+        lazy: async () => ({
+          Component: (await import("../pages/NotFoundPage")).NotFoundPage,
+        }),
       },
     ],
   },

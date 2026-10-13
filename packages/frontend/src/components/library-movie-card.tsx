@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MovieCardListActions } from "@/components/movie-card-list-actions";
+import { MovieRatingBadge } from "@/components/movie-rating-badge";
 import { UserMovieEntryEntity } from "@/features/movies/entities/user-movie-entry.entity";
 import { TmdbPosterUtils } from "@/features/movies/utils/tmdb-poster.utils";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,7 @@ function LibraryMoviePosterPlaceholder() {
     <div
       className={cn(
         "flex aspect-[2/3] w-full items-center justify-center",
-        "bg-muted text-muted-foreground",
+        "bg-secondary text-muted-foreground",
       )}
       aria-hidden
     >
@@ -164,22 +165,28 @@ export function LibraryMovieCard({
   const hasYear = year !== null;
 
   return (
-    <Card className="overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-      <LibraryMovieCardPoster posterUrl={posterUrl} title={title} />
+    <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
+      <div className="relative">
+        <LibraryMovieCardPoster posterUrl={posterUrl} title={title} />
+        <MovieRatingBadge
+          value={entry.movie?.voteAverage}
+          className="absolute left-3 top-3"
+        />
+      </div>
 
       <CardHeader className="space-y-1 p-4 pb-2">
-        <CardTitle className="line-clamp-2 text-base leading-tight">
+        <CardTitle className="line-clamp-2 font-display text-base leading-tight tracking-tight">
           {title}
         </CardTitle>
         {hasYear && (
-          <CardDescription className="text-xs">{year}</CardDescription>
+          <CardDescription className="tnum text-xs">{year}</CardDescription>
         )}
       </CardHeader>
 
       <CardContent className="space-y-3 p-4 pt-0">
         {showWatchedDetails && <LibraryMovieWatchedDetails entry={entry} />}
 
-        <div className="border-t border-border/50 pt-3">
+        <div className="border-t border-border pt-3">
           <MovieCardListActions tmdbId={entry.tmdbId} />
         </div>
       </CardContent>

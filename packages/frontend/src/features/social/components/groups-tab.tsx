@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import toast from "react-hot-toast";
+import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { CreateGroupForm } from "@/features/social/components/create-group-form";
 import type { UserGroupListItemResponse } from "@/features/social/dto/user-groups.dto";
 import { UserGroupsService } from "@/features/social/services/user-groups.service";
+import { cn, focusRingClassName } from "@/lib/utils";
 
 const GENERIC_ERROR_TOAST =
   "Unexpected Error. Try again or get in contact with the staff.";
@@ -29,6 +32,7 @@ export function GroupsTab() {
   const [groups, setGroups] = useState<UserGroupListItemResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const activeFetchIdRef = useRef(0);
 
   const fetchGroups = useCallback(async () => {
@@ -77,7 +81,12 @@ export function GroupsTab() {
     void fetchGroups();
   }
 
+  function handleToggleCreate() {
+    setIsCreateOpen((isOpen) => !isOpen);
+  }
+
   function handleGroupCreated() {
+    setIsCreateOpen(false);
     void fetchGroups();
   }
 
@@ -85,38 +94,49 @@ export function GroupsTab() {
     !isLoading && !hasLoadError && groups.length === 0;
   const hasVisibleGroups = !isLoading && !hasLoadError && groups.length > 0;
 
-  if (isLoading) {
-    return (
-      <div>
-        <CreateGroupForm onCreated={handleGroupCreated} />
-        <p className="text-center text-muted-foreground">Loading...</p>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          Groups you are part of
+        </p>
+        <Button
+          type="button"
+          variant={isCreateOpen ? "outline" : "default"}
+          onClick={handleToggleCreate}
+          aria-expanded={isCreateOpen}
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          {isCreateOpen ? "Cancel" : "New group"}
+        </Button>
       </div>
-    );
-  }
 
-  if (hasLoadError) {
-    return (
-      <div>
-        <CreateGroupForm onCreated={handleGroupCreated} />
+      {isCreateOpen && <CreateGroupForm onCreated={handleGroupCreated} />}
+
+      {isLoading && <ListSkeleton label="Loading your groups..." />}
+
+      {hasLoadError && !isLoading && (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
           <p className="text-muted-foreground">Could not load your groups.</p>
           <Button type="button" variant="outline" onClick={handleRetry}>
             Try again
           </Button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <CreateGroupForm onCreated={handleGroupCreated} />
+      )}
 
       {shouldShowEmptyState && (
-        <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-muted-foreground">
-            You are not in any groups yet. Create one above to get started.
-          </p>
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border px-6 py-16 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-primary">
+            <Users className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="space-y-1">
+            <p className="font-display text-lg font-semibold tracking-tight">
+              You are not in any groups yet
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Use New group to create your first one and pick movies together.
+            </p>
+          </div>
         </div>
       )}
 
@@ -133,11 +153,21 @@ export function GroupsTab() {
               <li key={group.id}>
                 <Link
                   to={groupPath}
-                  className="block rounded-md border border-border/50 px-4 py-3 transition-colors hover:bg-accent/40"
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-secondary/40",
+                    focusRingClassName,
+                  )}
                 >
-                  <span className="block font-medium">{group.name}</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    {memberCountLabel} · Joined {joinedAtLabel}
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                    <Users className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-display text-sm font-semibold tracking-tight">
+                      {group.name}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                      {memberCountLabel} · Joined {joinedAtLabel}
+                    </span>
                   </span>
                 </Link>
               </li>

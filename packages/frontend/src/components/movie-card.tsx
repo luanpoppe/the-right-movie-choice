@@ -7,9 +7,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { Star, Calendar, Clock, Film } from "lucide-react";
+import { Film } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { MovieCardListActions } from "./movie-card-list-actions";
+import { MovieRatingBadge } from "./movie-rating-badge";
 import { SingleMovieReccomendationEntity } from "@/features/movies/entities/movie-recommendation.entity";
 import { TmdbPosterUtils } from "@/features/movies/utils/tmdb-poster.utils";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,7 @@ function MovieCardPosterPlaceholder() {
     <div
       className={cn(
         "flex aspect-[2/3] w-full items-center justify-center",
-        "bg-muted text-muted-foreground",
+        "bg-secondary text-muted-foreground",
       )}
       aria-hidden
     >
@@ -75,73 +76,63 @@ export function MovieCard({ movie }: MovieCardProps) {
   const tmdbId = movie.tmdbId;
   const hasTmdbId = tmdbId !== undefined;
   const posterUrl = MovieCardUtils.resolvePosterUrl(movie);
+  const hasActors = movie.actors.length > 0;
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-border/50 bg-card/50 backdrop-blur-sm">
-      <div className="h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
+    <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
+      <div className="relative">
+        <MovieCardPoster posterUrl={posterUrl} title={movie.title} />
+        <MovieRatingBadge
+          value={movie.tmdbVoteAverage ?? movie.imdbRating}
+          className="absolute left-3 top-3"
+        />
+      </div>
 
-      <MovieCardPoster posterUrl={posterUrl} title={movie.title} />
-
-      <CardHeader className="space-y-2 pb-3">
-        <CardTitle className="text-lg leading-tight text-balance">
+      <CardHeader className="space-y-1.5 pb-3">
+        <CardTitle className="font-display text-lg leading-tight tracking-tight text-balance">
           {movie.title}
         </CardTitle>
         <CardDescription className="text-xs">
-          Directed by {movie.director}
+          {movie.director}{" "}
+          <span className="tnum text-muted-foreground">
+            · {movie.releaseYear} · {movie.durationInMinutes} min
+          </span>
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {movie.actors.map((a) => (
-            <Badge
-              key={a}
-              variant="secondary"
-              className="text-xs rounded-full px-3"
-            >
-              {a}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <div className="rounded-full bg-accent/20 p-1">
-              <Star className="w-3 h-3 fill-accent text-accent" />
-            </div>
-            <span className="font-medium">{movie.imdbRating}/10</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{movie.releaseYear}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{movie.durationInMinutes}min</span>
-          </div>
-        </div>
-
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {movie.synopsis}
-        </p>
-
-        {hasTmdbId && (
-          <div className="pt-3 border-t border-border/50">
-            <MovieCardListActions tmdbId={tmdbId} />
+        {hasActors && (
+          <div className="flex flex-wrap gap-1.5">
+            {movie.actors.map((actor) => (
+              <Badge
+                key={actor}
+                variant="secondary"
+                className="rounded-full px-3 text-xs"
+              >
+                {actor}
+              </Badge>
+            ))}
           </div>
         )}
 
-        <div className="pt-3 border-t border-border/50">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-1 w-8 rounded-full bg-gradient-to-r from-primary to-accent" />
-            <p className="text-xs font-semibold text-primary">
-              Why this movie?
-            </p>
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {movie.synopsis}
+        </p>
+
+        <div className="border-t border-border pt-3">
+          <p className="mb-1.5 font-display text-xs font-semibold uppercase tracking-[0.08em] text-primary">
+            Why this movie?
+          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {movie.whySuggestion}
           </p>
         </div>
+
+        {hasTmdbId && (
+          <div className="border-t border-border pt-3">
+            <MovieCardListActions tmdbId={tmdbId} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

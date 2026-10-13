@@ -53,7 +53,7 @@ export class CatalogSearchFiltersValidationUtils {
     const isAboveMaximum = minRating > this.MAX_RATING;
     if (!isBelowMinimum && !isAboveMaximum) return;
 
-    const message = `A nota mínima deve ficar entre ${this.MIN_RATING} e ${this.MAX_RATING}.`;
+    const message = `Minimum rating must be between ${this.MIN_RATING} and ${this.MAX_RATING}.`;
     errors.push({ field: "minRating", message });
     normalized.minRating = undefined;
   }
@@ -69,7 +69,7 @@ export class CatalogSearchFiltersValidationUtils {
     const isAtLeastOne = page >= 1;
     if (isAtLeastOne) return;
 
-    errors.push({ field: "page", message: "A página deve ser no mínimo 1." });
+    errors.push({ field: "page", message: "Page must be at least 1." });
     normalized.page = 1;
   }
 
@@ -85,7 +85,7 @@ export class CatalogSearchFiltersValidationUtils {
     const isInverted = yearFrom > yearTo;
     if (!isInverted) return;
 
-    const message = "O ano inicial não pode ser maior que o ano final.";
+    const message = "The start year cannot be greater than the end year.";
     errors.push({ field: "yearFrom", message });
     normalized.yearFrom = yearTo;
     normalized.yearTo = yearFrom;
@@ -103,7 +103,8 @@ export class CatalogSearchFiltersValidationUtils {
     const isInverted = runtimeFrom > runtimeTo;
     if (!isInverted) return;
 
-    const message = "A duração inicial não pode ser maior que a duração final.";
+    const message =
+      "The minimum runtime cannot be greater than the maximum runtime.";
     errors.push({ field: "runtimeFrom", message });
     normalized.runtimeFrom = runtimeTo;
     normalized.runtimeTo = runtimeFrom;
@@ -119,7 +120,7 @@ export class CatalogSearchFiltersValidationUtils {
     const isPaired = hasCountry === hasCertification;
     if (isPaired) return;
 
-    const message = "Informe o país e a certificação juntos, ou nenhum dos dois.";
+    const message = "Provide both country and certification, or neither.";
     const field = hasCountry ? "certificationCountry" : "certification";
     errors.push({ field, message });
     normalized.certificationCountry = undefined;
@@ -137,7 +138,7 @@ export class CatalogSearchFiltersValidationUtils {
     const invalidIds = ids.filter((id) => !this.isPositiveInteger(id));
     if (invalidIds.length === 0) return;
 
-    const message = `Os ids de "${field}" devem ser inteiros positivos.`;
+    const message = `"${field}" ids must be positive integers.`;
     errors.push({ field, message });
 
     const validIds = ids.filter((id) => this.isPositiveInteger(id));
@@ -161,7 +162,7 @@ export class CatalogSearchFiltersValidationUtils {
     if (!hasQuery || !hasDiscoverFilters) return;
 
     const message =
-      "Busca por texto e filtros de discover não podem ser combinados.";
+      "Text search and discover filters cannot be combined.";
     errors.push({ field: "query", message });
     normalized.query = undefined;
   }

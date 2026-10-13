@@ -42,16 +42,16 @@ describe("CatalogSearchFiltersPanel", () => {
     const { onApply } = renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Drama" }));
-    fireEvent.change(screen.getByLabelText("Nota mínima"), {
+    fireEvent.change(screen.getByLabelText("Minimum rating"), {
       target: { value: "7" },
     });
-    fireEvent.change(screen.getByLabelText("Ano de"), {
+    fireEvent.change(screen.getByLabelText("Year from"), {
       target: { value: "2010" },
     });
-    fireEvent.change(screen.getByLabelText("Ano até"), {
+    fireEvent.change(screen.getByLabelText("Year to"), {
       target: { value: "2015" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -66,8 +66,8 @@ describe("CatalogSearchFiltersPanel", () => {
   it("REQ-4: candidato selecionado entra no filtro de direção", () => {
     const { onApply } = renderPanel();
 
-    fireEvent.click(screen.getByRole("button", { name: "add-Diretor" }));
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-Director" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({ director: [525] }),
@@ -77,9 +77,9 @@ describe("CatalogSearchFiltersPanel", () => {
   it("REQ-4: ator e palavra-chave também entram no apply", () => {
     const { onApply } = renderPanel();
 
-    fireEvent.click(screen.getByRole("button", { name: "add-Ator" }));
-    fireEvent.click(screen.getByRole("button", { name: "add-Palavra-chave" }));
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-Actor" }));
+    fireEvent.click(screen.getByRole("button", { name: "add-Keyword" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({ cast: [525], keyword: [525] }),
@@ -90,17 +90,17 @@ describe("CatalogSearchFiltersPanel", () => {
     const { onApply } = renderPanel({ genres: [18] });
 
     fireEvent.click(screen.getByRole("button", { name: "Drama" }));
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({ genres: [] }),
     );
   });
 
-  it("edge: Limpar zera o draft e aplica filtros vazios", () => {
+  it("edge: Clear zera o draft e aplica filtros vazios", () => {
     const { onApply } = renderPanel({ genres: [18], minRating: 7 });
 
-    fireEvent.click(screen.getByRole("button", { name: "Limpar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({ genres: undefined, minRating: undefined }),
@@ -110,7 +110,7 @@ describe("CatalogSearchFiltersPanel", () => {
   it("edge: filtros iniciais marcam os gêneros correspondentes", () => {
     renderPanel({ genres: [28] });
 
-    expect(screen.getByRole("button", { name: "Ação" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -119,19 +119,19 @@ describe("CatalogSearchFiltersPanel", () => {
   it("edge: certificação e duração são repassadas no apply", () => {
     const { onApply } = renderPanel();
 
-    fireEvent.change(screen.getByLabelText("Duração de"), {
+    fireEvent.change(screen.getByLabelText("Runtime from"), {
       target: { value: "60" },
     });
-    fireEvent.change(screen.getByLabelText("Duração até"), {
+    fireEvent.change(screen.getByLabelText("Runtime to"), {
       target: { value: "180" },
     });
-    fireEvent.change(screen.getByLabelText("País"), {
+    fireEvent.change(screen.getByLabelText("Country"), {
       target: { value: "BR" },
     });
-    fireEvent.change(screen.getByLabelText("Certificação"), {
+    fireEvent.change(screen.getByLabelText("Certification"), {
       target: { value: "14" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -147,7 +147,7 @@ describe("CatalogSearchFiltersPanel", () => {
     const onApply = jest.fn();
     const { rerender } = renderPanel({ genres: [18] }, onApply);
 
-    fireEvent.change(screen.getByLabelText("Nota mínima"), {
+    fireEvent.change(screen.getByLabelText("Minimum rating"), {
       target: { value: "7" },
     });
 
@@ -159,9 +159,9 @@ describe("CatalogSearchFiltersPanel", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Nota mínima")).toHaveValue(7);
+    expect(screen.getByLabelText("Minimum rating")).toHaveValue(7);
 
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
 
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({ genres: [18], minRating: 7 }),

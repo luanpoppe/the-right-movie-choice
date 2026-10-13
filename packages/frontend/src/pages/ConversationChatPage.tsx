@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { Button } from "@/components/ui/button";
+import { ChatSkeleton } from "@/components/chat-skeleton";
 import { Chat } from "@/features/chat";
 import { ChatEntity } from "@/features/chat/entities/chat.entity";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -149,19 +151,18 @@ function ConversationChatPageContent({
   }
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <ChatSkeleton label="Loading conversation..." />;
   }
 
   if (!conversation) {
     return (
-      <div className="flex flex-1 items-center justify-center py-12">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 py-12 text-center">
         <p className="text-muted-foreground">
           Could not load this conversation.
         </p>
+        <Button variant="outline" asChild>
+          <Link to="/conversations">Back to conversations</Link>
+        </Button>
       </div>
     );
   }

@@ -27,7 +27,7 @@ export function Chat({
   hasAccessToken,
 }: ChatProps) {
   return (
-    <div className="flex-1 flex flex-col container mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col px-4 py-8 sm:px-6">
       <GoBackButton handleReset={handleReset} />
 
       <div className="flex-1 space-y-8 mb-6">
