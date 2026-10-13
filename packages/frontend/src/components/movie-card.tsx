@@ -7,9 +7,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { Star, Film } from "lucide-react";
+import { Film } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { MovieCardListActions } from "./movie-card-list-actions";
+import { MovieRatingBadge } from "./movie-rating-badge";
 import { SingleMovieReccomendationEntity } from "@/features/movies/entities/movie-recommendation.entity";
 import { TmdbPosterUtils } from "@/features/movies/utils/tmdb-poster.utils";
 import { cn } from "@/lib/utils";
@@ -81,10 +82,10 @@ export function MovieCard({ movie }: MovieCardProps) {
     <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
       <div className="relative">
         <MovieCardPoster posterUrl={posterUrl} title={movie.title} />
-        <span className="tnum absolute left-3 top-3 inline-flex items-center gap-1 rounded-md border border-border bg-background/80 px-2 py-1 text-xs font-medium text-primary backdrop-blur">
-          <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-          {movie.imdbRating}
-        </span>
+        <MovieRatingBadge
+          value={movie.imdbRating}
+          className="absolute left-3 top-3"
+        />
       </div>
 
       <CardHeader className="space-y-1.5 pb-3">

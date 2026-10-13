@@ -1,5 +1,6 @@
-import { Film, Star } from "lucide-react";
+import { Film } from "lucide-react";
 import { MovieCardListActions } from "@/components/movie-card-list-actions";
+import { MovieRatingBadge } from "@/components/movie-rating-badge";
 import { PopularMovie } from "@/features/movies/dto/popular-movies.dto";
 
 interface PopularMovieCardProps {
@@ -41,7 +42,6 @@ function buildMetaLine(movie: PopularMovie): string {
 }
 
 export function PopularMovieCard({ movie }: PopularMovieCardProps) {
-  const hasRating = movie.voteAverage !== null;
   const hasDirectors = movie.directors.length > 0;
   const metaLine = buildMetaLine(movie);
 
@@ -49,12 +49,10 @@ export function PopularMovieCard({ movie }: PopularMovieCardProps) {
     <article className="overflow-hidden rounded-xl border border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
       <div className="relative">
         <PopularMoviePoster movie={movie} />
-        {hasRating && (
-          <span className="tnum absolute left-3 top-3 inline-flex items-center gap-1 rounded-md border border-border bg-background/80 px-2 py-1 text-xs font-medium text-primary backdrop-blur">
-            <Star className="h-3.5 w-3.5 fill-primary text-primary" aria-hidden />
-            {movie.voteAverage}
-          </span>
-        )}
+        <MovieRatingBadge
+          value={movie.voteAverage}
+          className="absolute left-3 top-3"
+        />
       </div>
 
       <div className="space-y-3 p-4">

@@ -30,6 +30,7 @@ class UserMovieEntryServiceFixtures {
         title: "Interestelar",
         year: 2014,
         posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
+        voteAverage: 8.6,
       },
       ...overrides,
     };
@@ -96,6 +97,7 @@ describe("UserMovieEntryService", () => {
         title: "Clube da Luta",
         year: 1999,
         posterPath: "https://image.tmdb.org/t/p/w500/fight.jpg",
+        voteAverage: 8.4,
       },
     });
     mockedGet.mockResolvedValue({ data: { entries: [entry] } });
@@ -115,6 +117,7 @@ describe("UserMovieEntryService", () => {
         title: "A Origem",
         year: 2010,
         posterPath: "https://image.tmdb.org/t/p/w500/inception.jpg",
+        voteAverage: 8.8,
       },
     });
     mockedGet.mockResolvedValue({ data: { entries: [entry] } });

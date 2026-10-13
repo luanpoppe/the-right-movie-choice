@@ -1,6 +1,7 @@
 jest.mock("lucide-react", () => ({
   Calendar: () => <span data-testid="icon-calendar" />,
   Film: () => <span data-testid="icon-film" />,
+  Star: () => <span data-testid="icon-star" />,
 }));
 
 jest.mock("@/components/movie-card-list-actions", () => ({

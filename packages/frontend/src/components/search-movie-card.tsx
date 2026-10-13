@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Calendar, Film } from "lucide-react";
+import { MovieRatingBadge } from "@/components/movie-rating-badge";
 import {
   Card,
   CardContent,
@@ -68,7 +69,13 @@ export function SearchMovieCard({ hit }: SearchMovieCardProps) {
 
   return (
     <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
-      <SearchMovieCardPoster posterUrl={posterUrl} title={hit.title} />
+      <div className="relative">
+        <SearchMovieCardPoster posterUrl={posterUrl} title={hit.title} />
+        <MovieRatingBadge
+          value={hit.voteAverage}
+          className="absolute left-3 top-3"
+        />
+      </div>
 
       <CardHeader className="space-y-1 p-4 pb-2">
         <CardTitle className="line-clamp-2 font-display text-base leading-tight tracking-tight">

@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MovieCardListActions } from "@/components/movie-card-list-actions";
+import { MovieRatingBadge } from "@/components/movie-rating-badge";
 import { UserMovieEntryEntity } from "@/features/movies/entities/user-movie-entry.entity";
 import { TmdbPosterUtils } from "@/features/movies/utils/tmdb-poster.utils";
 import { cn } from "@/lib/utils";
@@ -165,7 +166,13 @@ export function LibraryMovieCard({
 
   return (
     <Card className="overflow-hidden rounded-xl border-border bg-card transition-transform duration-300 hover:-translate-y-1.5">
-      <LibraryMovieCardPoster posterUrl={posterUrl} title={title} />
+      <div className="relative">
+        <LibraryMovieCardPoster posterUrl={posterUrl} title={title} />
+        <MovieRatingBadge
+          value={entry.movie?.voteAverage}
+          className="absolute left-3 top-3"
+        />
+      </div>
 
       <CardHeader className="space-y-1 p-4 pb-2">
         <CardTitle className="line-clamp-2 font-display text-base leading-tight tracking-tight">

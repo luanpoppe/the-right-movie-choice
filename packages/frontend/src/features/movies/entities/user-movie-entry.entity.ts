@@ -18,6 +18,7 @@ export const UserMovieEntryMovieSummarySchema = z.object({
   title: z.string(),
   year: z.int().nullable(),
   posterPath: z.union([z.null(), z.string().url()]),
+  voteAverage: z.number().nullable(),
 });
 
 export type UserMovieEntryMovieSummaryEntity = z.infer<

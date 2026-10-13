@@ -17,6 +17,7 @@ class MovieCatalogSearchFixtures {
       year: 2014,
       posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
       overview: "A team travels through a wormhole.",
+      voteAverage: 8.6,
       ...overrides,
     };
   }
