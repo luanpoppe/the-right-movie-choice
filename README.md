@@ -37,7 +37,8 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Saída estruturada:** JSON validado com **Zod** (entrada, saída e documentação Swagger).
 - **Respostas conversacionais:** Texto amigável além dos dados dos filmes.
 - **Rotas públicas de filmes:** Recomendações e sugestões de busca não exigem login; convidados têm **cota anônima** (header `X-Guest-Remaining`). `Authorization: Bearer` opcional na recomendação pula a cota.
-- **Busca de catálogo (TMDB ao vivo):** Rotas públicas `GET /movie/catalog/search`, `/people`, `/keywords` e `/discover` — busca por texto/populares, candidatos de pessoa/palavra-chave e discover com filtros (gênero, nota, anos, duração, certificação; ator/diretor/palavra-chave por id). Filtros de lista em vírgula; **rate limit** de 60 req/min por IP; cada hit de filme entra na fila de gravação do catálogo. A mesma busca é exposta ao agente como a tool **`searchCatalog`** (convive com a `lookupMovies`).
+- **Busca de catálogo (TMDB ao vivo):** Rotas públicas `GET /movie/catalog/search`, `/people`, `/keywords` e `/discover` — busca por texto/populares, candidatos de pessoa/palavra-chave e discover com filtros (gênero, nota, anos, duração, certificação; ator/diretor/palavra-chave por id). Filtros de lista em vírgula; **rate limit** de 60 req/min por IP; cada hit de filme entra na fila de gravação do catálogo. A mesma busca é exposta ao agente como a tool **`searchCatalog`** (convive com a `lookupMovies`). Os hits de filme trazem **`voteAverage`** (nota média dos usuários no TMDB).
+- **Filmes populares (diário):** `GET /movie/popular` (público, **rate limit** de 60 req/min por IP) devolve um pool de **9** filmes populares com `tmdbId`, título, ano, capa, sinopse, duração, **nota TMDB** (`voteAverage`) e diretores. Em produção um job diário (04:00 `America/Sao_Paulo`) recalcula o pool; a resposta sai do cache Redis (TTL 26h) e, em cache miss, é resolvida sob demanda.
 - **Excluir assistidos (autenticado):** Com Bearer, o body pode enviar `excludeWatched` (padrão `true` se omitido). O backend filtra filmes marcados como assistidos após o lookup no catálogo, amplia o pool de candidatos (até 25 queries por rodada) e repete até obter pelo menos 2 filmes verificados não-assistidos ou esgotar 5 rodadas. Convidados ignoram a flag.
 - **Listas do usuário:** `GET`/`PATCH /movie/user-entries` exigem **JWT** (`Authorization: Bearer`). Uma linha por `(userId, tmdbId)` com flags `watched`, `favorite`, `inWatchlist` e metadados opcionais de assistido (`rating` 1–10, `watchedAt`). Listagens aceitam filtros por flag e podem enriquecer com resumo do catálogo (`title`, `year`, `posterPath` como URL TMDB).
 - **Usuários e autenticação:** Módulo `users` (cadastro com **Prisma** + **bcrypt**) e módulo `auth` com **JWT** de curta duração no body, **refresh token** httpOnly no **Redis** (rotação a cada refresh), logout que revoga o refresh e **login/cadastro com Google** (conta unificada por e-mail). Emissão de sessão centralizada em `AuthSessionFacade`.
@@ -61,7 +62,10 @@ A API está disponível em uma instância gratuita da **Oracle Cloud**, com **PM
 - **Tema claro/escuro**, componentes com Radix UI e Tailwind CSS.
 - **Integração com a API** via variáveis `VITE_*` (ver `packages/frontend/.env.example`).
 - **Autenticação:** telas `/login` e `/register` com senha ou botão Google (`@react-oauth/google`).
-- **Área Social (`/social`):** abas Friends, Requests e Groups; detalhe do grupo em `/social/groups/:id` com abas **Details** e **Chat**; sub-rota de conversa compartilhada em `/social/groups/:groupId/chats/:chatId` (sidebar, polling, filtro de assistidos por membros — sem toggle pessoal `excludeWatched`); link **Social** no header quando autenticado; visitante é redirecionado para `/login?redirect=...`.
+- **Área Social (`/social`):** abas **Groups** (primeira e padrão), **Friends** e **Requests**; criação de grupo (**New group**) atrás de um botão; detalhe do grupo em `/social/groups/:id` com abas **Details** e **Chat**; sub-rota de conversa compartilhada em `/social/groups/:groupId/chats/:chatId` (sidebar, polling, filtro de assistidos por membros — sem toggle pessoal `excludeWatched`); link **Social** no header quando autenticado; visitante é redirecionado para `/login?redirect=...`.
+- **Home com destaques populares:** pôsteres do hero e a seção **"Popular now"** (6 filmes) são alimentados por `GET /movie/popular`.
+- **Nota padronizada nos cards:** todos os cards exibem a nota do TMDB (`voteAverage`, uma casa decimal); no chat, o `imdbRating` da IA entra só como fallback para filmes ausentes no TMDB.
+- **Visual "Cinematographic Noir":** UI dark-first (com tema claro adaptado) — tokens, tipografia e animações leves —, página **404** dedicada e code splitting por rota.
 
 ## Próximos Passos
 
@@ -115,7 +119,7 @@ O projeto agora é um monorepo gerenciado com **pnpm workspaces**. As tecnologia
 - **IA generativa:** `@luanpoppe/ai` via OpenRouter (primário) e Gemini (fallback opcional); memória de chat com `@langchain/langgraph-checkpoint-redis`
 - **ORM:** Prisma 7 (driver adapter `@prisma/adapter-pg`)
 - **Banco de dados:** PostgreSQL (usuários + catálogo `Movie` + pool `MovieQuerySuggestion` + `UserConversation` + social: `FriendRequest`, `UserGroup`, `GroupMember`, `GroupInvite`, `GroupChat`) + Redis (histórico de chat de convidado/conversas individuais, refresh tokens, cache TMDB details e cota de convidado, `ioredis`); histórico de **chats de grupo** no checkpointer Postgres (mesmo `chatId` UUID)
-- **Jobs agendados:** `node-cron` para rotação do pool de sugestões (somente `NODE_ENV=prod`)
+- **Jobs agendados:** `node-cron` (somente `NODE_ENV=prod`) para a **rotação semanal do pool de sugestões** (+5/−5, domingo 03:00 `America/Sao_Paulo`) e o **refresh diário dos filmes populares** (04:00 `America/Sao_Paulo`)
 - **Senhas:** bcrypt
 - **Auth:** JWT (`jose`) + refresh em Redis + cookies (`@fastify/cookie`) + Google ID token (`google-auth-library`)
 - **HTTP:** `@fastify/cors`
@@ -239,9 +243,9 @@ Comandos também podem ser executados dentro de `packages/backend` ou `packages/
 
 ### Postman
 
-Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**; `searchEmail`, `friendRequestId`, `friendUserId`, `groupId`, `groupInviteId`, `groupMemberUserId`, `groupChatId` (UUID) e `groupChatNumericId` (id numérico) para rotas sociais; `catalogQuery`, `catalogYear`, `catalogPage`, `catalogLanguage`, `catalogPersonQuery`, `catalogKeywordQuery`, `catalogGenres`, `catalogMinRating`, `catalogYearFrom`, `catalogYearTo` para `/movie/catalog/*`.
+Coleção e environments em [`packages/backend/postman`](packages/backend/postman). Importe a coleção e o environment **Local** (`baseUrl` padrão `http://localhost:3333`, alinhado ao `.env.example`). O Postman guarda cookies `refreshToken` (auth) e `guest-id` (cota de convidado) via Cookie Jar. Variáveis: `userEntryTmdbId` (padrão `27205`) para `/movie/user-entries/:tmdbId`; `conversationId` e `chatId` preenchidos automaticamente após **Create conversation**; `searchEmail`, `friendRequestId`, `friendUserId`, `groupId`, `groupInviteId`, `groupMemberUserId`, `groupChatId` (UUID) e `groupChatNumericId` (id numérico) para rotas sociais; `catalogQuery`, `catalogYear`, `catalogPage`, `catalogLanguage`, `catalogPersonQuery`, `catalogKeywordQuery`, `catalogGenres`, `catalogMinRating`, `catalogYearFrom`, `catalogYearTo` para `/movie/catalog/*`; `popularLanguage` para `/movie/popular`.
 
-Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Social — Friends**, **Social — Groups**, **Social — Group chats** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback), **Movie catalog search** (público — busca no catálogo TMDB: texto/populares, pessoas, keywords e discover com filtros).
+Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 3 sugestões do pool Postgres — rode `pnpm db:migrate` ou `pnpm seed:query-suggestions` antes; **Popular movies (daily)** chama o pool diário `GET /movie/popular`), **User conversations** (JWT obrigatório — crie conversa antes da recomendação autenticada), **User movie entries** (JWT obrigatório), **Social — Friends**, **Social — Groups**, **Social — Group chats** (JWT obrigatório), **Users**, **Auth**, **TMDB debug** (somente `NODE_ENV !== prod`, loopback), **Movie catalog search** (público — busca no catálogo TMDB: texto/populares, pessoas, keywords e discover com filtros).
 
 **Fluxo autenticado no Postman (conversas):** Login → **Create conversation** (salva `conversationId` e `chatId`) → **Movie recommendation (Bearer)** com `chatid: {{chatId}}`.
 
@@ -249,10 +253,11 @@ Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 
 
 **Fluxo group chat no Postman:** Login → **Create group** → **Create group chat** (salva `groupChatId` e `groupChatNumericId`) → **Group chat recommendation** → **Get group chat** (histórico em `messages`).
 
-**Fluxo busca de catálogo no Postman:** pasta **Movie catalog search** (pública) — **Search movies (text)**, **Popular movies**, **Search people**, **Search keywords** e **Discover movies**; ajuste as variáveis `catalog*` conforme o pedido.
+**Fluxo busca de catálogo no Postman:** pasta **Movie catalog search** (pública) — **Search movies (text)**, **Popular movies**, **Search people**, **Search keywords** e **Discover movies**; ajuste as variáveis `catalog*` conforme o pedido. (O **Popular movies** dessa pasta é o atalho de populares do TMDB via `/movie/catalog/search`; o pool diário cacheado é o **Popular movies (daily)**, na pasta **Movies**, rota `GET /movie/popular`.)
+
 ## Referência da API
 
-`POST /movie/recommendation`, `GET /movie/queries` e as rotas `GET /movie/catalog/*` são **públicas**. `GET`/`PATCH /movie/user-entries`, todas as rotas `/movie/conversations` e **todas as rotas `/social/*`** exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
+`POST /movie/recommendation`, `GET /movie/queries`, `GET /movie/popular` e as rotas `GET /movie/catalog/*` são **públicas**. `GET`/`PATCH /movie/user-entries`, todas as rotas `/movie/conversations` e **todas as rotas `/social/*`** exigem **`Authorization: Bearer`**. Cadastro e login (`/users/register`, `/auth/login`, `/auth/google`) também não exigem Bearer nas rotas de auth. Refresh e logout dependem do cookie httpOnly `refreshToken`.
 
 > Nos exemplos locais, a porta padrão é `3333` (`PORT` no `.env`). Headers HTTP são case-insensitive; o backend valida o campo `chatid` (o cliente pode enviar `chatId`).
 
@@ -288,12 +293,13 @@ Pastas: **Movies** (recomendação convidado/Bearer; **Get query examples** lê 
         "durationInMinutes": 120,
         "tmdbId": 27205,
         "imdbId": "tt1375666",
-        "posterPath": "https://image.tmdb.org/t/p/w500/..."
+        "posterPath": "https://image.tmdb.org/t/p/w500/...",
+        "tmdbVoteAverage": 8.4
       }
     ]
   }
   ```
-  `tmdbId` e `imdbId` são **opcionais** — presentes quando o agente resolve o filme no catálogo via `lookupMovies`; omitidos quando o título não foi encontrado. `posterPath` é **sempre** retornado (`null` quando não há capa no catálogo); quando presente, é URL completa TMDB.
+  `tmdbId` e `imdbId` são **opcionais** — presentes quando o agente resolve o filme no catálogo via `lookupMovies`; omitidos quando o título não foi encontrado. `posterPath` é **sempre** retornado (`null` quando não há capa no catálogo); quando presente, é URL completa TMDB. `tmdbVoteAverage` é **sempre** retornado (`null` quando o filme não tem nota no TMDB) — é a nota média dos usuários no TMDB, a mesma exibida nos cards do SPA; o `imdbRating` continua vindo da IA como fallback.
 
 **Exemplo (produção):**
 ```bash
@@ -329,6 +335,37 @@ curl http://localhost:3333/movie/queries
 
 **Operação do pool (backend):** seed manual ou pós-migrate (`pnpm seed:query-suggestions`); rotação semanal em produção (+5 novas / −5 mais antigas, com top-up se `count < 100`). Detalhes em `.sdd/context/recomendacoes-filmes/pool-sugestoes-busca.md`.
 
+### `GET /movie/popular`
+
+- **Autenticação:** não requerida; sem cota de convidado. **Rate limit** de 60 req/min por IP.
+- **Query (opcional):** `language` — `en-US` (default) ou `pt-BR`.
+- **Comportamento:** devolve o pool diário de filmes populares (até **9**), recalculado por um job diário em produção (04:00 `America/Sao_Paulo`) e servido do cache Redis (TTL 26h). Em cache miss, o pool é resolvido sob demanda na mesma requisição.
+- **Resposta `200`:**
+  ```json
+  {
+    "movies": [
+      {
+        "tmdbId": 27205,
+        "title": "A Origem",
+        "year": 2010,
+        "posterPath": "https://image.tmdb.org/t/p/w500/...",
+        "overview": "...",
+        "runtimeMinutes": 148,
+        "voteAverage": 8.4,
+        "directors": ["Christopher Nolan"]
+      }
+    ]
+  }
+  ```
+  `year`, `posterPath`, `runtimeMinutes` e `voteAverage` podem ser `null`; `voteAverage` é a nota média dos usuários no TMDB.
+
+**Exemplo (local):**
+```bash
+curl "http://localhost:3333/movie/popular?language=pt-BR"
+```
+
+**Respostas:** `200`, `400` (idioma inválido), `502`/`503`/`504` (falha no TMDB).
+
 ### Rotas de busca de catálogo (`/movie/catalog/*`)
 
 Todas **públicas** (sem auth, sem cota de convidado) e com **rate limit** de 60 req/min por IP. Buscam no **TMDB ao vivo** (não no catálogo local); cada hit de **filme** entra na fila de gravação `catalog-movie-persist`. Filtros de lista (`genres`, `cast`, `director`, `keyword`) usam ids separados por vírgula (ex.: `genres=28,35`).
@@ -350,12 +387,13 @@ Todas **públicas** (sem auth, sem cota de convidado) e com **rate limit** de 60
       "title": "Interestelar",
       "year": 2014,
       "posterPath": "https://image.tmdb.org/t/p/w500/...",
-      "overview": "..."
+      "overview": "...",
+      "voteAverage": 8.1
     }
   ]
 }
 ```
-`people` retorna `{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }`; `keywords`, `{ page, results: [{ id, name }] }`.
+`people` retorna `{ page, results: [{ id, name, knownForDepartment, knownFor: [{ id, title }] }] }`; `keywords`, `{ page, results: [{ id, name }] }`. Os hits de filme (search e discover) incluem `voteAverage` — a nota média dos usuários no TMDB (`null` quando não há nota).
 
 **Exemplo (local):**
 ```bash
@@ -383,13 +421,14 @@ curl "http://localhost:3333/movie/catalog/search?query=Interstellar&year=2014&la
         "movie": {
           "title": "A Origem",
           "year": 2010,
-          "posterPath": "https://image.tmdb.org/t/p/w500/..."
+          "posterPath": "https://image.tmdb.org/t/p/w500/...",
+          "voteAverage": 8.8
         }
       }
     ]
   }
   ```
-  `movie` é `null` quando o filme ainda não está no catálogo local; `posterPath` é URL completa TMDB quando disponível.
+  `movie` é `null` quando o filme ainda não está no catálogo local; `posterPath` é URL completa TMDB quando disponível e `voteAverage` é a nota média dos usuários no TMDB (`null` quando indisponível).
 
 **Exemplo (local):**
 ```bash
