@@ -27,7 +27,7 @@ export function Welcome({
   const heroPosters = popularMovies
     .slice(0, 3)
     .map((movie) => movie.posterPath);
-  const popularSectionMovies = popularMovies.slice(3, 6);
+  const popularSectionMovies = popularMovies.slice(3, 9);
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
@@ -37,7 +37,7 @@ export function Welcome({
         <GenreMarquee />
       </div>
 
-      <div className="mx-auto mt-10 max-w-[680px] sm:mt-12">
+      <div className="mt-10 sm:mt-12">
         <Form
           isLoading={isLoading}
           handleSubmit={handleSubmit}

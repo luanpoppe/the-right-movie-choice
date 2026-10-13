@@ -71,8 +71,8 @@ export function InputSuggestions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">Try:</span>
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap">
+      <span className="shrink-0 text-sm text-muted-foreground">Try:</span>
       {queryExamples.map((suggestion) => (
         <button
           key={suggestion}
@@ -80,7 +80,7 @@ export function InputSuggestions({
           disabled={isDisabled}
           onClick={() => handleSelect(suggestion)}
           className={cn(
-            "rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary transition-colors hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-50",
+            "shrink-0 whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary transition-colors hover:bg-primary/20 disabled:pointer-events-none disabled:opacity-50",
             focusRingClassName,
           )}
         >

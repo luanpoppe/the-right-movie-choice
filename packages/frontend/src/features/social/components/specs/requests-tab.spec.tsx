@@ -8,6 +8,18 @@ jest.mock("@/features/social/services/friendship.service", () => ({
   },
 }));
 
+jest.mock(
+  "lucide-react",
+  () =>
+    new Proxy(
+      { __esModule: true } as Record<string, unknown>,
+      {
+        get: (target, prop) =>
+          typeof prop === "string" && prop in target ? target[prop] : () => null,
+      },
+    ),
+);
+
 jest.mock("@/features/social/services/user-groups.service", () => ({
   UserGroupsService: {
     listIncomingInvites: jest.fn(),

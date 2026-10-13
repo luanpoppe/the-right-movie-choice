@@ -17,10 +17,10 @@ import { StringUtils } from "@/utils/string.utils";
 const SOCIAL_LOGIN_REDIRECT =
   SocialLoginRedirectUtils.buildRedirectPath("/social");
 
-export type SocialTab = "friends" | "requests" | "groups";
+export type SocialTab = "groups" | "friends" | "requests";
 
 function SocialPageContent() {
-  const [activeTab, setActiveTab] = useState<SocialTab>("friends");
+  const [activeTab, setActiveTab] = useState<SocialTab>("groups");
 
   function handleTabChange(value: string) {
     setActiveTab(value as SocialTab);
@@ -30,15 +30,19 @@ function SocialPageContent() {
     <div className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
       <PageHeader
         title="Social"
-        description="Manage your friends, requests, and groups."
+        description="Manage your groups, friends, and requests."
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-6">
+          <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="friends">Friends</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
-          <TabsTrigger value="groups">Groups</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="groups">
+          <GroupsTab />
+        </TabsContent>
 
         <TabsContent value="friends">
           <FriendsTab />
@@ -46,10 +50,6 @@ function SocialPageContent() {
 
         <TabsContent value="requests">
           <RequestsTab />
-        </TabsContent>
-
-        <TabsContent value="groups">
-          <GroupsTab />
         </TabsContent>
       </Tabs>
     </div>

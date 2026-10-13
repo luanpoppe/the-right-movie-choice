@@ -26,15 +26,25 @@ export function Form({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {isGuestLocked && <GuestLockBanner />}
-      <ExcludeWatchedToggle
-        showToggle={hasAccessToken}
-        excludeWatched={excludeWatched}
-        onExcludeWatchedChange={onExcludeWatchedChange}
-        isLoading={isLoading}
-        isGuestLocked={isGuestLocked}
-      />
-      <div className="relative">
+      {isGuestLocked && (
+        <div className="mx-auto w-full max-w-[680px]">
+          <GuestLockBanner />
+        </div>
+      )}
+
+      {hasAccessToken && (
+        <div className="mx-auto w-full max-w-[680px]">
+          <ExcludeWatchedToggle
+            showToggle={hasAccessToken}
+            excludeWatched={excludeWatched}
+            onExcludeWatchedChange={onExcludeWatchedChange}
+            isLoading={isLoading}
+            isGuestLocked={isGuestLocked}
+          />
+        </div>
+      )}
+
+      <div className="relative mx-auto w-full max-w-[680px]">
         <Input
           name="message"
           placeholder="What kind of movie are you looking for? (e.g., 'a thrilling sci-fi movie' or 'something funny to watch with friends')"

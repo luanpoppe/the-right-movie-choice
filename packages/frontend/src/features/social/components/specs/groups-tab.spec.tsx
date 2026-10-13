@@ -5,6 +5,18 @@ jest.mock("@/features/social/services/user-groups.service", () => ({
   },
 }));
 
+jest.mock(
+  "lucide-react",
+  () =>
+    new Proxy(
+      { __esModule: true } as Record<string, unknown>,
+      {
+        get: (target, prop) =>
+          typeof prop === "string" && prop in target ? target[prop] : () => null,
+      },
+    ),
+);
+
 jest.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {
@@ -84,7 +96,9 @@ describe("GroupsTab", () => {
 
     renderGroupsTab();
 
-    await screen.findByRole("button", { name: /create group/i });
+    await user.click(
+      await screen.findByRole("button", { name: /new group/i }),
+    );
 
     await user.type(screen.getByLabelText(/^name$/i), "Sci-Fi Night");
     await user.type(

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { Clock, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListSkeleton } from "@/components/list-skeleton";
 import type {
@@ -238,7 +239,7 @@ export function RequestsTab() {
       <section aria-labelledby="incoming-friend-requests-heading">
         <h2
           id="incoming-friend-requests-heading"
-          className="mb-4 text-lg font-semibold"
+          className="mb-4 font-display text-lg font-semibold tracking-tight"
         >
           Incoming friend requests
         </h2>
@@ -268,9 +269,14 @@ export function RequestsTab() {
               return (
                 <li
                   key={request.id}
-                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="font-medium">{requesterLabel}</span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                      <UserPlus className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="truncate font-medium">{requesterLabel}</span>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -306,7 +312,7 @@ export function RequestsTab() {
       <section aria-labelledby="outgoing-friend-requests-heading">
         <h2
           id="outgoing-friend-requests-heading"
-          className="mb-4 text-lg font-semibold"
+          className="mb-4 font-display text-lg font-semibold tracking-tight"
         >
           Outgoing friend requests
         </h2>
@@ -335,9 +341,14 @@ export function RequestsTab() {
               return (
                 <li
                   key={request.id}
-                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="font-medium">{addresseeLabel}</span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                      <Clock className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="truncate font-medium">{addresseeLabel}</span>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
@@ -358,7 +369,10 @@ export function RequestsTab() {
       </section>
 
       <section aria-labelledby="group-invites-heading">
-        <h2 id="group-invites-heading" className="mb-4 text-lg font-semibold">
+        <h2
+          id="group-invites-heading"
+          className="mb-4 font-display text-lg font-semibold tracking-tight"
+        >
           Group invites
         </h2>
 
@@ -384,13 +398,20 @@ export function RequestsTab() {
               return (
                 <li
                   key={invite.id}
-                  className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div>
-                    <span className="block font-medium">{invite.group.name}</span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      Invited by {invite.inviter.name}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+                      <Users className="h-4 w-4" aria-hidden />
                     </span>
+                    <div className="min-w-0">
+                      <span className="block truncate font-medium">
+                        {invite.group.name}
+                      </span>
+                      <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                        Invited by {invite.inviter.name}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button
