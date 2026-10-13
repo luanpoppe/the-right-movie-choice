@@ -83,7 +83,7 @@ export function MovieCard({ movie }: MovieCardProps) {
       <div className="relative">
         <MovieCardPoster posterUrl={posterUrl} title={movie.title} />
         <MovieRatingBadge
-          value={movie.imdbRating}
+          value={movie.tmdbVoteAverage ?? movie.imdbRating}
           className="absolute left-3 top-3"
         />
       </div>
