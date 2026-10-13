@@ -63,7 +63,12 @@ class UserMovieEntryRepositoryFixtures {
 
   static listItemFromRow(
     row: ReturnType<typeof UserMovieEntryRepositoryFixtures.prismaRow>,
-    movie: { title: string; year: number | null; posterPath: string | null } | null = null,
+    movie: {
+      title: string;
+      year: number | null;
+      posterPath: string | null;
+      voteAverage: number | null;
+    } | null = null,
   ) {
     return {
       ...UserMovieEntryRepositoryFixtures.entityFromRow(row),
@@ -77,6 +82,7 @@ class UserMovieEntryRepositoryFixtures {
       title: "Interestelar",
       year: 2014,
       posterPath: "/poster.jpg",
+      tmdbVoteAverage: 8.6,
       ...overrides,
     };
   }
@@ -691,12 +697,14 @@ describe("PrismaUserMovieEntryRepository", () => {
           title: true,
           year: true,
           posterPath: true,
+          tmdbVoteAverage: true,
         },
       });
       expect(result[0]?.movie).toEqual({
         title: "Interestelar",
         year: 2014,
         posterPath: "/poster.jpg",
+        voteAverage: 8.6,
       });
     });
 

@@ -274,6 +274,7 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
         title: true,
         year: true,
         posterPath: true,
+        tmdbVoteAverage: true,
       },
     });
 
@@ -284,6 +285,7 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
         title: catalogRow.title,
         year: catalogRow.year,
         posterPath: catalogRow.posterPath,
+        voteAverage: catalogRow.tmdbVoteAverage,
       };
       catalogByTmdbId.set(catalogRow.tmdbId, summary);
     }

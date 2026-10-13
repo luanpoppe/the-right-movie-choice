@@ -6,6 +6,7 @@ const TmdbSearchMovieResultSchema = z.object({
   overview: z.string(),
   poster_path: z.string().nullable(),
   release_date: z.string(),
+  vote_average: z.number().nullable().optional(),
 });
 
 export const TmdbSearchResponseSchema = z.object({

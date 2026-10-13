@@ -97,6 +97,7 @@ export class UserMovieEntryResponseMapper {
       title: summary.title,
       year: summary.year,
       posterPath,
+      voteAverage: summary.voteAverage,
     };
     return response;
   }

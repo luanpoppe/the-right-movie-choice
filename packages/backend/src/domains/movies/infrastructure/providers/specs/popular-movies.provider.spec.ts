@@ -76,12 +76,13 @@ describe("PopularMoviesProvider", () => {
     vi.mocked(redis.getString).mockResolvedValue(null);
     vi.mocked(catalog.discoverMovies).mockResolvedValue({
       page: 1,
-      results: Array.from({ length: 6 }, (_, index) => ({
+      results: Array.from({ length: PopularMoviesConstants.COUNT }, (_, index) => ({
         id: index + 1,
         title: `Movie ${index + 1}`,
         year: 2010,
         posterPath: "/poster.jpg",
         overview: "Overview",
+        tmdbVoteAverage: null,
       })),
     });
     vi.mocked(resolver.resolveByTmdbId).mockImplementation(async (id) =>
@@ -106,12 +107,13 @@ describe("PopularMoviesProvider", () => {
     vi.mocked(redis.getString).mockResolvedValue(null);
     vi.mocked(catalog.discoverMovies).mockResolvedValue({
       page: 1,
-      results: Array.from({ length: 6 }, (_, index) => ({
+      results: Array.from({ length: PopularMoviesConstants.COUNT }, (_, index) => ({
         id: index + 1,
         title: `Movie ${index + 1}`,
         year: 2010,
         posterPath: null,
         overview: "Overview",
+        tmdbVoteAverage: null,
       })),
     });
     vi.mocked(resolver.resolveByTmdbId).mockImplementation(async (id) => {
@@ -140,7 +142,7 @@ describe("PopularMoviesProvider", () => {
   it("refreshPopularMovies ignora o cache e reconstrói", async () => {
     vi.mocked(catalog.discoverMovies).mockResolvedValue({
       page: 1,
-      results: [{ id: 1, title: "Movie 1", year: 2010, posterPath: null, overview: "" }],
+      results: [{ id: 1, title: "Movie 1", year: 2010, posterPath: null, overview: "", tmdbVoteAverage: null }],
     });
     vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(
       PopularMoviesFixtures.details(1),

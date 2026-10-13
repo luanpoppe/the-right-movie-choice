@@ -222,6 +222,7 @@ describe("schemas de resposta", () => {
           year: 2014,
           posterPath: "https://image.tmdb.org/t/p/w500/poster.jpg",
           overview: "Space",
+          voteAverage: null,
         },
       ],
     });

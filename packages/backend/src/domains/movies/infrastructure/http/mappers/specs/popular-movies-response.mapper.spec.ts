@@ -27,13 +27,13 @@ describe("PopularMoviesResponseMapper", () => {
 
     expect(response.movies).toHaveLength(1);
     const movie = response.movies[0];
-    expect(movie.tmdbId).toBe(157336);
-    expect(movie.title).toBe("Interestelar");
-    expect(movie.year).toBe(2014);
-    expect(movie.runtimeMinutes).toBe(169);
-    expect(movie.voteAverage).toBe(8.4);
-    expect(movie.directors).toEqual(["Christopher Nolan"]);
-    expect(movie.posterPath).toContain("poster.jpg");
+    expect(movie?.tmdbId).toBe(157336);
+    expect(movie?.title).toBe("Interestelar");
+    expect(movie?.year).toBe(2014);
+    expect(movie?.runtimeMinutes).toBe(169);
+    expect(movie?.voteAverage).toBe(8.4);
+    expect(movie?.directors).toEqual(["Christopher Nolan"]);
+    expect(movie?.posterPath).toContain("poster.jpg");
   });
 
   it("mantém posterPath nulo quando não há capa", () => {
@@ -41,7 +41,7 @@ describe("PopularMoviesResponseMapper", () => {
       details({ posterPath: null }),
     ]);
 
-    expect(response.movies[0].posterPath).toBeNull();
+    expect(response.movies[0]?.posterPath).toBeNull();
   });
 
   it("devolve lista vazia quando não há filmes", () => {
