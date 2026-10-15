@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec: watched-modal-edit — watched-entry-modal</title>
+  <link rel="stylesheet" href="../../../../assets/styles.css">
+</head>
+<body>
+  <aside class="toc">
+    <p class="toc-title">Índice</p>
+    <ol>
+      <li><a href="#resumo">Resumo</a></li>
+      <li><a href="#requirements">Requirements</a></li>
+      <li><a href="#edge-cases">Edge cases</a></li>
+      <li><a href="#contratos-expostos">Contratos expostos</a></li>
+    </ol>
+  </aside>
+
+  <header class="lp-header">
+    <p class="lp-breadcrumb"><a href="../../plan.html">watched-entry-modal</a> / specs / <strong>watched-modal-edit</strong> / spec</p>
+    <h1>Spec: watched-modal-edit</h1>
+    <p class="lp-meta">Parte de <a href="../../plan.html"><code>watched-entry-modal</code></a> · atualizado em 2026-10-15</p>
+  </header>
+
+  <main class="lp-main">
+    <details class="lp-sec" id="resumo" open>
+      <summary><h2>Resumo</h2></summary>
+      <p>Ao clicar em &quot;Watched&quot; num filme já marcado como assistido, o app abre a modal pré-carregada com a nota e a data salvas, permitindo atualizar esses dados ou deletar a marcação. O delete aplica na hora e oferece um &quot;desfazer&quot; inline na barra do card por 7 segundos.</p>
+    </details>
+
+    <details class="lp-sec" id="requirements" open>
+      <summary><h2>Requirements</h2></summary>
+      <h3>REQ-1: Clicar em &quot;Watched&quot; já marcado abre a modal pré-carregada</h3>
+      <ul>
+        <li><strong>Dado que</strong> estou autenticado e o filme <code>157336</code> está marcado como assistido com nota <code>8</code> e data <code>2026-03-15</code></li>
+        <li><strong>Quando</strong> clico no botão &quot;Watched&quot; do card</li>
+        <li><strong>Então</strong> a modal abre com a nota <code>8</code> e a data <code>2026-03-15</code> preenchidas</li>
+        <li><strong>E</strong> a modal aparece no modo edição, com o botão &quot;Delete&quot;</li>
+      </ul>
+      <h3>REQ-2: Atualizar nota e data</h3>
+      <ul>
+        <li><strong>Dado que</strong> a modal de edição do filme <code>157336</code> está aberta com nota <code>8</code> e data <code>2026-03-15</code></li>
+        <li><strong>Quando</strong> mudo a nota para <code>9</code> e clico em &quot;Save&quot;</li>
+        <li><strong>Então</strong> o app envia PATCH com <code>watched: true</code> e <code>rating: 9</code></li>
+        <li><strong>E</strong> a modal fecha</li>
+        <li><strong>E</strong> a entrada do filme passa a ter nota <code>9</code></li>
+      </ul>
+      <h3>REQ-3: Esvaziar um campo limpa o valor</h3>
+      <ul>
+        <li><strong>Dado que</strong> a modal de edição do filme <code>157336</code> está aberta com nota <code>8</code> e data <code>2026-03-15</code></li>
+        <li><strong>Quando</strong> apago a nota e a data e clico em &quot;Save&quot;</li>
+        <li><strong>Então</strong> o app envia PATCH com <code>watched: true</code>, <code>rating: null</code> e <code>watchedAt: null</code></li>
+        <li><strong>E</strong> o filme continua assistido, sem nota nem data</li>
+      </ul>
+      <h3>REQ-4: Deletar a marcação de assistido</h3>
+      <ul>
+        <li><strong>Dado que</strong> a modal de edição do filme <code>157336</code> está aberta, assistido com nota <code>8</code> e data <code>2026-03-15</code></li>
+        <li><strong>Quando</strong> clico em &quot;Delete&quot;</li>
+        <li><strong>Então</strong> o app envia PATCH com <code>watched: false</code>, <code>rating: null</code> e <code>watchedAt: null</code></li>
+        <li><strong>E</strong> a modal fecha</li>
+        <li><strong>E</strong> o filme deixa de aparecer como assistido</li>
+      </ul>
+      <h3>REQ-5: Desfazer o delete dentro de 7 segundos</h3>
+      <ul>
+        <li><strong>Dado que</strong> acabei de deletar a marcação do filme <code>157336</code>, que tinha nota <code>8</code> e data <code>2026-03-15</code></li>
+        <li><strong>Quando</strong> clico em &quot;Undo&quot; na barra do card, dentro dos 7 segundos</li>
+        <li><strong>Então</strong> o app envia PATCH com <code>watched: true</code>, <code>rating: 8</code> e <code>watchedAt: 2026-03-15T00:00:00.000Z</code></li>
+        <li><strong>E</strong> o filme volta a aparecer como assistido com nota e data</li>
+      </ul>
+      <h3>REQ-6: Nota fora de 1–10 bloqueia o save</h3>
+      <ul>
+        <li><strong>Dado que</strong> a modal de edição do filme <code>157336</code> está aberta com nota <code>8</code></li>
+        <li><strong>Quando</strong> digito <code>11</code> no campo de nota e clico em &quot;Save&quot;</li>
+        <li><strong>Então</strong> o campo de nota mostra uma mensagem de erro</li>
+        <li><strong>E</strong> nenhum PATCH é enviado</li>
+        <li><strong>E</strong> a modal permanece aberta</li>
+      </ul>
+      <h3>REQ-7: Data exibida e gravada com granularidade de dia</h3>
+      <ul>
+        <li><strong>Entrada</strong> <code>watchedAt</code> <code>&quot;2026-03-15T03:00:00.000Z&quot;</code></li>
+        <li><strong>Saída</strong> campo de data exibindo <code>&quot;2026-03-15&quot;</code></li>
+        <li><strong>E</strong> ao salvar, grava <code>watchedAt</code> como <code>&quot;2026-03-15T00:00:00.000Z&quot;</code></li>
+        <li><strong>E</strong> <code>watchedAt</code> nulo aparece como campo de data vazio</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="edge-cases" open>
+      <summary><h2>Edge cases</h2></summary>
+      <ul>
+        <li>Cliques rápidos no mesmo filme com respostas em ordem invertida (o <code>Delete</code> responde depois do <code>Undo</code>) → o app descarta a resposta obsoleta e mantém o estado do PATCH mais recente, sem regredir.</li>
+        <li>Outra ação no mesmo card antes dos 7s (marcar assistido de novo, favoritar): o &quot;desfazer&quot; desaparece imediatamente.</li>
+        <li>Falha no PATCH (atualizar, deletar ou desfazer): rollback otimista e toast de erro genérico; a entrada volta ao estado anterior.</li>
+        <li>Visitante: o botão Watched continua levando ao CTA de login  ||  sem modal e sem PATCH.</li>
+        <li>Filme sem <code>tmdbId</code>: a barra de ações não é exibida (comportamento atual).</li>
+      </ul>
+    </details>
+
+    <details class="lp-sec" id="contratos-expostos" open>
+      <summary><h2>Contratos expostos</h2></summary>
+      <ul>
+        <li>PATCH <code>/movie/user-entries/:tmdbId</code> — body validado por <code>packages/backend/src/domains/movies/infrastructure/http/dto/user-movie-entry.dto.ts:UserMovieEntryPatchDTOSchema</code>; já existe, sem mudança.</li>
+      </ul>
+    </details>
+  </main>
+
+  <footer class="lp-footer">
+    <p>Gerado pelo SDD <code>lp:continue</code> a partir do <code>spec.md</code> — a fonte é o .md.</p>
+  </footer>
+</body>
+</html>
