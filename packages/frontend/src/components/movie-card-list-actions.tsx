@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { Bookmark, Eye, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,15 @@ import { StringUtils } from "@/utils/string.utils";
 import { cn } from "@/lib/utils";
 import { MovieCardWatchedModal } from "./movie-card-watched-modal";
 
+const UNDO_WINDOW_MS = 7000;
+
 interface MovieCardListActionsProps {
   tmdbId: number;
+}
+
+interface WatchedUndoSnapshot {
+  rating: number | null;
+  watchedAt: string | null;
 }
 
 interface ListToggleButtonProps {
@@ -97,6 +104,19 @@ function AuthenticatedMovieCardListActions({
 }: MovieCardListActionsProps) {
   const { getFlags, patchEntry, isPatching, isLoading } = useUserMovieEntries();
   const [watchedModalOpen, setWatchedModalOpen] = useState(false);
+  const [undoSnapshot, setUndoSnapshot] = useState<WatchedUndoSnapshot | null>(
+    null,
+  );
+  const watchedSnapshotRef = useRef<WatchedUndoSnapshot | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current !== null) {
+        clearTimeout(undoTimerRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return <ListActionsLoadingState />;
@@ -106,23 +126,75 @@ function AuthenticatedMovieCardListActions({
   const isCurrentlyPatching = isPatching(tmdbId);
   const areTogglesDisabled = isCurrentlyPatching;
 
+  function clearUndoTimer() {
+    if (undoTimerRef.current === null) {
+      return;
+    }
+
+    clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = null;
+  }
+
+  function cancelPendingUndo() {
+    clearUndoTimer();
+    setUndoSnapshot(null);
+  }
+
+  function scheduleUndoExpiry() {
+    clearUndoTimer();
+    undoTimerRef.current = setTimeout(() => {
+      undoTimerRef.current = null;
+      setUndoSnapshot(null);
+    }, UNDO_WINDOW_MS);
+  }
+
   async function handleFavoriteToggle() {
+    cancelPendingUndo();
     const nextFavorite = !flags.favorite;
     await patchEntry(tmdbId, { favorite: nextFavorite });
   }
 
   async function handleWatchlistToggle() {
+    cancelPendingUndo();
     const nextInWatchlist = !flags.inWatchlist;
     await patchEntry(tmdbId, { inWatchlist: nextInWatchlist });
   }
 
-  async function handleWatchedToggle() {
+  function handleWatchedToggle() {
+    cancelPendingUndo();
+
     if (flags.watched) {
-      await patchEntry(tmdbId, { watched: false });
-      return;
+      watchedSnapshotRef.current = {
+        rating: flags.rating,
+        watchedAt: flags.watchedAt,
+      };
     }
 
     setWatchedModalOpen(true);
+  }
+
+  function handleWatchedDeleted() {
+    const deletedSnapshot = watchedSnapshotRef.current;
+    if (deletedSnapshot === null) {
+      return;
+    }
+
+    setUndoSnapshot(deletedSnapshot);
+    scheduleUndoExpiry();
+  }
+
+  async function handleUndoDelete() {
+    const snapshotToRestore = undoSnapshot;
+    if (snapshotToRestore === null) {
+      return;
+    }
+
+    cancelPendingUndo();
+    await patchEntry(tmdbId, {
+      watched: true,
+      rating: snapshotToRestore.rating,
+      watchedAt: snapshotToRestore.watchedAt,
+    });
   }
 
   const favoriteIconClassName = flags.favorite
@@ -164,12 +236,29 @@ function AuthenticatedMovieCardListActions({
         >
           <Bookmark className={cn("h-4 w-4", watchlistIconClassName)} />
         </ListToggleButton>
+
+        {undoSnapshot !== null ? (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>Watched removed</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={isCurrentlyPatching}
+              onClick={handleUndoDelete}
+            >
+              Undo
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <MovieCardWatchedModal
         tmdbId={tmdbId}
         open={watchedModalOpen}
         onOpenChange={setWatchedModalOpen}
+        onDeleted={handleWatchedDeleted}
       />
     </>
   );
