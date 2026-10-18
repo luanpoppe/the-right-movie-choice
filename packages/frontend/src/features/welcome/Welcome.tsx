@@ -19,6 +19,8 @@ import {
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
+const PLAY_INTRO_ON_EVERY_LOAD = true;
+
 const INTRO_DELAY_S: Record<LandingIntroMode, number> = {
   cinema: 1.2,
   leader: 1.7,
@@ -58,7 +60,10 @@ export function Welcome({
   const [mode, setMode] = useState<LandingIntroMode>(explicitMode ?? "cinema");
   const [isIntroPlaying, setIsIntroPlaying] = useState(
     () =>
-      !shouldReduceMotion && (isPreview || !FilmLeaderIntroUtils.hasSeen()),
+      !shouldReduceMotion &&
+      (isPreview ||
+        PLAY_INTRO_ON_EVERY_LOAD ||
+        !FilmLeaderIntroUtils.hasSeen()),
   );
   const [introNonce, setIntroNonce] = useState(0);
   const [heroNonce, setHeroNonce] = useState(0);
