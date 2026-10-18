@@ -8,8 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
+import { StarRating } from "@/components/ui/star-rating";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
 import { MovieCardWatchedModalUtils } from "@/features/movies/utils/movie-card-watched-modal.utils";
 
@@ -37,6 +38,7 @@ export function MovieCardWatchedModal({
   const savedRating = flags.rating;
   const savedWatchedAt = flags.watchedAt;
   const isCurrentlyPatching = isPatching(tmdbId);
+  const numericRating = ratingInput === "" ? 0 : Number(ratingInput);
 
   useEffect(() => {
     const hasJustOpened = open && !wasOpenRef.current;
@@ -67,6 +69,10 @@ export function MovieCardWatchedModal({
   function handleRatingChange(nextRating: string) {
     setRatingInput(nextRating);
     setRatingError(null);
+  }
+
+  function handleRatingSelect(nextRating: number) {
+    handleRatingChange(nextRating === 0 ? "" : String(nextRating));
   }
 
   async function handleSave() {
@@ -116,16 +122,31 @@ export function MovieCardWatchedModal({
 
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label htmlFor={`watched-rating-${tmdbId}`}>Rating (1–10)</Label>
-            <Input
-              id={`watched-rating-${tmdbId}`}
-              type="number"
-              min={1}
+            <div className="flex items-center justify-between gap-2">
+              <Label>Rating</Label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground tnum">
+                  {numericRating > 0 ? `${numericRating} / 10` : "Not rated"}
+                </span>
+                {numericRating > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => handleRatingChange("")}
+                    disabled={isCurrentlyPatching}
+                  >
+                    Clear
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <StarRating
+              value={numericRating}
+              onChange={handleRatingSelect}
               max={10}
-              step={1}
-              placeholder="Optional"
-              value={ratingInput}
-              onChange={(event) => handleRatingChange(event.target.value)}
+              label="Rating (1–10)"
               disabled={isCurrentlyPatching}
             />
             {ratingError !== null ? (
@@ -135,11 +156,10 @@ export function MovieCardWatchedModal({
 
           <div className="grid gap-2">
             <Label htmlFor={`watched-date-${tmdbId}`}>Date watched</Label>
-            <Input
+            <DatePicker
               id={`watched-date-${tmdbId}`}
-              type="date"
               value={dateInput}
-              onChange={(event) => setDateInput(event.target.value)}
+              onChange={setDateInput}
               disabled={isCurrentlyPatching}
             />
           </div>

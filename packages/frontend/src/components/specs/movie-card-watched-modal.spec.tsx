@@ -1,10 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { format } from "date-fns";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
 import { MovieCardWatchedModal } from "../movie-card-watched-modal";
 
 jest.mock("lucide-react", () => ({
   X: () => <span data-testid="icon-x" />,
+  Star: () => <span data-testid="icon-star" />,
+  Calendar: () => <span data-testid="icon-calendar" />,
+  ChevronDown: () => <span data-testid="icon-chevron-down" />,
+  ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+  ChevronRight: () => <span data-testid="icon-chevron-right" />,
 }));
 
 jest.mock("@/features/movies/context/use-user-movie-entries.hook", () => ({
@@ -12,8 +18,6 @@ jest.mock("@/features/movies/context/use-user-movie-entries.hook", () => ({
 }));
 
 const mockedUseUserMovieEntries = jest.mocked(useUserMovieEntries);
-
-const INVALID_RATING_MESSAGE = "Rating must be an integer between 1 and 10";
 
 interface Flags {
   watched: boolean;
@@ -30,6 +34,18 @@ const CREATION_FLAGS: Flags = {
   rating: null,
   watchedAt: null,
 };
+
+function getDayButton(dayNumber: string): HTMLElement {
+  const dayButton = screen
+    .getAllByRole("button")
+    .find((button) => button.textContent === dayNumber);
+
+  if (!dayButton) {
+    throw new Error(`Day button "${dayNumber}" not found`);
+  }
+
+  return dayButton;
+}
 
 describe("MovieCardWatchedModal", () => {
   const patchEntry = jest.fn();
@@ -50,9 +66,7 @@ describe("MovieCardWatchedModal", () => {
     });
   });
 
-  function mockEditingFlags(
-    overrides: Partial<Flags> = {},
-  ): void {
+  function mockEditingFlags(overrides: Partial<Flags> = {}): void {
     getFlags.mockReturnValue({
       watched: true,
       favorite: false,
@@ -75,7 +89,7 @@ describe("MovieCardWatchedModal", () => {
   }
 
   describe("REQ-1: modal pré-carregada no modo edição", () => {
-    it("abre com nota e data salvas, título Watched e botão Delete", () => {
+    it("abre com a estrela da nota acesa, a data e o botão Delete", () => {
       mockEditingFlags();
 
       renderModal();
@@ -83,20 +97,27 @@ describe("MovieCardWatchedModal", () => {
       expect(
         screen.getByRole("heading", { name: "Watched" }),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText("Rating (1–10)")).toHaveValue(8);
-      expect(screen.getByLabelText("Date watched")).toHaveValue("2026-03-15");
+      expect(
+        screen.getByRole("radio", { name: "8 of 10 stars" }),
+      ).toBeChecked();
+      expect(screen.getByText("March 15th, 2026")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Delete" }),
       ).toBeInTheDocument();
     });
 
-    it("REQ-7: nota e data nulas aparecem como campos vazios", () => {
+    it("REQ-7: nota e data nulas aparecem como não informadas", () => {
       mockEditingFlags({ rating: null, watchedAt: null });
 
       renderModal();
 
-      expect(screen.getByLabelText("Rating (1–10)")).toHaveValue(null);
-      expect(screen.getByLabelText("Date watched")).toHaveValue("");
+      expect(screen.getByText("Not rated")).toBeInTheDocument();
+      expect(
+        screen
+          .getAllByRole("radio")
+          .some((radio) => (radio as HTMLInputElement).checked),
+      ).toBe(false);
+      expect(screen.getByText("Pick a date")).toBeInTheDocument();
     });
 
     it("REQ-7: data ISO com hora é exibida só com o dia", () => {
@@ -104,7 +125,7 @@ describe("MovieCardWatchedModal", () => {
 
       renderModal();
 
-      expect(screen.getByLabelText("Date watched")).toHaveValue("2026-03-15");
+      expect(screen.getByText("March 15th, 2026")).toBeInTheDocument();
     });
   });
 
@@ -113,9 +134,7 @@ describe("MovieCardWatchedModal", () => {
     mockEditingFlags();
     renderModal();
 
-    const ratingInput = screen.getByLabelText("Rating (1–10)");
-    await user.clear(ratingInput);
-    await user.type(ratingInput, "9");
+    await user.click(screen.getByRole("radio", { name: "9 of 10 stars" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
@@ -128,13 +147,13 @@ describe("MovieCardWatchedModal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("REQ-3: esvaziar nota e data limpa os valores no PATCH", async () => {
+  it("REQ-3: limpar nota e data zera os valores no PATCH", async () => {
     const user = userEvent.setup();
     mockEditingFlags();
     renderModal();
 
-    await user.clear(screen.getByLabelText("Rating (1–10)"));
-    await user.clear(screen.getByLabelText("Date watched"));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(screen.getByRole("button", { name: "Clear date" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
@@ -164,24 +183,6 @@ describe("MovieCardWatchedModal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it.each(["11", "0"])(
-    "REQ-6: nota %s inválida mostra erro e bloqueia o save",
-    async (invalidRating) => {
-      const user = userEvent.setup();
-      mockEditingFlags();
-      renderModal();
-
-      const ratingInput = screen.getByLabelText("Rating (1–10)");
-      await user.clear(ratingInput);
-      await user.type(ratingInput, invalidRating);
-      await user.click(screen.getByRole("button", { name: "Save" }));
-
-      expect(screen.getByText(INVALID_RATING_MESSAGE)).toBeInTheDocument();
-      expect(patchEntry).not.toHaveBeenCalled();
-      expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    },
-  );
-
   describe("modo criação", () => {
     it("confirmar sem nota nem data envia apenas watched true", async () => {
       const user = userEvent.setup();
@@ -205,15 +206,22 @@ describe("MovieCardWatchedModal", () => {
       const user = userEvent.setup();
       renderModal();
 
-      await user.type(screen.getByLabelText("Rating (1–10)"), "8");
-      await user.type(screen.getByLabelText("Date watched"), "2026-03-15");
+      const today = new Date();
+      const expectedWatchedAt = `${format(
+        new Date(today.getFullYear(), today.getMonth(), 15),
+        "yyyy-MM-dd",
+      )}T00:00:00.000Z`;
+
+      await user.click(screen.getByRole("radio", { name: "8 of 10 stars" }));
+      await user.click(screen.getByText("Pick a date"));
+      await user.click(getDayButton("15"));
       await user.click(screen.getByRole("button", { name: "Confirm" }));
 
       await waitFor(() => {
         expect(patchEntry).toHaveBeenCalledWith(157336, {
           watched: true,
           rating: 8,
-          watchedAt: "2026-03-15T00:00:00.000Z",
+          watchedAt: expectedWatchedAt,
         });
       });
     });
@@ -236,9 +244,7 @@ describe("MovieCardWatchedModal", () => {
       patchEntry.mockResolvedValue(false);
       renderModal();
 
-      const ratingInput = screen.getByLabelText("Rating (1–10)");
-      await user.clear(ratingInput);
-      await user.type(ratingInput, "9");
+      await user.click(screen.getByRole("radio", { name: "9 of 10 stars" }));
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {

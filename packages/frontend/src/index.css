@@ -104,3 +104,59 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Themed react-day-picker (see components/ui/calendar.tsx).
+   Unlayered on purpose: the library ships unlayered CSS, and unlayered
+   styles beat @layer ones regardless of specificity. */
+.rdp-root.rdp-themed {
+  --rdp-accent-color: rgb(var(--primary));
+  --rdp-accent-background-color: rgb(var(--primary) / 0.14);
+  --rdp-today-color: rgb(var(--primary));
+  --rdp-day_button-border-radius: 0.5rem;
+  --rdp-selected-border: 0;
+  --rdp-nav_button-border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.rdp-themed .rdp-selected,
+.rdp-themed .rdp-selected .rdp-day_button {
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.rdp-themed .rdp-selected .rdp-day_button {
+  background-color: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+}
+
+.rdp-themed .rdp-day_button:hover {
+  background-color: rgb(var(--secondary));
+}
+
+.rdp-themed .rdp-selected .rdp-day_button:hover {
+  background-color: rgb(var(--primary));
+}
+
+.rdp-themed .rdp-day_button:focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 2px;
+}
+
+.rdp-themed .rdp-month_caption {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.rdp-themed .rdp-outside {
+  opacity: 0.4;
+}
+
+/* Pop animation for selected stars (see components/ui/star-rating.tsx). */
+@keyframes star-pop {
+  40% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

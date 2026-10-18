@@ -19,6 +19,9 @@ jest.mock("lucide-react", () => ({
   Film: () => <span />,
   Star: () => <span />,
   Calendar: () => <span />,
+  ChevronDown: () => <span />,
+  ChevronLeft: () => <span />,
+  ChevronRight: () => <span />,
 }));
 
 jest.mock("@/features/auth/context/AuthContext", () => ({
