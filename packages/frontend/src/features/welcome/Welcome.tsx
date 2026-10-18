@@ -6,7 +6,6 @@ import { Features } from "./components/Features";
 import { Form } from "./components/Form";
 import { GenreMarquee } from "./components/GenreMarquee";
 import { CinemaSessionIntro } from "./components/CinemaSessionIntro";
-import { LandingIntroReplayButton } from "./components/LandingIntroReplayButton";
 import { PopularMoviesSection } from "./components/PopularMoviesSection";
 import { usePopularMovies } from "@/features/movies/hooks/use-popular-movies.hook";
 import { LandingIntroUtils } from "./utils/landing-intro.utils";
@@ -40,42 +39,26 @@ export function Welcome({
   const popularSectionMovies = popularMovies.slice(3, 9);
 
   const shouldReduceMotion = LandingIntroUtils.prefersReducedMotion();
-  const [animateEntrance, setAnimateEntrance] = useState(
+  const [animateEntrance] = useState(
     () =>
       !shouldReduceMotion && LandingIntroUtils.consumeEntranceAnimation(),
   );
-
   const [isIntroPlaying, setIsIntroPlaying] = useState(animateEntrance);
-  const [introDelay, setIntroDelay] = useState(
-    animateEntrance ? INTRO_DELAY_S : 0,
-  );
-  const [introNonce, setIntroNonce] = useState(0);
-  const [heroNonce, setHeroNonce] = useState(0);
 
+  const introDelay = animateEntrance ? INTRO_DELAY_S : 0;
   const isContentAnimating = animateEntrance;
 
   function handleIntroDone() {
     setIsIntroPlaying(false);
   }
 
-  function handleReplay() {
-    setAnimateEntrance(true);
-    setHeroNonce((nonce) => nonce + 1);
-    setIntroNonce((nonce) => nonce + 1);
-    setIsIntroPlaying(true);
-    setIntroDelay(INTRO_DELAY_S);
-  }
-
   return (
     <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
       <AnimatePresence>
-        {isIntroPlaying ? (
-          <CinemaSessionIntro key={introNonce} onDone={handleIntroDone} />
-        ) : null}
+        {isIntroPlaying ? <CinemaSessionIntro onDone={handleIntroDone} /> : null}
       </AnimatePresence>
 
       <Hero
-        key={heroNonce}
         heroPosters={heroPosters}
         introDelay={introDelay}
         withSweep={isContentAnimating}
@@ -115,10 +98,6 @@ export function Welcome({
         movies={popularSectionMovies}
         isLoading={isLoadingPopular}
       />
-
-      {import.meta.env.DEV ? (
-        <LandingIntroReplayButton onReplay={handleReplay} />
-      ) : null}
     </div>
   );
 }

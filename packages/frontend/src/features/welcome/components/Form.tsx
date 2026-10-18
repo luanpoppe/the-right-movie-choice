@@ -27,13 +27,13 @@ export function Form({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {isGuestLocked && (
-        <div className="mx-auto w-full max-w-[680px]">
+        <div className="mx-auto w-full max-w-[720px]">
           <GuestLockBanner />
         </div>
       )}
 
       {hasAccessToken && (
-        <div className="mx-auto w-full max-w-[680px]">
+        <div className="mx-auto w-full max-w-[720px]">
           <ExcludeWatchedToggle
             showToggle={hasAccessToken}
             excludeWatched={excludeWatched}
@@ -44,12 +44,12 @@ export function Form({
         </div>
       )}
 
-      <div className="relative mx-auto w-full max-w-[680px]">
+      <div className="relative mx-auto w-full max-w-[720px]">
         <Input
           name="message"
           placeholder="What kind of movie are you looking for? (e.g., 'a thrilling sci-fi movie' or 'something funny to watch with friends')"
           disabled={isDisabled}
-          className="h-16 rounded-xl border-border bg-card/80 pr-16 text-base shadow-lg focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="h-20 rounded-2xl border-primary/25 bg-card pr-20 text-lg shadow-[0_20px_60px_-30px_rgb(var(--primary)/0.6)] placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-primary/50"
           autoComplete="off"
           autoFocus
         />
@@ -58,9 +58,9 @@ export function Form({
           disabled={isDisabled}
           size="icon"
           aria-label="Get recommendations"
-          className="absolute right-2 top-1/2 h-12 w-12 -translate-y-1/2 rounded-lg"
+          className="absolute right-3 top-1/2 h-14 w-14 -translate-y-1/2 rounded-xl"
         >
-          <Send className="h-5 w-5" />
+          <Send className="h-6 w-6" />
         </Button>
       </div>
 
