@@ -41,7 +41,11 @@ export function Welcome({
   const popularSectionMovies = popularMovies.slice(3, 9);
 
   const shouldReduceMotion = LandingIntroUtils.prefersReducedMotion();
+  const [animateEntrance, setAnimateEntrance] = useState(() =>
+    LandingIntroUtils.consumeEntranceAnimation(),
+  );
   const shouldPlayIntro =
+    animateEntrance &&
     !shouldReduceMotion &&
     (PLAY_INTRO_ON_EVERY_LOAD || !LandingIntroUtils.hasSeen());
 
@@ -52,12 +56,15 @@ export function Welcome({
   const [introNonce, setIntroNonce] = useState(0);
   const [heroNonce, setHeroNonce] = useState(0);
 
+  const isContentAnimating = animateEntrance && !shouldReduceMotion;
+
   function handleIntroDone() {
     LandingIntroUtils.markSeen();
     setIsIntroPlaying(false);
   }
 
   function handleReplay() {
+    setAnimateEntrance(true);
     setHeroNonce((nonce) => nonce + 1);
     setIntroNonce((nonce) => nonce + 1);
     setIsIntroPlaying(true);
@@ -76,12 +83,13 @@ export function Welcome({
         key={heroNonce}
         heroPosters={heroPosters}
         introDelay={introDelay}
-        withSweep={!shouldReduceMotion}
+        withSweep={isContentAnimating}
+        animateEntrance={animateEntrance}
       />
 
       <motion.div
         className="mt-12"
-        initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+        initial={isContentAnimating ? { opacity: 0, y: 16 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: introDelay + 0.95, ease: EASE }}
       >
@@ -90,7 +98,7 @@ export function Welcome({
 
       <motion.div
         className="mt-10 sm:mt-12"
-        initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+        initial={isContentAnimating ? { opacity: 0, y: 16 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: introDelay + 1.2, ease: EASE }}
       >

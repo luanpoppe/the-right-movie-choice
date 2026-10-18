@@ -43,10 +43,12 @@ function TileVisual({ posterPath }: { posterPath: string | null }) {
 
 function HeroPanel({
   reduce,
+  animateEntrance,
   posters,
   introDelay,
 }: {
   reduce: boolean;
+  animateEntrance: boolean;
   posters: (string | null)[];
   introDelay: number;
 }) {
@@ -115,7 +117,9 @@ function HeroPanel({
         <motion.div
           key={tile.frame}
           className={cn(TILE_FRAME_CLASS, tile.frame)}
-          initial={reduce ? false : { opacity: 0, y: 28, scale: 0.96 }}
+          initial={
+            reduce || !animateEntrance ? false : { opacity: 0, y: 28, scale: 0.96 }
+          }
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{
             duration: 0.8,
@@ -139,15 +143,18 @@ export function Hero({
   heroPosters = [],
   introDelay = 0,
   withSweep = false,
+  animateEntrance = true,
 }: {
   heroPosters?: (string | null)[];
   introDelay?: number;
   withSweep?: boolean;
+  animateEntrance?: boolean;
 }) {
   const reduce = useReducedMotion() ?? false;
+  const shouldAnimateContent = animateEntrance && !reduce;
 
   const rise = (delay: number) => ({
-    initial: reduce ? false : { opacity: 0, y: 18 },
+    initial: shouldAnimateContent ? { opacity: 0, y: 18 } : false,
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.75, delay: introDelay + delay, ease: EASE },
   });
@@ -189,7 +196,12 @@ export function Hero({
         </motion.p>
       </div>
 
-      <HeroPanel reduce={reduce} posters={heroPosters} introDelay={introDelay} />
+      <HeroPanel
+        reduce={reduce}
+        animateEntrance={animateEntrance}
+        posters={heroPosters}
+        introDelay={introDelay}
+      />
     </div>
   );
 }
