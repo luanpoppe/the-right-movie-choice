@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Hero } from "./components/Hero";
 import { Features } from "./components/Features";
@@ -16,6 +16,8 @@ import {
   LandingIntroMode,
   LandingIntroModeUtils,
 } from "./utils/landing-intro-mode.utils";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 const INTRO_DELAY_S: Record<LandingIntroMode, number> = {
   cinema: 1.2,
@@ -99,11 +101,21 @@ export function Welcome({
         withSweep={withSweep}
       />
 
-      <div className="mt-12">
-        <GenreMarquee introDelay={introDelay} />
-      </div>
+      <motion.div
+        className="mt-12"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: introDelay + 0.95, ease: EASE }}
+      >
+        <GenreMarquee />
+      </motion.div>
 
-      <div className="mt-10 sm:mt-12">
+      <motion.div
+        className="mt-10 sm:mt-12"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: introDelay + 1.2, ease: EASE }}
+      >
         <Form
           isLoading={isLoading}
           handleSubmit={handleSubmit}
@@ -112,7 +124,7 @@ export function Welcome({
           onExcludeWatchedChange={onExcludeWatchedChange}
           hasAccessToken={hasAccessToken}
         />
-      </div>
+      </motion.div>
 
       <div className="mt-16">
         <Features />

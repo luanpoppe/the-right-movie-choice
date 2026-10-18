@@ -118,8 +118,8 @@ function HeroPanel({
           initial={reduce ? false : { opacity: 0, y: 28, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{
-            duration: 0.7,
-            delay: introDelay + 0.25 + index * 0.1,
+            duration: 0.8,
+            delay: introDelay + 0.5 + index * 0.14,
             ease: EASE,
           }}
         >
@@ -149,7 +149,7 @@ export function Hero({
   const rise = (delay: number) => ({
     initial: reduce ? false : { opacity: 0, y: 18 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.65, delay: introDelay + delay, ease: EASE },
+    transition: { duration: 0.75, delay: introDelay + delay, ease: EASE },
   });
 
   return (
@@ -165,7 +165,7 @@ export function Hero({
         </motion.p>
 
         <MaskRise
-          delay={introDelay + 0.06}
+          delay={introDelay + 0.14}
           className="-mb-[0.12em] mt-4 pb-[0.12em]"
         >
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl">
@@ -181,7 +181,7 @@ export function Hero({
         </MaskRise>
 
         <motion.p
-          {...rise(0.18)}
+          {...rise(0.36)}
           className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground text-pretty"
         >
           Tell us the feeling you're after. We return three films worth your

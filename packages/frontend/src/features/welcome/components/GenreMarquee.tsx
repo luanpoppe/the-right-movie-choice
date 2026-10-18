@@ -1,7 +1,3 @@
-import { motion, useReducedMotion } from "motion/react";
-
-const EASE = [0.16, 1, 0.3, 1] as const;
-
 const GENRES = [
   "Action",
   "Comedy",
@@ -32,25 +28,16 @@ function GenreStrip() {
   );
 }
 
-interface GenreMarqueeProps {
-  introDelay?: number;
-}
-
-export function GenreMarquee({ introDelay = 0 }: GenreMarqueeProps) {
-  const shouldReduceMotion = useReducedMotion() ?? false;
-
+export function GenreMarquee() {
   return (
-    <motion.div
+    <div
       aria-hidden
       className="overflow-hidden border-y border-border py-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]"
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: introDelay + 0.3, ease: EASE }}
     >
       <div className="flex w-max animate-marquee motion-reduce:animate-none">
         <GenreStrip />
         <GenreStrip />
       </div>
-    </motion.div>
+    </div>
   );
 }
