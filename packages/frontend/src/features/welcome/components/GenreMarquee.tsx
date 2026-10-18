@@ -1,5 +1,7 @@
 import { motion, useReducedMotion } from "motion/react";
 
+const EASE = [0.16, 1, 0.3, 1] as const;
+
 const GENRES = [
   "Action",
   "Comedy",
@@ -14,8 +16,6 @@ const GENRES = [
   "Adventure",
   "Mystery",
 ];
-
-const BULB_COUNT = 18;
 
 function GenreStrip() {
   return (
@@ -32,48 +32,25 @@ function GenreStrip() {
   );
 }
 
-function MarqueeBulbs({ introDelay }: { introDelay: number }) {
-  const shouldReduceMotion = useReducedMotion() ?? false;
-
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-1.5 flex justify-between px-1"
-    >
-      {Array.from({ length: BULB_COUNT }, (_, index) => (
-        <motion.span
-          key={index}
-          className="h-1 w-1 rounded-full bg-primary/80 shadow-[0_0_6px_rgb(var(--primary)/0.7)]"
-          initial={shouldReduceMotion ? false : { opacity: 0 }}
-          animate={
-            shouldReduceMotion ? undefined : { opacity: [0, 1, 0.3, 1] }
-          }
-          transition={{
-            duration: 0.5,
-            delay: introDelay + index * 0.02,
-            ease: "easeOut",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 interface GenreMarqueeProps {
   introDelay?: number;
 }
 
 export function GenreMarquee({ introDelay = 0 }: GenreMarqueeProps) {
+  const shouldReduceMotion = useReducedMotion() ?? false;
+
   return (
-    <div
+    <motion.div
       aria-hidden
-      className="relative overflow-hidden border-y border-border py-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]"
+      className="overflow-hidden border-y border-border py-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]"
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: introDelay + 0.3, ease: EASE }}
     >
-      <MarqueeBulbs introDelay={introDelay} />
       <div className="flex w-max animate-marquee motion-reduce:animate-none">
         <GenreStrip />
         <GenreStrip />
       </div>
-    </div>
+    </motion.div>
   );
 }

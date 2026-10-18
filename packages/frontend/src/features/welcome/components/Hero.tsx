@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from "react";
+import { useEffect } from "react";
 import {
   motion,
   useMotionValue,
@@ -17,24 +17,6 @@ const TILE_FRAME_CLASS = "absolute w-40 sm:w-44";
 const TILE_VISUAL_CLASS =
   "relative aspect-[2/3] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-secondary to-card shadow-2xl shadow-black/40";
 
-interface HeadlineToken {
-  text: string;
-  emphasis?: boolean;
-}
-
-const HEADLINE_TOKENS: HeadlineToken[] = [
-  { text: "Find" },
-  { text: "the" },
-  { text: "film" },
-  { text: "that" },
-  { text: "fits", emphasis: true },
-  { text: "the", emphasis: true },
-  { text: "mood,", emphasis: true },
-  { text: "not" },
-  { text: "the" },
-  { text: "algorithm." },
-];
-
 function PosterTexture() {
   return (
     <>
@@ -44,42 +26,19 @@ function PosterTexture() {
   );
 }
 
-function FilmStripEdge({ position }: { position: "top" | "bottom" }) {
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        "absolute inset-x-0 flex justify-between px-1",
-        position === "top" ? "top-0.5" : "bottom-0.5",
-      )}
-    >
-      {Array.from({ length: 6 }, (_, index) => (
-        <span
-          key={index}
-          className="h-1.5 w-1 rounded-[2px] bg-black/55"
-        />
-      ))}
-    </div>
-  );
-}
-
 function TileVisual({ posterPath }: { posterPath: string | null }) {
-  return (
-    <>
-      {posterPath !== null ? (
-        <img
-          src={posterPath}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <PosterTexture />
-      )}
-      <FilmStripEdge position="top" />
-      <FilmStripEdge position="bottom" />
-    </>
-  );
+  if (posterPath !== null) {
+    return (
+      <img
+        src={posterPath}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    );
+  }
+
+  return <PosterTexture />;
 }
 
 function HeroPanel({
@@ -131,7 +90,11 @@ function HeroPanel({
   }, [reduce, rawX, rawY]);
 
   const tiles = [
-    { frame: "left-[2%] top-10", transform: leftTransform, poster: posters[0] ?? null },
+    {
+      frame: "left-[2%] top-10",
+      transform: leftTransform,
+      poster: posters[0] ?? null,
+    },
     {
       frame: "left-[30%] top-0 z-20",
       transform: centerTransform,
@@ -152,11 +115,11 @@ function HeroPanel({
         <motion.div
           key={tile.frame}
           className={cn(TILE_FRAME_CLASS, tile.frame)}
-          initial={reduce ? false : { opacity: 0, x: 64 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={reduce ? false : { opacity: 0, y: 28, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{
-            duration: 0.6,
-            delay: introDelay + 0.2 + index * 0.09,
+            duration: 0.7,
+            delay: introDelay + 0.25 + index * 0.1,
             ease: EASE,
           }}
         >
@@ -201,31 +164,24 @@ export function Hero({
           Tonight's programme
         </motion.p>
 
-        <h1 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl lg:text-6xl">
-          {HEADLINE_TOKENS.map((token, index) => (
-            <Fragment key={`${token.text}-${index}`}>
-              <MaskRise
-                inline
-                delay={introDelay + 0.06 + index * 0.035}
-                className="-mb-[0.22em] pb-[0.22em]"
-              >
-                {token.emphasis ? (
-                  <em
-                    className="italic text-primary"
-                    style={{ textShadow: "0 0 18px rgb(var(--primary) / 0.35)" }}
-                  >
-                    {token.text}
-                  </em>
-                ) : (
-                  token.text
-                )}
-              </MaskRise>{" "}
-            </Fragment>
-          ))}
-        </h1>
+        <MaskRise
+          delay={introDelay + 0.06}
+          className="-mb-[0.12em] mt-4 pb-[0.12em]"
+        >
+          <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl">
+            Find the film that{" "}
+            <em
+              className="italic text-primary"
+              style={{ textShadow: "0 0 18px rgb(var(--primary) / 0.35)" }}
+            >
+              fits the mood
+            </em>
+            , not the algorithm.
+          </h1>
+        </MaskRise>
 
         <motion.p
-          {...rise(0.36)}
+          {...rise(0.18)}
           className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground text-pretty"
         >
           Tell us the feeling you're after. We return three films worth your
@@ -233,11 +189,7 @@ export function Hero({
         </motion.p>
       </div>
 
-      <HeroPanel
-        reduce={reduce}
-        posters={heroPosters}
-        introDelay={introDelay}
-      />
+      <HeroPanel reduce={reduce} posters={heroPosters} introDelay={introDelay} />
     </div>
   );
 }

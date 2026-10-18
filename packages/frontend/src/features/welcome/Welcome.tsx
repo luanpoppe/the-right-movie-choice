@@ -18,7 +18,7 @@ import {
 } from "./utils/landing-intro-mode.utils";
 
 const INTRO_DELAY_S: Record<LandingIntroMode, number> = {
-  cinema: 1.35,
+  cinema: 1.2,
   leader: 1.7,
 };
 
