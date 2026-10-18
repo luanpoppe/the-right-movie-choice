@@ -11,6 +11,11 @@ jest.mock("lucide-react", () => ({
   Heart: () => <span data-testid="icon-heart" />,
   Loader2: () => <span data-testid="icon-loader" />,
   X: () => <span data-testid="icon-x" />,
+  Star: () => <span data-testid="icon-star" />,
+  Calendar: () => <span data-testid="icon-calendar" />,
+  ChevronDown: () => <span data-testid="icon-chevron-down" />,
+  ChevronLeft: () => <span data-testid="icon-chevron-left" />,
+  ChevronRight: () => <span data-testid="icon-chevron-right" />,
 }));
 
 jest.mock("@/features/auth/context/AuthContext", () => ({
@@ -205,8 +210,10 @@ describe("MovieCardListActions", () => {
       expect(
         screen.getByRole("heading", { name: "Watched" }),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText("Rating (1–10)")).toHaveValue(8);
-      expect(screen.getByLabelText("Date watched")).toHaveValue("2026-03-15");
+      expect(
+        screen.getByRole("radio", { name: "8 of 10 stars" }),
+      ).toBeChecked();
+      expect(screen.getByText("March 15th, 2026")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Delete" }),
       ).toBeInTheDocument();
