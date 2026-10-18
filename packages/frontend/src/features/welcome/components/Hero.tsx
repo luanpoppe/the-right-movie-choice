@@ -7,6 +7,9 @@ import {
   useTransform,
 } from "motion/react";
 
+import { CinematicSweep } from "./CinematicSweep";
+import { MaskRise } from "./MaskRise";
+
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const TILE_CLASS =
@@ -113,19 +116,24 @@ function HeroPanel({ reduce, posters }: { reduce: boolean; posters: (string | nu
 
 export function Hero({
   heroPosters = [],
+  introDelay = 0,
+  withSweep = false,
 }: {
   heroPosters?: (string | null)[];
+  introDelay?: number;
+  withSweep?: boolean;
 }) {
   const reduce = useReducedMotion() ?? false;
 
   const rise = (delay: number) => ({
     initial: reduce ? false : { opacity: 0, y: 18 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.65, delay, ease: EASE },
+    transition: { duration: 0.65, delay: introDelay + delay, ease: EASE },
   });
 
   return (
-    <div className="grid items-center gap-10 md:grid-cols-[1.1fr_0.9fr] md:gap-12">
+    <div className="relative isolate grid items-center gap-10 md:grid-cols-[1.1fr_0.9fr] md:gap-12">
+      {withSweep ? <CinematicSweep /> : null}
       <div>
         <motion.p
           {...rise(0)}
@@ -133,14 +141,13 @@ export function Hero({
         >
           Tonight's programme
         </motion.p>
-        <motion.h1
-          {...rise(0.06)}
-          className="mt-4 font-display text-4xl font-bold leading-[0.98] tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl"
-        >
-          Find the film that{" "}
-          <em className="italic text-primary">fits the mood</em>, not the
-          algorithm.
-        </motion.h1>
+        <MaskRise delay={introDelay + 0.06} className="mt-4">
+          <h1 className="font-display text-4xl font-bold leading-[0.98] tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl">
+            Find the film that{" "}
+            <em className="italic text-primary">fits the mood</em>, not the
+            algorithm.
+          </h1>
+        </MaskRise>
         <motion.p
           {...rise(0.12)}
           className="mt-6 max-w-[46ch] text-lg leading-relaxed text-muted-foreground text-pretty"
