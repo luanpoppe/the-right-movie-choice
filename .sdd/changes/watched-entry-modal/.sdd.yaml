@@ -1,0 +1,10 @@
+id: watched-entry-modal
+title: Editar e deletar a marcação de assistido na modal
+created: 2026-10-13
+format: both
+lang: pt-BR
+chunk_size: small
+features:
+  - slug: watched-modal-edit
+    title: Editar e deletar a marcação de assistido na modal
+    summary: Clicar em "Watched" já marcado abre a modal pré-carregada com nota e data, permitindo atualizar ou deletar a marcação.

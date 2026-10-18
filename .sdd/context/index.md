@@ -14,7 +14,7 @@
 - [Busca de filmes (página /search)](frontend/busca-filmes-ui.md) — página pública de busca no TMDB (texto + discover completo), filtros na URL, ações de biblioteca e retorno de login.
 - [Listas do usuário](listas-usuario/persistencia-status-filme.md) — `UserMovieEntry`: flags watched/favorite/watchlist e repositório Prisma.
 - [API de listas do usuário](listas-usuario/api-listas-usuario.md) — endpoints JWT `/movie/user-entries` (GET list/get, PATCH parcial).
-- [Ações nos cards do chat](frontend/acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist nos `MovieCard` do chat via contexto otimista.
+- [Ações nos cards](frontend/acoes-nos-cards-chat.md) — toggles assistido/favorito/watchlist nos `MovieCard` via contexto otimista; modal de assistido com edição (pré-carrega nota/data, erro inline) e deleção com desfazer inline de 7s.
 - [Histórico de conversas](historico-conversas/modelo-conversa.md) — metadados `UserConversation` (userId, chatId, title) no Postgres; porta de domínio e adapter Prisma; mensagens ficam no checkpointer (features seguintes).
 - [Checkpointer Postgres logados](historico-conversas/checkpointer-postgres-logados.md) — memória híbrida na factory de recommendation: Postgres sem TTL para JWT, Redis TTL 1200s para guest; sem dual-write nem migração de histórico Redis.
 - [API de conversas](historico-conversas/api-conversas.md) — CRUD `/movie/conversations*`, integração recommendation (touchUpdatedAt, título IA paralelo), purge de thread no DELETE.
