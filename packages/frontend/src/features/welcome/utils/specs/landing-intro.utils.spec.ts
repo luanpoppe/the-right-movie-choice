@@ -1,5 +1,12 @@
 import { LandingIntroUtils } from "../landing-intro.utils";
 
+describe("LandingIntroUtils.consumeEntranceAnimation", () => {
+  it("libera a animação no primeiro consumo e bloqueia depois", () => {
+    expect(LandingIntroUtils.consumeEntranceAnimation()).toBe(true);
+    expect(LandingIntroUtils.consumeEntranceAnimation()).toBe(false);
+  });
+});
+
 describe("LandingIntroUtils.prefersReducedMotion", () => {
   const originalMatchMedia = window.matchMedia;
 
@@ -17,21 +24,5 @@ describe("LandingIntroUtils.prefersReducedMotion", () => {
     window.matchMedia = jest.fn().mockReturnValue({ matches: false }) as never;
 
     expect(LandingIntroUtils.prefersReducedMotion()).toBe(false);
-  });
-});
-
-describe("LandingIntroUtils seen flag", () => {
-  beforeEach(() => {
-    window.sessionStorage.clear();
-  });
-
-  it("não viu a abertura por padrão", () => {
-    expect(LandingIntroUtils.hasSeen()).toBe(false);
-  });
-
-  it("marca e relê a abertura como vista", () => {
-    LandingIntroUtils.markSeen();
-
-    expect(LandingIntroUtils.hasSeen()).toBe(true);
   });
 });

@@ -13,7 +13,6 @@ import { LandingIntroUtils } from "./utils/landing-intro.utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-const PLAY_INTRO_ON_EVERY_LOAD = true;
 const INTRO_DELAY_S = 0.8;
 
 interface WelcomeProps {
@@ -41,25 +40,21 @@ export function Welcome({
   const popularSectionMovies = popularMovies.slice(3, 9);
 
   const shouldReduceMotion = LandingIntroUtils.prefersReducedMotion();
-  const [animateEntrance, setAnimateEntrance] = useState(() =>
-    LandingIntroUtils.consumeEntranceAnimation(),
+  const [animateEntrance, setAnimateEntrance] = useState(
+    () =>
+      !shouldReduceMotion && LandingIntroUtils.consumeEntranceAnimation(),
   );
-  const shouldPlayIntro =
-    animateEntrance &&
-    !shouldReduceMotion &&
-    (PLAY_INTRO_ON_EVERY_LOAD || !LandingIntroUtils.hasSeen());
 
-  const [isIntroPlaying, setIsIntroPlaying] = useState(shouldPlayIntro);
+  const [isIntroPlaying, setIsIntroPlaying] = useState(animateEntrance);
   const [introDelay, setIntroDelay] = useState(
-    shouldPlayIntro ? INTRO_DELAY_S : 0,
+    animateEntrance ? INTRO_DELAY_S : 0,
   );
   const [introNonce, setIntroNonce] = useState(0);
   const [heroNonce, setHeroNonce] = useState(0);
 
-  const isContentAnimating = animateEntrance && !shouldReduceMotion;
+  const isContentAnimating = animateEntrance;
 
   function handleIntroDone() {
-    LandingIntroUtils.markSeen();
     setIsIntroPlaying(false);
   }
 
