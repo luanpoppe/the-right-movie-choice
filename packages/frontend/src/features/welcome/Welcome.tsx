@@ -6,6 +6,7 @@ import { Hero } from "./components/Hero";
 import { Features } from "./components/Features";
 import { Form } from "./components/Form";
 import { GenreMarquee } from "./components/GenreMarquee";
+import { CinemaSessionIntro } from "./components/CinemaSessionIntro";
 import { FilmLeaderIntro } from "./components/FilmLeaderIntro";
 import { LandingIntroDevToggle } from "./components/LandingIntroDevToggle";
 import { PopularMoviesSection } from "./components/PopularMoviesSection";
@@ -16,7 +17,10 @@ import {
   LandingIntroModeUtils,
 } from "./utils/landing-intro-mode.utils";
 
-const LEADER_INTRO_DELAY_S = 1.7;
+const INTRO_DELAY_S: Record<LandingIntroMode, number> = {
+  cinema: 1.35,
+  leader: 1.7,
+};
 
 interface WelcomeProps {
   isLoading: boolean;
@@ -45,55 +49,46 @@ export function Welcome({
 
   const explicitMode = LandingIntroModeUtils.readExplicit(location.search);
   const isPreview = explicitMode !== null;
-  const prefersReducedMotion = LandingIntroModeUtils.prefersReducedMotion();
-  const shouldReduceMotion = isPreview ? false : prefersReducedMotion;
+  const shouldReduceMotion = isPreview
+    ? false
+    : LandingIntroModeUtils.prefersReducedMotion();
 
   const [mode, setMode] = useState<LandingIntroMode>(explicitMode ?? "cinema");
-  const [isLeaderPlaying, setIsLeaderPlaying] = useState(
+  const [isIntroPlaying, setIsIntroPlaying] = useState(
     () =>
-      (explicitMode ?? "cinema") === "leader" &&
-      !shouldReduceMotion &&
-      (isPreview || !FilmLeaderIntroUtils.hasSeen()),
+      !shouldReduceMotion && (isPreview || !FilmLeaderIntroUtils.hasSeen()),
   );
-  const [leaderNonce, setLeaderNonce] = useState(0);
+  const [introNonce, setIntroNonce] = useState(0);
   const [heroNonce, setHeroNonce] = useState(0);
 
-  const introDelay = isLeaderPlaying ? LEADER_INTRO_DELAY_S : 0;
+  const introDelay = isIntroPlaying ? INTRO_DELAY_S[mode] : 0;
   const withSweep = mode === "cinema" && !shouldReduceMotion;
 
-  function handleLeaderDone() {
+  function handleIntroDone() {
     FilmLeaderIntroUtils.markSeen();
-    setIsLeaderPlaying(false);
+    setIsIntroPlaying(false);
   }
 
-  function handleSelectMode(nextMode: LandingIntroMode) {
+  function playIntro(nextMode: LandingIntroMode) {
     setMode(nextMode);
     setHeroNonce((nonce) => nonce + 1);
-
-    if (nextMode === "leader") {
-      setIsLeaderPlaying(true);
-      setLeaderNonce((nonce) => nonce + 1);
-      return;
-    }
-
-    setIsLeaderPlaying(false);
+    setIntroNonce((nonce) => nonce + 1);
+    setIsIntroPlaying(true);
   }
 
   function handleReplay() {
-    if (mode === "leader") {
-      setIsLeaderPlaying(true);
-      setLeaderNonce((nonce) => nonce + 1);
-      return;
-    }
-
-    setHeroNonce((nonce) => nonce + 1);
+    playIntro(mode);
   }
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
       <AnimatePresence>
-        {isLeaderPlaying ? (
-          <FilmLeaderIntro key={leaderNonce} onDone={handleLeaderDone} />
+        {isIntroPlaying ? (
+          mode === "cinema" ? (
+            <CinemaSessionIntro key={introNonce} onDone={handleIntroDone} />
+          ) : (
+            <FilmLeaderIntro key={introNonce} onDone={handleIntroDone} />
+          )
         ) : null}
       </AnimatePresence>
 
@@ -131,7 +126,7 @@ export function Welcome({
       {import.meta.env.DEV ? (
         <LandingIntroDevToggle
           mode={mode}
-          onSelect={handleSelectMode}
+          onSelect={playIntro}
           onReplay={handleReplay}
         />
       ) : null}

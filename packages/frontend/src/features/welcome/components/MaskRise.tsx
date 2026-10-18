@@ -9,16 +9,23 @@ interface MaskRiseProps {
   children: ReactNode;
   delay?: number;
   className?: string;
+  inline?: boolean;
 }
 
-export function MaskRise({ children, delay = 0, className }: MaskRiseProps) {
+export function MaskRise({
+  children,
+  delay = 0,
+  className,
+  inline = false,
+}: MaskRiseProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
+  const displayClass = inline ? "inline-block" : "block";
 
   return (
-    <span className={cn("block overflow-hidden", className)}>
+    <span className={cn(displayClass, "overflow-hidden", className)}>
       <motion.span
-        className="block"
-        initial={shouldReduceMotion ? false : { y: "110%" }}
+        className={displayClass}
+        initial={shouldReduceMotion ? false : { y: "115%" }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, delay, ease: EASE }}
       >
