@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,78 +10,51 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserMovieEntryPatchDTO } from "@/features/movies/dto/user-movie-entry.dto";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
+import { MovieCardWatchedModalUtils } from "@/features/movies/utils/movie-card-watched-modal.utils";
 
 interface MovieCardWatchedModalProps {
   tmdbId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-class MovieCardWatchedModalUtils {
-  static buildConfirmPatch(
-    ratingInput: string,
-    dateInput: string,
-  ): UserMovieEntryPatchDTO {
-    const patch: UserMovieEntryPatchDTO = { watched: true };
-
-    const rating = MovieCardWatchedModalUtils.parseRating(ratingInput);
-    if (rating !== null) {
-      patch.rating = rating;
-    }
-
-    const watchedAt = MovieCardWatchedModalUtils.parseWatchedAt(dateInput);
-    if (watchedAt !== null) {
-      patch.watchedAt = watchedAt;
-    }
-
-    return patch;
-  }
-
-  static parseRating(value: string): number | null {
-    const trimmedValue = value.trim();
-    if (trimmedValue === "") {
-      return null;
-    }
-
-    const parsedRating = Number(trimmedValue);
-    const isInteger = Number.isInteger(parsedRating);
-    const isInRange = parsedRating >= 1 && parsedRating <= 10;
-    const isValidRating = isInteger && isInRange;
-
-    if (!isValidRating) {
-      return null;
-    }
-
-    return parsedRating;
-  }
-
-  static parseWatchedAt(value: string): string | null {
-    const trimmedValue = value.trim();
-    if (trimmedValue === "") {
-      return null;
-    }
-
-    const isoDate = `${trimmedValue}T00:00:00.000Z`;
-    return isoDate;
-  }
+  onDeleted?: () => void;
 }
 
 export function MovieCardWatchedModal({
   tmdbId,
   open,
   onOpenChange,
+  onDeleted,
 }: MovieCardWatchedModalProps) {
-  const { patchEntry, isPatching } = useUserMovieEntries();
+  const { patchEntry, isPatching, getFlags } = useUserMovieEntries();
   const [ratingInput, setRatingInput] = useState("");
   const [dateInput, setDateInput] = useState("");
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const wasOpenRef = useRef(false);
 
+  const flags = getFlags(tmdbId);
+  const savedRating = flags.rating;
+  const savedWatchedAt = flags.watchedAt;
   const isCurrentlyPatching = isPatching(tmdbId);
+
+  useEffect(() => {
+    const hasJustOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (!hasJustOpened) {
+      return;
+    }
+
+    setIsEditing(flags.watched);
+    setRatingInput(savedRating === null ? "" : String(savedRating));
+    setDateInput(MovieCardWatchedModalUtils.toDateInputValue(savedWatchedAt));
+  }, [open, flags.watched, savedRating, savedWatchedAt]);
 
   function resetForm() {
     setRatingInput("");
     setDateInput("");
+    setRatingError(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -91,13 +64,24 @@ export function MovieCardWatchedModal({
     onOpenChange(nextOpen);
   }
 
-  async function handleConfirm() {
-    const patch = MovieCardWatchedModalUtils.buildConfirmPatch(
+  function handleRatingChange(nextRating: string) {
+    setRatingInput(nextRating);
+    setRatingError(null);
+  }
+
+  async function handleSave() {
+    const result = MovieCardWatchedModalUtils.buildSavePatch({
+      isEditing,
       ratingInput,
       dateInput,
-    );
+    });
 
-    const didSucceed = await patchEntry(tmdbId, patch);
+    if (!result.ok) {
+      setRatingError(result.error);
+      return;
+    }
+
+    const didSucceed = await patchEntry(tmdbId, result.patch);
     if (!didSucceed) {
       return;
     }
@@ -106,13 +90,27 @@ export function MovieCardWatchedModal({
     onOpenChange(false);
   }
 
+  async function handleDelete() {
+    const deletePatch = MovieCardWatchedModalUtils.buildDeletePatch();
+    const didSucceed = await patchEntry(tmdbId, deletePatch);
+    if (!didSucceed) {
+      return;
+    }
+
+    resetForm();
+    onDeleted?.();
+    onOpenChange(false);
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Mark as watched</DialogTitle>
+          <DialogTitle>{isEditing ? "Watched" : "Mark as watched"}</DialogTitle>
           <DialogDescription>
-            Rating and date are optional. Confirm to save.
+            {isEditing
+              ? "Update your rating or date, or delete this entry."
+              : "Rating and date are optional. Confirm to save."}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,9 +125,12 @@ export function MovieCardWatchedModal({
               step={1}
               placeholder="Optional"
               value={ratingInput}
-              onChange={(event) => setRatingInput(event.target.value)}
+              onChange={(event) => handleRatingChange(event.target.value)}
               disabled={isCurrentlyPatching}
             />
+            {ratingError !== null ? (
+              <p className="text-sm text-destructive">{ratingError}</p>
+            ) : null}
           </div>
 
           <div className="grid gap-2">
@@ -145,6 +146,16 @@ export function MovieCardWatchedModal({
         </div>
 
         <DialogFooter>
+          {isEditing ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isCurrentlyPatching}
+            >
+              Delete
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -155,10 +166,10 @@ export function MovieCardWatchedModal({
           </Button>
           <Button
             type="button"
-            onClick={handleConfirm}
+            onClick={handleSave}
             disabled={isCurrentlyPatching}
           >
-            Confirm
+            {isEditing ? "Save" : "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -419,5 +419,62 @@ describe("MyMoviesPage", () => {
         expect(screen.getByText("Interestelar")).toBeInTheDocument();
       });
     });
+
+    it("REQ-5 edge: deletar na aba Assistidos mantém o card e mostra Undo", async () => {
+      const watchedEntry = MyMoviesPageFixtures.interstellarEntry();
+
+      mockListEntriesForTab((filter) => {
+        if (filter.watched === true) {
+          return [watchedEntry];
+        }
+        return [];
+      }, [watchedEntry]);
+
+      mockedPatchEntry.mockImplementation(async (_tmdbId, patch = {}) => {
+        if (patch.watched === false) {
+          return { ...watchedEntry, watched: false, rating: null, watchedAt: null };
+        }
+        if (patch.watched === true) {
+          return { ...watchedEntry, watched: true };
+        }
+        return watchedEntry;
+      });
+
+      const user = userEvent.setup();
+      renderMyMoviesPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Interestelar")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Watched" }));
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => {
+        expect(mockedPatchEntry).toHaveBeenCalledWith(157336, {
+          watched: false,
+          rating: null,
+          watchedAt: null,
+        });
+      });
+
+      expect(screen.getByText("Interestelar")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Watched removed")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+
+      await waitFor(() => {
+        expect(mockedPatchEntry).toHaveBeenCalledWith(157336, {
+          watched: true,
+          rating: 9,
+          watchedAt: "2026-03-15T03:00:00.000Z",
+        });
+      });
+      await waitFor(() => {
+        expect(screen.queryByText("Watched removed")).not.toBeInTheDocument();
+      });
+    });
   });
 });

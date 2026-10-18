@@ -47,11 +47,11 @@
   - **Exemplo**: `env.ts` usa `StringUtils.isEmptyString` no `superRefine` do token TMDB; no SPA, se vazio não envia Bearer
   - **Registrado em**: 2026-09-01
 
-- Classe de regra de negócio (predicados, parse) não fica no arquivo da página; vai para `utils/` da feature.
-  - **Quando**: extrair helper usado por um componente de página
-  - **Por quê**: página fica só orquestração de estado; a regra fica testável e visível no domínio
-  - **Exemplo**: `GuestChatLockUtils` em `features/movies/utils/guest-chat-lock.utils.ts`, não no final de `Home.tsx`
-  - **Registrado em**: 2026-08-31
+- Classe de regra de negócio (predicados, parse) não fica no arquivo do componente; vai para `utils/` da feature — nem na página, nem em `components/` (pasta de UI), mesmo quando o componente que a usa é compartilhado.
+  - **Quando**: extrair helper usado por um componente (página ou card/modal compartilhado)
+  - **Por quê**: o componente fica só orquestração de estado; a regra fica testável e visível no domínio, e `components/` é pasta de UI, não de regra
+  - **Exemplo**: `GuestChatLockUtils` em `features/movies/utils/guest-chat-lock.utils.ts` (não em `Home.tsx`); `MovieCardWatchedModalUtils` em `features/movies/utils/` (não em `components/`)
+  - **Registrado em**: 2026-08-31 (atualizado 2026-10-14)
 
 - Espera assíncrona (`setTimeout` + Promise) vai para `DelayUtils.delay` em `shared/utils`, não copiada no módulo.
   - **Quando**: backoff, retry, qualquer `sleep` no backend

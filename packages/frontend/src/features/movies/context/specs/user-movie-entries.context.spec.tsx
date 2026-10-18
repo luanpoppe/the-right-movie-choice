@@ -238,4 +238,95 @@ describe("UserMovieEntriesProvider", () => {
 
     expect(result.current.getFlags(27205).favorite).toBe(false);
   });
+
+  describe("janela de desfazer o delete (REQ-5)", () => {
+    const WATCHED_AT = "2026-03-15T00:00:00.000Z";
+
+    async function renderHydratedProvider() {
+      const rendered = renderHook(() => useUserMovieEntries(), {
+        wrapper: UserMovieEntriesContextFixtures.wrapper(),
+      });
+
+      await waitFor(() => {
+        expect(rendered.result.current.isLoading).toBe(false);
+      });
+
+      return rendered;
+    }
+
+    it("startWatchedUndo expõe o snapshot e undoWatchedDelete restaura e limpa janela", async () => {
+      mockedPatchEntry.mockResolvedValue(
+        UserMovieEntriesContextFixtures.entry({
+          tmdbId: 27205,
+          watched: true,
+          rating: 8,
+          watchedAt: WATCHED_AT,
+        }),
+      );
+      const { result } = await renderHydratedProvider();
+
+      act(() => {
+        result.current.startWatchedUndo(27205, {
+          rating: 8,
+          watchedAt: WATCHED_AT,
+        });
+      });
+
+      expect(result.current.getWatchedUndo(27205)).toEqual({
+        rating: 8,
+        watchedAt: WATCHED_AT,
+      });
+
+      await act(async () => {
+        await result.current.undoWatchedDelete(27205);
+      });
+
+      expect(mockedPatchEntry).toHaveBeenCalledWith(27205, {
+        watched: true,
+        rating: 8,
+        watchedAt: WATCHED_AT,
+      });
+      expect(result.current.getWatchedUndo(27205)).toBeNull();
+    });
+
+    it("cancelWatchedUndo limpa a janela sem enviar PATCH", async () => {
+      const { result } = await renderHydratedProvider();
+
+      act(() => {
+        result.current.startWatchedUndo(27205, { rating: 8, watchedAt: WATCHED_AT });
+      });
+      act(() => {
+        result.current.cancelWatchedUndo(27205);
+      });
+
+      expect(result.current.getWatchedUndo(27205)).toBeNull();
+      expect(mockedPatchEntry).not.toHaveBeenCalled();
+    });
+
+    it("janela expira após 7s", async () => {
+      const { result } = await renderHydratedProvider();
+
+      jest.useFakeTimers();
+      try {
+        act(() => {
+          result.current.startWatchedUndo(27205, {
+            rating: 8,
+            watchedAt: WATCHED_AT,
+          });
+        });
+
+        act(() => {
+          jest.advanceTimersByTime(6999);
+        });
+        expect(result.current.getWatchedUndo(27205)).not.toBeNull();
+
+        act(() => {
+          jest.advanceTimersByTime(1);
+        });
+        expect(result.current.getWatchedUndo(27205)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
 });
