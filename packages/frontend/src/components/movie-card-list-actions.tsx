@@ -1,22 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { Bookmark, Eye, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/AuthContext";
+import { WatchedUndoSnapshot } from "@/features/movies/context/user-movie-entries-context";
 import { useUserMovieEntries } from "@/features/movies/context/use-user-movie-entries.hook";
 import { StringUtils } from "@/utils/string.utils";
 import { cn } from "@/lib/utils";
 import { MovieCardWatchedModal } from "./movie-card-watched-modal";
 
-const UNDO_WINDOW_MS = 7000;
-
 interface MovieCardListActionsProps {
   tmdbId: number;
-}
-
-interface WatchedUndoSnapshot {
-  rating: number | null;
-  watchedAt: string | null;
 }
 
 interface ListToggleButtonProps {
@@ -102,21 +96,18 @@ function ListActionsLoadingState() {
 function AuthenticatedMovieCardListActions({
   tmdbId,
 }: MovieCardListActionsProps) {
-  const { getFlags, patchEntry, isPatching, isLoading } = useUserMovieEntries();
+  const {
+    getFlags,
+    patchEntry,
+    isPatching,
+    isLoading,
+    getWatchedUndo,
+    startWatchedUndo,
+    cancelWatchedUndo,
+    undoWatchedDelete,
+  } = useUserMovieEntries();
   const [watchedModalOpen, setWatchedModalOpen] = useState(false);
-  const [undoSnapshot, setUndoSnapshot] = useState<WatchedUndoSnapshot | null>(
-    null,
-  );
   const watchedSnapshotRef = useRef<WatchedUndoSnapshot | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (undoTimerRef.current !== null) {
-        clearTimeout(undoTimerRef.current);
-      }
-    };
-  }, []);
 
   if (isLoading) {
     return <ListActionsLoadingState />;
@@ -125,43 +116,22 @@ function AuthenticatedMovieCardListActions({
   const flags = getFlags(tmdbId);
   const isCurrentlyPatching = isPatching(tmdbId);
   const areTogglesDisabled = isCurrentlyPatching;
-
-  function clearUndoTimer() {
-    if (undoTimerRef.current === null) {
-      return;
-    }
-
-    clearTimeout(undoTimerRef.current);
-    undoTimerRef.current = null;
-  }
-
-  function cancelPendingUndo() {
-    clearUndoTimer();
-    setUndoSnapshot(null);
-  }
-
-  function scheduleUndoExpiry() {
-    clearUndoTimer();
-    undoTimerRef.current = setTimeout(() => {
-      undoTimerRef.current = null;
-      setUndoSnapshot(null);
-    }, UNDO_WINDOW_MS);
-  }
+  const undoSnapshot = getWatchedUndo(tmdbId);
 
   async function handleFavoriteToggle() {
-    cancelPendingUndo();
+    cancelWatchedUndo(tmdbId);
     const nextFavorite = !flags.favorite;
     await patchEntry(tmdbId, { favorite: nextFavorite });
   }
 
   async function handleWatchlistToggle() {
-    cancelPendingUndo();
+    cancelWatchedUndo(tmdbId);
     const nextInWatchlist = !flags.inWatchlist;
     await patchEntry(tmdbId, { inWatchlist: nextInWatchlist });
   }
 
   function handleWatchedToggle() {
-    cancelPendingUndo();
+    cancelWatchedUndo(tmdbId);
 
     if (flags.watched) {
       watchedSnapshotRef.current = {
@@ -179,22 +149,11 @@ function AuthenticatedMovieCardListActions({
       return;
     }
 
-    setUndoSnapshot(deletedSnapshot);
-    scheduleUndoExpiry();
+    startWatchedUndo(tmdbId, deletedSnapshot);
   }
 
   async function handleUndoDelete() {
-    const snapshotToRestore = undoSnapshot;
-    if (snapshotToRestore === null) {
-      return;
-    }
-
-    cancelPendingUndo();
-    await patchEntry(tmdbId, {
-      watched: true,
-      rating: snapshotToRestore.rating,
-      watchedAt: snapshotToRestore.watchedAt,
-    });
+    await undoWatchedDelete(tmdbId);
   }
 
   const favoriteIconClassName = flags.favorite

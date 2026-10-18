@@ -93,7 +93,8 @@ export class MyMoviesPageUtils {
 }
 
 function MyMoviesPageContent() {
-  const { getFlags, hasEntry, isLoading: isProviderLoading } = useUserMovieEntries();
+  const { getFlags, hasEntry, isLoading: isProviderLoading, getWatchedUndo } =
+    useUserMovieEntries();
   const [activeTab, setActiveTab] = useState<MyMoviesTab>("watched");
   const [tabEntries, setTabEntries] = useState<UserMovieEntryEntity[]>([]);
   const [isLoadingTab, setIsLoadingTab] = useState(true);
@@ -163,7 +164,8 @@ function MyMoviesPageContent() {
       isProviderLoading,
     );
     const matchesTab = MyMoviesPageUtils.matchesTab(activeTab, flags);
-    return matchesTab;
+    const hasPendingUndo = getWatchedUndo(entry.tmdbId) !== null;
+    return matchesTab || hasPendingUndo;
   });
 
   const showWatchedDetails = MyMoviesPageUtils.showWatchedDetails(activeTab);

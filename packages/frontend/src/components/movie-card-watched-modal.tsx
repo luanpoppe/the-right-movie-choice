@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,21 +30,26 @@ export function MovieCardWatchedModal({
   const [ratingInput, setRatingInput] = useState("");
   const [dateInput, setDateInput] = useState("");
   const [ratingError, setRatingError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const wasOpenRef = useRef(false);
 
   const flags = getFlags(tmdbId);
-  const isEditing = flags.watched;
   const savedRating = flags.rating;
   const savedWatchedAt = flags.watchedAt;
   const isCurrentlyPatching = isPatching(tmdbId);
 
   useEffect(() => {
-    if (!open) {
+    const hasJustOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (!hasJustOpened) {
       return;
     }
 
+    setIsEditing(flags.watched);
     setRatingInput(savedRating === null ? "" : String(savedRating));
     setDateInput(MovieCardWatchedModalUtils.toDateInputValue(savedWatchedAt));
-  }, [open, savedRating, savedWatchedAt]);
+  }, [open, flags.watched, savedRating, savedWatchedAt]);
 
   function resetForm() {
     setRatingInput("");

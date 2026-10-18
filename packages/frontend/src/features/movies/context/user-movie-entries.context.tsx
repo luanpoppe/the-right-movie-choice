@@ -12,7 +12,10 @@ import { StringUtils } from "@/utils/string.utils";
 import { UserMovieEntryPatchDTO } from "../dto/user-movie-entry.dto";
 import { UserMovieEntryEntity } from "../entities/user-movie-entry.entity";
 import { UserMovieEntryService } from "../services/user-movie-entry.service";
-import { UserMovieEntriesContext } from "./user-movie-entries-context";
+import {
+  UserMovieEntriesContext,
+  WatchedUndoSnapshot,
+} from "./user-movie-entries-context";
 import {
   DEFAULT_USER_MOVIE_ENTRY_FLAGS,
   UserMovieEntryFlags,
@@ -21,6 +24,8 @@ import {
 
 const GENERIC_ERROR_TOAST =
   "Unexpected Error. Try again or get in contact with the staff.";
+
+const UNDO_WINDOW_MS = 7000;
 
 export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
   const { accessToken } = useAuth();
@@ -38,6 +43,22 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
   const lastKnownGoodByTmdbIdRef = useRef<
     Map<number, UserMovieEntryEntity | undefined>
   >(new Map());
+  const [watchedUndoByTmdbId, setWatchedUndoByTmdbId] = useState<
+    Map<number, WatchedUndoSnapshot>
+  >(() => new Map());
+  const undoTimerByTmdbIdRef = useRef<
+    Map<number, ReturnType<typeof setTimeout>>
+  >(new Map());
+
+  useEffect(() => {
+    const undoTimers = undoTimerByTmdbIdRef.current;
+    return () => {
+      for (const timer of undoTimers.values()) {
+        clearTimeout(timer);
+      }
+      undoTimers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasAccessToken) {
@@ -229,6 +250,79 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
     [patchingTmdbIds],
   );
 
+  const clearWatchedUndoTimer = useCallback((tmdbId: number) => {
+    const undoTimers = undoTimerByTmdbIdRef.current;
+    const timer = undoTimers.get(tmdbId);
+    if (timer === undefined) {
+      return;
+    }
+
+    clearTimeout(timer);
+    undoTimers.delete(tmdbId);
+  }, []);
+
+  const removeWatchedUndo = useCallback((tmdbId: number) => {
+    setWatchedUndoByTmdbId((current) => {
+      if (!current.has(tmdbId)) {
+        return current;
+      }
+
+      const next = new Map(current);
+      next.delete(tmdbId);
+      return next;
+    });
+  }, []);
+
+  const cancelWatchedUndo = useCallback(
+    (tmdbId: number) => {
+      clearWatchedUndoTimer(tmdbId);
+      removeWatchedUndo(tmdbId);
+    },
+    [clearWatchedUndoTimer, removeWatchedUndo],
+  );
+
+  const startWatchedUndo = useCallback(
+    (tmdbId: number, snapshot: WatchedUndoSnapshot) => {
+      clearWatchedUndoTimer(tmdbId);
+      setWatchedUndoByTmdbId((current) => {
+        const next = new Map(current);
+        next.set(tmdbId, snapshot);
+        return next;
+      });
+
+      const timer = setTimeout(() => {
+        undoTimerByTmdbIdRef.current.delete(tmdbId);
+        removeWatchedUndo(tmdbId);
+      }, UNDO_WINDOW_MS);
+      undoTimerByTmdbIdRef.current.set(tmdbId, timer);
+    },
+    [clearWatchedUndoTimer, removeWatchedUndo],
+  );
+
+  const getWatchedUndo = useCallback(
+    (tmdbId: number): WatchedUndoSnapshot | null => {
+      return watchedUndoByTmdbId.get(tmdbId) ?? null;
+    },
+    [watchedUndoByTmdbId],
+  );
+
+  const undoWatchedDelete = useCallback(
+    async (tmdbId: number): Promise<void> => {
+      const snapshot = watchedUndoByTmdbId.get(tmdbId);
+      if (snapshot === undefined) {
+        return;
+      }
+
+      cancelWatchedUndo(tmdbId);
+      await patchEntry(tmdbId, {
+        watched: true,
+        rating: snapshot.rating,
+        watchedAt: snapshot.watchedAt,
+      });
+    },
+    [watchedUndoByTmdbId, cancelWatchedUndo, patchEntry],
+  );
+
   const value = useMemo(
     () => ({
       getFlags,
@@ -236,8 +330,22 @@ export function UserMovieEntriesProvider({ children }: PropsWithChildren) {
       patchEntry,
       isLoading,
       isPatching,
+      getWatchedUndo,
+      startWatchedUndo,
+      cancelWatchedUndo,
+      undoWatchedDelete,
     }),
-    [getFlags, hasEntry, patchEntry, isLoading, isPatching],
+    [
+      getFlags,
+      hasEntry,
+      patchEntry,
+      isLoading,
+      isPatching,
+      getWatchedUndo,
+      startWatchedUndo,
+      cancelWatchedUndo,
+      undoWatchedDelete,
+    ],
   );
 
   return (
