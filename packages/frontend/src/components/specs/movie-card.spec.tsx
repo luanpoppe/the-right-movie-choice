@@ -74,6 +74,10 @@ describe("MovieCard", () => {
       patchEntry: jest.fn(),
       isLoading: false,
       isPatching: () => false,
+      getWatchedUndo: jest.fn().mockReturnValue(null),
+      startWatchedUndo: jest.fn(),
+      cancelWatchedUndo: jest.fn(),
+      undoWatchedDelete: jest.fn(),
     });
   });
 
