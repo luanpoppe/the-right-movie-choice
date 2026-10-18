@@ -1,9 +1,12 @@
+import { type KeyboardEvent } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ExcludeWatchedToggle } from "@/features/chat/components/ExcludeWatchedToggle";
 import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
 import { InputSuggestions } from "./InputSuggestions";
+
+const PROMPT_PLACEHOLDER = "What kind of movie are you looking for?";
 
 interface FormProps {
   isLoading: boolean;
@@ -23,6 +26,16 @@ export function Form({
   hasAccessToken,
 }: FormProps) {
   const isDisabled = isLoading || isGuestLocked;
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    const isSendShortcut = event.key === "Enter" && !event.shiftKey;
+    if (!isSendShortcut) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -45,11 +58,13 @@ export function Form({
       )}
 
       <div className="relative mx-auto w-full max-w-[720px]">
-        <Input
+        <Textarea
           name="message"
-          placeholder="What kind of movie are you looking for? (e.g., 'a thrilling sci-fi movie' or 'something funny to watch with friends')"
+          rows={2}
+          placeholder={PROMPT_PLACEHOLDER}
           disabled={isDisabled}
-          className="h-20 rounded-2xl border-primary/25 bg-card pr-20 text-lg shadow-[0_20px_60px_-30px_rgb(var(--primary)/0.6)] placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-primary/50"
+          onKeyDown={handleKeyDown}
+          className="min-h-[96px] resize-none rounded-2xl border-primary/25 bg-card py-4 pl-5 pr-20 text-lg placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-primary/50"
           autoComplete="off"
           autoFocus
         />
@@ -58,9 +73,9 @@ export function Form({
           disabled={isDisabled}
           size="icon"
           aria-label="Get recommendations"
-          className="absolute right-3 top-1/2 h-14 w-14 -translate-y-1/2 rounded-xl"
+          className="absolute bottom-3 right-3 h-12 w-12 rounded-xl"
         >
-          <Send className="h-6 w-6" />
+          <Send className="h-5 w-5" />
         </Button>
       </div>
 
