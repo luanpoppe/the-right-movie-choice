@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 
 import { Hero } from "./components/Hero";
@@ -7,24 +6,15 @@ import { Features } from "./components/Features";
 import { Form } from "./components/Form";
 import { GenreMarquee } from "./components/GenreMarquee";
 import { CinemaSessionIntro } from "./components/CinemaSessionIntro";
-import { FilmLeaderIntro } from "./components/FilmLeaderIntro";
-import { LandingIntroDevToggle } from "./components/LandingIntroDevToggle";
+import { LandingIntroReplayButton } from "./components/LandingIntroReplayButton";
 import { PopularMoviesSection } from "./components/PopularMoviesSection";
 import { usePopularMovies } from "@/features/movies/hooks/use-popular-movies.hook";
-import {
-  FilmLeaderIntroUtils,
-  LandingIntroMode,
-  LandingIntroModeUtils,
-} from "./utils/landing-intro-mode.utils";
+import { LandingIntroUtils } from "./utils/landing-intro.utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const PLAY_INTRO_ON_EVERY_LOAD = true;
-
-const INTRO_DELAY_S: Record<LandingIntroMode, number> = {
-  cinema: 1.2,
-  leader: 1.7,
-};
+const INTRO_DELAY_S = 0.8;
 
 interface WelcomeProps {
   isLoading: boolean;
@@ -43,7 +33,6 @@ export function Welcome({
   onExcludeWatchedChange,
   hasAccessToken,
 }: WelcomeProps) {
-  const location = useLocation();
   const { movies: popularMovies, isLoading: isLoadingPopular } =
     usePopularMovies();
   const heroPosters = popularMovies
@@ -51,51 +40,35 @@ export function Welcome({
     .map((movie) => movie.posterPath);
   const popularSectionMovies = popularMovies.slice(3, 9);
 
-  const explicitMode = LandingIntroModeUtils.readExplicit(location.search);
-  const isPreview = explicitMode !== null;
-  const shouldReduceMotion = isPreview
-    ? false
-    : LandingIntroModeUtils.prefersReducedMotion();
+  const shouldReduceMotion = LandingIntroUtils.prefersReducedMotion();
+  const shouldPlayIntro =
+    !shouldReduceMotion &&
+    (PLAY_INTRO_ON_EVERY_LOAD || !LandingIntroUtils.hasSeen());
 
-  const [mode, setMode] = useState<LandingIntroMode>(explicitMode ?? "cinema");
-  const [isIntroPlaying, setIsIntroPlaying] = useState(
-    () =>
-      !shouldReduceMotion &&
-      (isPreview ||
-        PLAY_INTRO_ON_EVERY_LOAD ||
-        !FilmLeaderIntroUtils.hasSeen()),
+  const [isIntroPlaying, setIsIntroPlaying] = useState(shouldPlayIntro);
+  const [introDelay, setIntroDelay] = useState(
+    shouldPlayIntro ? INTRO_DELAY_S : 0,
   );
   const [introNonce, setIntroNonce] = useState(0);
   const [heroNonce, setHeroNonce] = useState(0);
 
-  const introDelay = isIntroPlaying ? INTRO_DELAY_S[mode] : 0;
-  const withSweep = mode === "cinema" && !shouldReduceMotion;
-
   function handleIntroDone() {
-    FilmLeaderIntroUtils.markSeen();
+    LandingIntroUtils.markSeen();
     setIsIntroPlaying(false);
   }
 
-  function playIntro(nextMode: LandingIntroMode) {
-    setMode(nextMode);
+  function handleReplay() {
     setHeroNonce((nonce) => nonce + 1);
     setIntroNonce((nonce) => nonce + 1);
     setIsIntroPlaying(true);
-  }
-
-  function handleReplay() {
-    playIntro(mode);
+    setIntroDelay(INTRO_DELAY_S);
   }
 
   return (
     <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
       <AnimatePresence>
         {isIntroPlaying ? (
-          mode === "cinema" ? (
-            <CinemaSessionIntro key={introNonce} onDone={handleIntroDone} />
-          ) : (
-            <FilmLeaderIntro key={introNonce} onDone={handleIntroDone} />
-          )
+          <CinemaSessionIntro key={introNonce} onDone={handleIntroDone} />
         ) : null}
       </AnimatePresence>
 
@@ -103,7 +76,7 @@ export function Welcome({
         key={heroNonce}
         heroPosters={heroPosters}
         introDelay={introDelay}
-        withSweep={withSweep}
+        withSweep={!shouldReduceMotion}
       />
 
       <motion.div
@@ -141,11 +114,7 @@ export function Welcome({
       />
 
       {import.meta.env.DEV ? (
-        <LandingIntroDevToggle
-          mode={mode}
-          onSelect={playIntro}
-          onReplay={handleReplay}
-        />
+        <LandingIntroReplayButton onReplay={handleReplay} />
       ) : null}
     </div>
   );
