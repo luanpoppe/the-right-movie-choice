@@ -67,7 +67,7 @@ function HomeBrandLink({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
   const brandClassName = cn(
-    "flex items-center gap-2.5 cursor-pointer rounded-lg no-underline text-foreground",
+    "flex items-center gap-2.5 min-w-0 cursor-pointer rounded-lg no-underline text-foreground",
     focusRingClassName,
   );
 
@@ -100,7 +100,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-2 px-4 sm:px-6">
         <HomeBrandLink>
           <LogoIcon />
-          <span className="hidden font-display text-[1.05rem] font-bold tracking-tight sm:inline">
+          <span className="truncate font-display text-sm font-bold tracking-tight sm:text-[1.05rem]">
             The Right Movie Choice
           </span>
         </HomeBrandLink>
