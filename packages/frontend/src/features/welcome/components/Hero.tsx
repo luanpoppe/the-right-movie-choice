@@ -111,7 +111,7 @@ function HeroPanel({
 
   return (
     <div className="relative h-[220px] sm:h-[300px] md:h-[380px]">
-      <div className="absolute inset-0 -z-10 rounded-full bg-[radial-gradient(55%_55%_at_50%_45%,rgb(var(--primary)/0.14),transparent_70%)]" />
+      <div className="absolute inset-0 -z-10 rounded-full bg-[radial-gradient(35%_35%_at_50%_45%,rgb(var(--primary)/0.18),transparent_70%)] md:bg-[radial-gradient(55%_55%_at_50%_45%,rgb(var(--primary)/0.14),transparent_70%)]" />
 
       {tiles.map((tile, index) => (
         <motion.div
@@ -160,7 +160,7 @@ export function Hero({
   });
 
   return (
-    <div className="relative isolate grid items-center gap-10 md:grid-cols-[1.1fr_0.9fr] md:gap-12">
+    <div className="relative isolate grid items-center gap-10 pt-8 md:grid-cols-[1.1fr_0.9fr] md:gap-12 md:pt-0">
       {withSweep ? <CinematicSweep delay={introDelay} /> : null}
 
       <div>

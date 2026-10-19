@@ -27,7 +27,7 @@ export function CinematicSweep({ delay = 0 }: { delay?: number }) {
       />
 
       <motion.div
-        className="absolute left-1/2 top-1/2 h-[520px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgb(var(--primary)/0.1),transparent_70%)]"
+        className="absolute left-1/2 top-1/2 hidden h-[520px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgb(var(--primary)/0.1),transparent_70%)] md:block"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.6, delay: delay + 0.2, ease: EASE }}

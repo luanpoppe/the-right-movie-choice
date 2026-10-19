@@ -53,7 +53,7 @@ export function Welcome({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1120px] px-4 py-12 sm:px-6 sm:py-16">
+    <div className="mx-auto w-full max-w-[1120px] px-4 pb-12 pt-7 sm:px-6 sm:py-16">
       <AnimatePresence>
         {isIntroPlaying ? <CinemaSessionIntro onDone={handleIntroDone} /> : null}
       </AnimatePresence>
