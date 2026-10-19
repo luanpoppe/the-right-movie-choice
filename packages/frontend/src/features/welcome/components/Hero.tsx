@@ -13,7 +13,7 @@ import { MaskRise } from "./MaskRise";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-const TILE_FRAME_CLASS = "absolute w-40 sm:w-44";
+const TILE_FRAME_CLASS = "absolute w-24 sm:w-32 lg:w-40 xl:w-44";
 const TILE_VISUAL_CLASS =
   "relative aspect-[2/3] overflow-hidden rounded-xl border border-border bg-gradient-to-b from-secondary to-card shadow-2xl shadow-black/40";
 
@@ -110,7 +110,7 @@ function HeroPanel({
   ];
 
   return (
-    <div className="relative hidden h-[380px] md:block">
+    <div className="relative h-[220px] sm:h-[300px] md:h-[380px]">
       <div className="absolute inset-0 -z-10 rounded-full bg-[radial-gradient(55%_55%_at_50%_45%,rgb(var(--primary)/0.14),transparent_70%)]" />
 
       {tiles.map((tile, index) => (

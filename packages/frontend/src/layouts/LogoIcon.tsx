@@ -13,7 +13,7 @@ export function LogoIcon() {
       role="presentation"
       aria-hidden="true"
       focusable="false"
-      className="h-10 w-auto"
+      className="h-8 w-auto sm:h-10"
     >
       <defs>
         <mask

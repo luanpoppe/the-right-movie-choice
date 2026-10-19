@@ -17,6 +17,10 @@ jest.mock("@/components/theme-toggle", () => ({
   ModeToggle: () => <div data-testid="mode-toggle" />,
 }));
 
+jest.mock("lucide-react", () => ({
+  Menu: () => <span data-testid="icon-menu" />,
+}));
+
 jest.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {

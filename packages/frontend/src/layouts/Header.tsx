@@ -1,12 +1,12 @@
 import { ModeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { AuthService } from "@/features/auth/services/auth.service";
+import { useLogout } from "@/features/auth/hooks/use-logout.hook";
 import { cn, focusRingClassName } from "@/lib/utils";
 import { Link, useLocation } from "react-router";
-import toast from "react-hot-toast";
 import type { ReactNode } from "react";
 import { LogoIcon } from "./LogoIcon";
+import { MobileNav } from "./MobileNav";
 
 const navLinkClassName = cn(
   "rounded-lg px-3 py-1.5 text-sm text-muted-foreground no-underline transition-colors hover:bg-secondary hover:text-foreground",
@@ -35,18 +35,8 @@ function AuthenticatedLinks() {
 }
 
 function AccountActions() {
-  const { accessToken, clearSession } = useAuth();
-
-  async function handleLogout() {
-    try {
-      await AuthService.logout();
-      clearSession();
-      toast.success("Signed out.");
-    } catch {
-      clearSession();
-      toast.error("Could not sign out on the server.");
-    }
-  }
+  const { accessToken } = useAuth();
+  const logout = useLogout();
 
   if (accessToken) {
     return (
@@ -54,7 +44,7 @@ function AccountActions() {
         variant="outline"
         size="sm"
         className="ml-1 rounded-lg"
-        onClick={handleLogout}
+        onClick={logout}
       >
         Sign out
       </Button>
@@ -107,19 +97,24 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-2 px-4 sm:px-6">
         <HomeBrandLink>
           <LogoIcon />
-          <span className="font-display text-[1.05rem] font-bold tracking-tight">
+          <span className="hidden font-display text-[1.05rem] font-bold tracking-tight sm:inline">
             The Right Movie Choice
           </span>
         </HomeBrandLink>
 
         <div className="flex items-center gap-1">
-          <HeaderNavLink to="/search">Search</HeaderNavLink>
-          {isAuthenticated && <AuthenticatedLinks />}
+          <div className="hidden items-center gap-1 md:flex">
+            <HeaderNavLink to="/search">Search</HeaderNavLink>
+            {isAuthenticated && <AuthenticatedLinks />}
+          </div>
           <ModeToggle />
-          <AccountActions />
+          <div className="hidden md:flex">
+            <AccountActions />
+          </div>
+          <MobileNav />
         </div>
       </div>
     </header>
