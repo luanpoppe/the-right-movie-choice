@@ -6,18 +6,7 @@ import { cn, focusRingClassName } from "@/lib/utils";
 import { Link, useLocation } from "react-router";
 import toast from "react-hot-toast";
 import type { ReactNode } from "react";
-
-function LogoIcon() {
-  return (
-    <img
-      src="/favicon.png"
-      alt=""
-      width={36}
-      height={36}
-      className="h-9 w-9 rounded-lg"
-    />
-  );
-}
+import { LogoIcon } from "./LogoIcon";
 
 const navLinkClassName = cn(
   "rounded-lg px-3 py-1.5 text-sm text-muted-foreground no-underline transition-colors hover:bg-secondary hover:text-foreground",

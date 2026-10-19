@@ -1,0 +1,22 @@
+{
+  "name": "The Right Movie Choice",
+  "short_name": "Movie Choice",
+  "description": "Get three tailored movie recommendations from one sentence about your mood.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0C",
+  "theme_color": "#0A0A0C",
+  "icons": [
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
