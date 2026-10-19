@@ -71,7 +71,7 @@ export function InputSuggestions({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap">
+    <div className="flex flex-wrap items-center justify-center gap-2">
       <span className="shrink-0 text-sm text-muted-foreground">Try:</span>
       {queryExamples.map((suggestion) => (
         <button

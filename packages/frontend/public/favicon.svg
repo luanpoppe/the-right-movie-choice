@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <mask id="left-side" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#000" />
+      <rect x="61" y="371" width="291" height="288" rx="50" fill="#fff" />
+      <rect x="143" y="423" width="127" height="190" rx="26" fill="#000" />
+    </mask>
+    <mask id="right-side" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#000" />
+      <rect x="672" y="371" width="291" height="288" rx="50" fill="#fff" />
+      <rect x="754" y="423" width="127" height="190" rx="26" fill="#000" />
+    </mask>
+    <mask id="center" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#000" />
+      <rect x="332" y="335" width="360" height="358" rx="56" fill="#fff" />
+      <rect x="437" y="406" width="150" height="223" rx="30" fill="#000" />
+    </mask>
+  </defs>
+  <g fill="#0A0A0C">
+    <rect width="1024" height="1024" mask="url(#left-side)" />
+    <rect width="1024" height="1024" mask="url(#right-side)" />
+  </g>
+  <rect width="1024" height="1024" fill="#E6A532" mask="url(#center)" />
+  <path d="M472 478 C472 468 481 465 492 473 L550 513 C562 521 562 532 550 540 L492 576 C481 584 472 580 472 570 Z" fill="#E6A532" />
+</svg>
