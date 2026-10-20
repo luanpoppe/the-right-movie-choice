@@ -11,6 +11,7 @@ import { DEFAULT_MOVIE_CATALOG_LANGUAGE } from "../../../domain/repositories/mov
 import { IUserMovieEntryRepository } from "../../../domain/repositories/user-movie-entry.repository";
 import { UserMovieEntryValidationUtils } from "../../../domain/user-movie-entry-validation.utils";
 import { UserMovieEntryPrismaMapper } from "../../mappers/user-movie-entry-prisma.mapper";
+import { UserMovieEntryCatalogSummaryUtils } from "./movie-summary-catalog.utils";
 import { UserMovieEntryListFilterUtils } from "./user-movie-entry-list-filter.utils";
 import { UserMovieEntryListOrderUtils } from "./user-movie-entry-list-order.utils";
 import { UserMovieEntryMergeUtils } from "./user-movie-entry-merge.utils";
@@ -261,34 +262,38 @@ export class PrismaUserMovieEntryRepository implements IUserMovieEntryRepository
 
     Logger.debug("🔍 Carregando catálogo para listagem de entradas", {
       tmdbIdCount: uniqueTmdbIds.length,
-      language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      preferredLanguage: DEFAULT_MOVIE_CATALOG_LANGUAGE,
     });
 
     const catalogRows = await prisma.movie.findMany({
       where: {
         tmdbId: { in: uniqueTmdbIds },
-        language: DEFAULT_MOVIE_CATALOG_LANGUAGE,
       },
       select: {
         tmdbId: true,
+        language: true,
         title: true,
         year: true,
         posterPath: true,
         tmdbVoteAverage: true,
       },
+      orderBy: {
+        updatedAt: "desc",
+      },
     });
 
-    const catalogByTmdbId = new Map<number, UserMovieEntryMovieSummary>();
+    const catalogByTmdbId = UserMovieEntryCatalogSummaryUtils.buildPreferredByTmdbId(
+      catalogRows,
+    );
 
-    for (const catalogRow of catalogRows) {
-      const summary: UserMovieEntryMovieSummary = {
-        title: catalogRow.title,
-        year: catalogRow.year,
-        posterPath: catalogRow.posterPath,
-        voteAverage: catalogRow.tmdbVoteAverage,
-      };
-      catalogByTmdbId.set(catalogRow.tmdbId, summary);
-    }
+    const catalogLanguages = UserMovieEntryCatalogSummaryUtils.listLanguages(
+      catalogRows,
+    );
+
+    Logger.debug("🌐 Idiomas encontrados no catálogo da listagem", {
+      languages: catalogLanguages.join(", "),
+      preferredLanguage: DEFAULT_MOVIE_CATALOG_LANGUAGE,
+    });
 
     const missCount = uniqueTmdbIds.length - catalogByTmdbId.size;
     const hasCatalogMisses = missCount > 0;
