@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ExcludeWatchedToggle } from "@/features/chat/components/ExcludeWatchedToggle";
 import { GuestLockBanner } from "@/features/movies/components/guest-lock-banner";
+import { WelcomeFormUtils } from "../utils/welcome-form.utils";
 import { InputSuggestions } from "./InputSuggestions";
 
 const PROMPT_PLACEHOLDER = "What kind of movie are you looking for?";
@@ -47,6 +48,15 @@ export function Form({
 
   useEffect(() => {
     resizeTextarea();
+
+    // No mobile o foco automatico rola a pagina para o formulario, escondendo
+    // o topo da home. Foca apenas no desktop e sem rolar.
+    const shouldAutoFocus = WelcomeFormUtils.shouldAutoFocusTextarea();
+    if (!shouldAutoFocus) {
+      return;
+    }
+
+    textareaRef.current?.focus({ preventScroll: true });
   }, []);
 
   function handleSuggestionSelect(suggestion: string) {
@@ -107,7 +117,6 @@ export function Form({
           onChange={resizeTextarea}
           className="min-h-[96px] resize-none overflow-hidden rounded-2xl border-primary/25 bg-card py-4 pl-5 pr-20 text-lg placeholder:text-muted-foreground/70 focus-visible:ring-2 focus-visible:ring-primary/50"
           autoComplete="off"
-          autoFocus
         />
         <Button
           type="submit"
