@@ -79,6 +79,7 @@ class UserMovieEntryRepositoryFixtures {
   static catalogRow(overrides: Record<string, unknown> = {}) {
     return {
       tmdbId: 157336,
+      language: "pt-BR",
       title: "Interestelar",
       year: 2014,
       posterPath: "/poster.jpg",
@@ -690,14 +691,17 @@ describe("PrismaUserMovieEntryRepository", () => {
       expect(prisma.movie.findMany).toHaveBeenCalledWith({
         where: {
           tmdbId: { in: [157336] },
-          language: "pt-BR",
         },
         select: {
           tmdbId: true,
+          language: true,
           title: true,
           year: true,
           posterPath: true,
           tmdbVoteAverage: true,
+        },
+        orderBy: {
+          updatedAt: "desc",
         },
       });
       expect(result[0]?.movie).toEqual({
@@ -706,6 +710,103 @@ describe("PrismaUserMovieEntryRepository", () => {
         posterPath: "/poster.jpg",
         voteAverage: 8.6,
       });
+    });
+
+    it("REQ-8 usa catálogo de outro idioma quando não há linha pt-BR", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 1368337,
+        watched: true,
+        movieId: null,
+      });
+      const catalogRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 1368337,
+        language: "en-US",
+        title: "The Odyssey",
+        year: 2026,
+        posterPath: "/odyssey.jpg",
+        tmdbVoteAverage: 8.2,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([catalogRow] as never);
+
+      const result = await repository.listByUser(42, { watched: true });
+
+      expect(result[0]?.movie).toEqual({
+        title: "The Odyssey",
+        year: 2026,
+        posterPath: "/odyssey.jpg",
+        voteAverage: 8.2,
+      });
+    });
+
+    it("REQ-8 prefere a linha pt-BR quando o catálogo tem mais de um idioma", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 1368337,
+        watched: true,
+        movieId: null,
+      });
+      const fallbackRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 1368337,
+        language: "en-US",
+        title: "The Odyssey",
+        year: 2026,
+        posterPath: "/odyssey-en.jpg",
+        tmdbVoteAverage: 8.2,
+      });
+      const preferredRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 1368337,
+        language: "pt-BR",
+        title: "A Odisseia",
+        year: 2026,
+        posterPath: "/odyssey-pt.jpg",
+        tmdbVoteAverage: 8.2,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([
+        fallbackRow,
+        preferredRow,
+      ] as never);
+
+      const result = await repository.listByUser(42, { watched: true });
+
+      expect(result[0]?.movie).toEqual({
+        title: "A Odisseia",
+        year: 2026,
+        posterPath: "/odyssey-pt.jpg",
+        voteAverage: 8.2,
+      });
+    });
+
+    it("REQ-8 mantém o primeiro fallback quando há vários idiomas sem pt-BR", async () => {
+      const row = UserMovieEntryRepositoryFixtures.prismaRow({
+        tmdbId: 1368337,
+        watched: true,
+        movieId: null,
+      });
+      const newestRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 1368337,
+        language: "en-US",
+        title: "The Odyssey",
+        year: 2026,
+      });
+      const olderRow = UserMovieEntryRepositoryFixtures.catalogRow({
+        tmdbId: 1368337,
+        language: "es-ES",
+        title: "La Odisea",
+        year: 2026,
+      });
+
+      vi.mocked(prisma.userMovieEntry.findMany).mockResolvedValue([row] as never);
+      vi.mocked(prisma.movie.findMany).mockResolvedValue([
+        newestRow,
+        olderRow,
+      ] as never);
+
+      const result = await repository.listByUser(42, { watched: true });
+
+      expect(result[0]?.movie?.title).toBe("The Odyssey");
     });
 
     it("REQ-8 retorna movie null quando não há catálogo para o tmdbId", async () => {
