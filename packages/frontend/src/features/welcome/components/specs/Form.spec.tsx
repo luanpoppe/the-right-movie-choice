@@ -52,6 +52,8 @@ function getExcludeWatchedCheckbox() {
 }
 
 describe("Welcome Form", () => {
+  const originalMatchMedia = window.matchMedia;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockedGetQueryExamples.mockResolvedValue({
@@ -59,9 +61,33 @@ describe("Welcome Form", () => {
     });
   });
 
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  function mockViewport(isDesktop: boolean) {
+    window.matchMedia = jest.fn().mockReturnValue({
+      matches: isDesktop,
+    }) as never;
+  }
+
   async function findSuggestionButton() {
     return screen.findByRole("button", { name: SUGGESTION_TEXT });
   }
+
+  it("não foca o textarea automaticamente no mobile", () => {
+    mockViewport(false);
+    renderWelcomeForm();
+
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+  });
+
+  it("foca o textarea automaticamente no desktop", () => {
+    mockViewport(true);
+    renderWelcomeForm();
+
+    expect(screen.getByRole("textbox")).toHaveFocus();
+  });
 
   it("preenche o textarea com a sugestão clicada e mantém o foco nele", async () => {
     const user = userEvent.setup();
