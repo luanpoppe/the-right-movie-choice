@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatSkeleton } from "@/components/chat-skeleton";
 import { Chat } from "@/features/chat";
@@ -48,6 +49,7 @@ function ConversationChatPageContent({
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirectToConversations, setShouldRedirectToConversations] =
     useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const activeFetchIdRef = useRef(0);
 
   const fetchConversation = useCallback(async () => {
@@ -106,6 +108,33 @@ function ConversationChatPageContent({
     void fetchConversation();
   }, [fetchConversation]);
 
+  // Fecha o drawer ao trocar de conversa (inclusive ao clicar em um item do
+  // proprio drawer no mobile).
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!isMobileSidebarOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileSidebarOpen(false);
+      }
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileSidebarOpen]);
+
   const initialMessages = useMemo((): ChatEntity => {
     if (!conversation) {
       return [];
@@ -146,6 +175,14 @@ function ConversationChatPageContent({
     navigate("/");
   }
 
+  function handleOpenMobileSidebar() {
+    setIsMobileSidebarOpen(true);
+  }
+
+  function handleCloseMobileSidebar() {
+    setIsMobileSidebarOpen(false);
+  }
+
   if (shouldRedirectToConversations) {
     return <Navigate to="/conversations" replace />;
   }
@@ -173,19 +210,38 @@ function ConversationChatPageContent({
         activeConversationId={conversationId}
         refreshKey={sidebarRefreshKey}
         onActiveConversationDeleted={handleActiveConversationDeleted}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={handleCloseMobileSidebar}
       />
 
-      <UserMovieEntriesProvider>
-        <Chat
-          handleReset={handleReset}
-          displayMessages={messages}
-          isLoading={isChatLoading}
-          handleSubmit={handleSubmit}
-          excludeWatched={excludeWatched}
-          onExcludeWatchedChange={setExcludeWatched}
-          hasAccessToken={true}
-        />
-      </UserMovieEntriesProvider>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="px-4 pt-4 md:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-lg"
+            aria-expanded={isMobileSidebarOpen}
+            aria-controls="conversation-sidebar"
+            onClick={handleOpenMobileSidebar}
+          >
+            <PanelLeft className="h-4 w-4" aria-hidden />
+            History
+          </Button>
+        </div>
+
+        <UserMovieEntriesProvider>
+          <Chat
+            handleReset={handleReset}
+            displayMessages={messages}
+            isLoading={isChatLoading}
+            handleSubmit={handleSubmit}
+            excludeWatched={excludeWatched}
+            onExcludeWatchedChange={setExcludeWatched}
+            hasAccessToken={true}
+          />
+        </UserMovieEntriesProvider>
+      </div>
     </div>
   );
 }
