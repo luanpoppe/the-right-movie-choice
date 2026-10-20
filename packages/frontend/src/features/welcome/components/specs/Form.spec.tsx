@@ -9,8 +9,16 @@ jest.mock("lucide-react", () => ({
 }));
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
+import { MoviesQueryExamplesService } from "@/features/movies/services/movies-query-examples.service";
 import { Form } from "../Form";
+
+const SUGGESTION_TEXT = "mind-bending sci-fi thriller";
+
+const mockedGetQueryExamples = jest.mocked(
+  MoviesQueryExamplesService.getQueryExamples,
+);
 
 function renderWelcomeForm(
   overrides: Partial<{
@@ -46,6 +54,36 @@ function getExcludeWatchedCheckbox() {
 describe("Welcome Form", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedGetQueryExamples.mockResolvedValue({
+      queries: [{ queryExample: SUGGESTION_TEXT }],
+    });
+  });
+
+  async function findSuggestionButton() {
+    return screen.findByRole("button", { name: SUGGESTION_TEXT });
+  }
+
+  it("preenche o textarea com a sugestão clicada e mantém o foco nele", async () => {
+    const user = userEvent.setup();
+    renderWelcomeForm();
+
+    const suggestionButton = await findSuggestionButton();
+    await user.click(suggestionButton);
+
+    const textarea = screen.getByRole("textbox");
+    expect(textarea).toHaveValue(SUGGESTION_TEXT);
+    expect(textarea).toHaveFocus();
+  });
+
+  it("não preenche o textarea quando o guest lock está ativo", async () => {
+    const user = userEvent.setup();
+    renderWelcomeForm({ isGuestLocked: true });
+
+    const suggestionButton = await findSuggestionButton();
+    expect(suggestionButton).toBeDisabled();
+    await user.click(suggestionButton);
+
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
   it("REQ-1: usuário autenticado vê toggle ligado por padrão", () => {

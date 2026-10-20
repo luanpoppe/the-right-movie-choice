@@ -49,6 +49,18 @@ export function Form({
     resizeTextarea();
   }, []);
 
+  function handleSuggestionSelect(suggestion: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      console.error("[Form] textarea não encontrado ao aplicar sugestão");
+      return;
+    }
+
+    textarea.value = suggestion;
+    resizeTextarea();
+    textarea.focus();
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     const isSendShortcut = event.key === "Enter" && !event.shiftKey;
     if (!isSendShortcut) {
@@ -108,7 +120,11 @@ export function Form({
         </Button>
       </div>
 
-      <InputSuggestions isLoading={isLoading} isGuestLocked={isGuestLocked} />
+      <InputSuggestions
+        isLoading={isLoading}
+        isGuestLocked={isGuestLocked}
+        onSuggestionSelect={handleSuggestionSelect}
+      />
     </form>
   );
 }
