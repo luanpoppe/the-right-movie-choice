@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface InputSuggestionsProps {
   isLoading: boolean;
   isGuestLocked?: boolean;
+  onSuggestionSelect: (suggestion: string) => void;
 }
 
 const LOADING_MESSAGE = "Loading search suggestions...";
@@ -12,6 +13,7 @@ const LOADING_MESSAGE = "Loading search suggestions...";
 export function InputSuggestions({
   isLoading,
   isGuestLocked = false,
+  onSuggestionSelect,
 }: InputSuggestionsProps) {
   const [queryExamples, setQueryExamples] = useState<string[]>([
     LOADING_MESSAGE,
@@ -47,19 +49,12 @@ export function InputSuggestions({
 
   function handleSelect(suggestion: string) {
     if (isGuestLocked) {
+      console.info("[InputSuggestions] select ignorado: guest lock ativo");
       return;
     }
 
-    const input = document.querySelector(
-      'input[name="message"]',
-    ) as HTMLInputElement | null;
-
-    if (!input) {
-      return;
-    }
-
-    input.value = suggestion;
-    input.focus();
+    console.info("[InputSuggestions] sugestão selecionada", { suggestion });
+    onSuggestionSelect(suggestion);
   }
 
   if (hasError) {
