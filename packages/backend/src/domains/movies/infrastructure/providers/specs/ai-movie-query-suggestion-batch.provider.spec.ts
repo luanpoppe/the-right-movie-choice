@@ -83,6 +83,10 @@ describe("AiMovieQuerySuggestionBatchProvider", () => {
         temperature: 1.2,
         reasoningEffort:
           AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+        openRouterProvider: {
+          only: AiCallConstants.OPENROUTER_PROVIDER_ONLY,
+          sort: AiCallConstants.OPENROUTER_PROVIDER_SORT,
+        },
       });
       expect(structuredCallArgs.outputSchema.safeParse(batchResponse).success).toBe(
         true,
