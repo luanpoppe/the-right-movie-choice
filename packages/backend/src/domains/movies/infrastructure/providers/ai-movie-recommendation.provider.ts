@@ -327,10 +327,7 @@ export class AiMovieRecommendationProvider
       maxRetries,
       modelConfig: {
         reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
-        openRouterProvider: {
-          only: AiCallConstants.OPENROUTER_PROVIDER_ONLY,
-          sort: AiCallConstants.OPENROUTER_PROVIDER_SORT,
-        },
+        openRouterProvider: AiCallConstants.OPENROUTER_PROVIDER,
       },
       agent: { tools: [lookupMoviesTool, searchCatalogTool] },
     });

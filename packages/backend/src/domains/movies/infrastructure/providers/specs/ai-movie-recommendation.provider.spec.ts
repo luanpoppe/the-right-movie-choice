@@ -192,10 +192,7 @@ describe("AiMovieRecommendationProvider", () => {
       );
       expect(structuredCallArgs.modelConfig).toEqual({
         reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
-        openRouterProvider: {
-          only: AiCallConstants.OPENROUTER_PROVIDER_ONLY,
-          sort: AiCallConstants.OPENROUTER_PROVIDER_SORT,
-        },
+        openRouterProvider: AiCallConstants.OPENROUTER_PROVIDER,
       });
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs.messages).toHaveLength(1);
