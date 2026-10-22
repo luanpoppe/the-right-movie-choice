@@ -1,9 +1,5 @@
 import type { OpenRouterProviderPreferences } from "@luanpoppe/ai";
 
-type ZdrOpenRouterProvider = OpenRouterProviderPreferences & {
-  zdr: boolean;
-};
-
 export class AiCallConstants {
   /**
    * Reasoning em low nas chamadas de structured output.
@@ -12,10 +8,9 @@ export class AiCallConstants {
 
   /**
    * Relace e um provider com zero data retention. `zdr: true` impede o
-   * OpenRouter de rotear para um provider sem essa politica. O campo ainda
-   * nao esta no tipo do `@luanpoppe/ai@1.2.1`, mas e repassado no request.
+   * OpenRouter de rotear para um provider sem essa politica.
    */
-  static readonly OPENROUTER_PROVIDER: ZdrOpenRouterProvider = {
+  static readonly OPENROUTER_PROVIDER: OpenRouterProviderPreferences = {
     only: ["relace"],
     sort: "latency",
     zdr: true,
