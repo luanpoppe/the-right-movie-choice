@@ -46,10 +46,6 @@ export const MovieCatalogSearchToolModelSchema = z
       .describe(
         "Ano de lançamento. Só é aceito junto de query de texto; use yearFrom/yearTo para faixas.",
       ),
-    page: z
-      .unknown()
-      .optional()
-      .describe("Página de resultados, inteiro a partir de 1."),
     genres: z
       .unknown()
       .optional()

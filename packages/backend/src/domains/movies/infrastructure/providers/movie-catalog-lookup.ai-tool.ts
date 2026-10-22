@@ -35,7 +35,7 @@ export class MovieCatalogLookupAiTool {
   private static readonly MIN_QUERIES = 1;
   private static readonly TOOL_NAME = "lookupMovies";
   private static readonly TOOL_DESCRIPTION =
-    "Uma chamada com várias queries de busca no catálogo de filmes; os lookups rodam em paralelo e os resultados mantêm a mesma ordem das queries (hits e misses). language opcional por query (ex.: pt-BR, en-US); omitido usa pt-BR.";
+    "Uma chamada com várias queries de busca no catálogo de filmes; os lookups rodam em paralelo e os resultados mantêm a mesma ordem das queries (hits e misses).";
 
   private readonly aiTools = new AITools();
   private readonly excludeWatched: boolean;
@@ -268,7 +268,6 @@ export class MovieCatalogLookupAiTool {
     const queryItemSchema = z.object({
       query: z.string(),
       year: z.number().optional(),
-      language: z.string().optional(),
     });
     const queriesSchema = z
       .array(queryItemSchema)
