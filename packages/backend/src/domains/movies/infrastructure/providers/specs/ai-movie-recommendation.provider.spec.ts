@@ -9,7 +9,9 @@ import { ExcludeWatchedRecommendationConstants } from "../../../domain/exclude-w
 import { MovieRecommendationEntity, MovieRecommendationLlmSchema, MovieRecommendationSchema } from "../../../domain/entities/movie-recommendation.entity";
 import type { IUserMovieEntryRepository } from "../../../domain/repositories/user-movie-entry.repository";
 import { WrongMovieSchemaFromLlmException } from "../../../domain/exceptions/wrong-movie-schema-from-llm.exception";
+import { MovieRecommendationTimeoutException } from "../../../domain/exceptions/movie-recommendation-timeout.exception";
 import { AiMovieRecommendationProvider } from "../ai-movie-recommendation.provider";
+import { AiRecommendationConstants } from "../ai-recommendation.constants";
 import { ExcludeWatchedRecommendationSanitizer } from "../exclude-watched-recommendation.sanitizer";
 import { MovieRecommendationPrompts } from "../movie-recommendation-prompts";
 
@@ -176,12 +178,16 @@ describe("AiMovieRecommendationProvider", () => {
         systemPrompt: unknown;
         messages: unknown;
         threadId: unknown;
+        maxRetries: unknown;
         agent: { tools: AgentTool[] };
       }>(callStructuredOutput.mock.calls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
       expect(structuredCallArgs.outputSchema).toBe(MovieRecommendationLlmSchema);
       expect(structuredCallArgs.systemPrompt).toBe(expectedSystemPrompt);
       expect(structuredCallArgs.threadId).toBe(chatId);
+      expect(structuredCallArgs.maxRetries).toBe(
+        AiRecommendationConstants.AI_CALL_MAX_RETRIES,
+      );
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs.messages).toHaveLength(1);
       expect(structuredCallArgs.agent.tools).toHaveLength(2);
@@ -298,20 +304,64 @@ describe("AiMovieRecommendationProvider", () => {
       LogContextAssertions.expectObservabilityWithoutPromptBody(errorContext);
     });
 
-    it("loga um único par sucesso/falha com model, durationMs e success sem o corpo do prompt", async () => {
+    it("loga o início da chamada e um único par sucesso/falha com model, durationMs e success sem o corpo do prompt", async () => {
       const validEntity = MovieRecommendationFixtures.validEntity();
       callStructuredOutput.mockResolvedValue({ response: validEntity });
 
       await provider.getMovieRecommendation(userMessage, chatId);
 
-      expect(Logger.info).toHaveBeenCalledTimes(1);
+      expect(Logger.info).toHaveBeenCalledTimes(2);
       expect(Logger.error).not.toHaveBeenCalled();
-      const infoContext = VitestMockCallUtils.nthArg<Record<string, unknown>>(
+      const startContext = VitestMockCallUtils.nthArg<Record<string, unknown>>(
         vi.mocked(Logger.info).mock.calls,
+        1,
+      );
+      expect(startContext.model).toBe(AiModels.PRIMARY);
+      expect(startContext.threadId).toBe(chatId);
+      expect(startContext.timeoutMs).toBe(
+        AiRecommendationConstants.AI_CALL_TIMEOUT_MS,
+      );
+      expect(startContext.maxRetries).toBe(
+        AiRecommendationConstants.AI_CALL_MAX_RETRIES,
+      );
+      const infoContext = VitestMockCallUtils.callArg<Record<string, unknown>>(
+        vi.mocked(Logger.info).mock.calls,
+        1,
         1,
       );
       expect(infoContext.success).toBe(true);
       LogContextAssertions.expectObservabilityWithoutPromptBody(infoContext);
+    });
+
+    it("falha com 504 e loga timedOut quando a IA não responde dentro do timeout", async () => {
+      vi.useFakeTimers();
+
+      try {
+        callStructuredOutput.mockReturnValue(new Promise(() => {}));
+
+        const recommendationPromise = provider.getMovieRecommendation(
+          userMessage,
+          chatId,
+        );
+        const timeoutAssertion = expect(
+          recommendationPromise,
+        ).rejects.toBeInstanceOf(MovieRecommendationTimeoutException);
+
+        await vi.advanceTimersByTimeAsync(
+          AiRecommendationConstants.AI_CALL_TIMEOUT_MS,
+        );
+        await timeoutAssertion;
+
+        expect(Logger.error).toHaveBeenCalledWith(
+          "Recomendação de filme falhou",
+          expect.objectContaining({
+            success: false,
+            timedOut: true,
+          }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

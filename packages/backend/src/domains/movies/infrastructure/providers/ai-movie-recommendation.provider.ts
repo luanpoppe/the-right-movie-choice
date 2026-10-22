@@ -13,10 +13,12 @@ import {
 } from "../../domain/entities/movie-recommendation.entity";
 import { ExcludeWatchedRecommendationConstants } from "../../domain/exclude-watched-recommendation.constants";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
+import { MovieRecommendationTimeoutException } from "../../domain/exceptions/movie-recommendation-timeout.exception";
 import {
   ExcludeWatchedRecommendationSanitizer,
   type ExcludeWatchedContextEntry,
 } from "./exclude-watched-recommendation.sanitizer";
+import { AiRecommendationConstants } from "./ai-recommendation.constants";
 import { MovieRecommendationPrompts } from "./movie-recommendation-prompts";
 
 type AgentTool = NonNullable<
@@ -304,20 +306,57 @@ export class AiMovieRecommendationProvider
   }): Promise<MovieRecommendationEntity> {
     const lookupMoviesTool = this.params.lookupMoviesTool;
     const searchCatalogTool = this.params.searchCatalogTool;
-    const result = await this.params.ai.callStructuredOutput({
+    const timeoutMs = AiRecommendationConstants.AI_CALL_TIMEOUT_MS;
+    const maxRetries = AiRecommendationConstants.AI_CALL_MAX_RETRIES;
+
+    Logger.info("🎬 Chamada ao modelo de recomendação iniciada", {
+      model: AiModels.PRIMARY,
+      threadId: params.threadId,
+      timeoutMs,
+      maxRetries,
+    });
+
+    const aiCallPromise = this.params.ai.callStructuredOutput({
       aiModel: AiModels.PRIMARY,
       systemPrompt: params.systemPrompt,
       messages: params.messages,
       threadId: params.threadId,
       outputSchema: MovieRecommendationLlmSchema as never,
+      maxRetries,
       agent: { tools: [lookupMoviesTool, searchCatalogTool] },
     });
+    const result = await AiMovieRecommendationProvider.withTimeout(
+      aiCallPromise,
+      timeoutMs,
+    );
+
     const parseResult = MovieRecommendationSchema.safeParse(result.response);
     if (!parseResult.success) {
       throw new WrongMovieSchemaFromLlmException();
     }
 
     return parseResult.data;
+  }
+
+  private static async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+  ): Promise<T> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new MovieRecommendationTimeoutException(timeoutMs));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   private static isExcludeWatchedMode(
@@ -385,10 +424,13 @@ export class AiMovieRecommendationProvider
   private logFailure(message: string, durationMs: number, error: unknown) {
     const isErrorInstance = error instanceof Error;
     const errorMessage = isErrorInstance ? error.message : String(error);
+    const timedOut = error instanceof MovieRecommendationTimeoutException;
+
     Logger.error(message, {
       model: AiModels.PRIMARY,
       durationMs,
       success: false,
+      timedOut,
       error: errorMessage,
     });
   }
