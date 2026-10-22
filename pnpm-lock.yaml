@@ -32,8 +32,8 @@ importers:
         specifier: 1.0.11
         version: 1.0.11(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11)))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11))))
       '@luanpoppe/ai':
-        specifier: ^1.1.6
-        version: 1.1.6(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11))))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^1.2.1
+        version: 1.2.1(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11))))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@prisma/adapter-pg':
         specifier: 7.8.0
         version: 7.8.0
@@ -1096,8 +1096,9 @@ packages:
   '@langchain/protocol@0.0.19':
     resolution: {integrity: sha512-9hKcRrH7cBX6gfutdfXPoft1OCchHe4FEpALoDJMl5Qu+n/YG5ynZmyu8+8cxORlPwHBoKTxggvXz+76M1yX1Q==}
 
-  '@luanpoppe/ai@1.1.6':
-    resolution: {integrity: sha512-rb68vDatPej+SnvD9CJbU2uxYCnBjWN+njd6co54oY0pr5LQQ1lBfBe0fL7eAZ9kQj8onWKSElnaFFP5TJCe5A==}
+  '@luanpoppe/ai@1.2.1':
+    resolution: {integrity: sha512-ZVAVjhm5sNEnnJJXEKfowef+UuJdY0Qz/Jm2cETNcxpimo+lWDQZIcLaWZGaaLnj1wb5J/kyPjntzVsNjSb+zA==}
+    engines: {node: '>=20'}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -5990,7 +5991,7 @@ snapshots:
 
   '@langchain/protocol@0.0.19': {}
 
-  '@luanpoppe/ai@1.1.6(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11))))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@luanpoppe/ai@1.2.1(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11))))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@langchain/core': 1.2.9(openai@6.49.0(zod@4.1.11))
       '@langchain/google-genai': 2.3.0(@langchain/core@1.2.9(openai@6.49.0(zod@4.1.11)))

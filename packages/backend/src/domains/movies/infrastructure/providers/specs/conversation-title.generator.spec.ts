@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { UserConversationConstants } from "@/domains/movies/domain/user-conversation.constants";
 import { ConversationTitleGenerator } from "../conversation-title.generator";
@@ -45,7 +46,11 @@ describe("ConversationTitleGenerator", () => {
     expect(callStructuredOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         aiModel: AiModels.PRIMARY,
-        modelConfig: { temperature: 0.7 },
+        modelConfig: {
+          temperature: 0.7,
+          reasoningEffort:
+            AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+        },
         messages: expect.any(Array),
       }),
     );
