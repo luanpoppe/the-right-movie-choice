@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { MovieQueryExamplesEntity, MovieQueryExamplesSchema } from "../../../domain/entities/movie-query-examples.entity";
 import { WrongMovieSchemaFromLlmException } from "../../../domain/exceptions/wrong-movie-schema-from-llm.exception";
@@ -89,6 +90,8 @@ describe("AiMoviesQueryExamplesProvider", () => {
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
       expect(structuredCallArgs.modelConfig).toEqual({
         temperature: 1.2,
+        reasoningEffort:
+          AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
       });
       expect(structuredCallArgs.modelConfig.temperature).toBe(
         MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE,

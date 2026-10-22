@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { MovieQueryExamplesSchemaFactory } from "../../../domain/entities/movie-query-examples.entity";
 import { WrongMovieSchemaFromLlmException } from "../../../domain/exceptions/wrong-movie-schema-from-llm.exception";
@@ -78,7 +79,11 @@ describe("AiMovieQuerySuggestionBatchProvider", () => {
         messages: unknown[];
       }>(structuredCalls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
-      expect(structuredCallArgs.modelConfig).toEqual({ temperature: 1.2 });
+      expect(structuredCallArgs.modelConfig).toEqual({
+        temperature: 1.2,
+        reasoningEffort:
+          AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+      });
       expect(structuredCallArgs.outputSchema.safeParse(batchResponse).success).toBe(
         true,
       );

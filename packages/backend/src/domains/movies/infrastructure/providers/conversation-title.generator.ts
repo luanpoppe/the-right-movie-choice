@@ -1,6 +1,7 @@
 import { AI, AIMessages } from "@luanpoppe/ai";
 import z from "zod";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { UserConversationValidationUtils } from "../../domain/user-conversation-validation.utils";
 import { WrongMovieSchemaFromLlmException } from "../../domain/exceptions/wrong-movie-schema-from-llm.exception";
@@ -20,7 +21,10 @@ export class ConversationTitleGenerator {
 
   async generateFromUserMessage(userMessage: string): Promise<string | null> {
     const startedAtMs = Date.now();
-    const modelConfig = { temperature: 0.7 };
+    const modelConfig = {
+      temperature: 0.7,
+      reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+    };
 
     try {
       const result = await this.ai.callStructuredOutput({

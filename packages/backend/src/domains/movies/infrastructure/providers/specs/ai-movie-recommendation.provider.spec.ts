@@ -4,6 +4,7 @@ import path from "node:path";
 import { AI, AIMessages } from "@luanpoppe/ai";
 import type { AICallParams } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { ExcludeWatchedRecommendationConstants } from "../../../domain/exclude-watched-recommendation.constants";
 import { MovieRecommendationEntity, MovieRecommendationLlmSchema, MovieRecommendationSchema } from "../../../domain/entities/movie-recommendation.entity";
@@ -179,6 +180,7 @@ describe("AiMovieRecommendationProvider", () => {
         messages: unknown;
         threadId: unknown;
         maxRetries: unknown;
+        modelConfig: unknown;
         agent: { tools: AgentTool[] };
       }>(callStructuredOutput.mock.calls, 0);
       expect(structuredCallArgs.aiModel).toBe(AiModels.PRIMARY);
@@ -188,6 +190,9 @@ describe("AiMovieRecommendationProvider", () => {
       expect(structuredCallArgs.maxRetries).toBe(
         AiRecommendationConstants.AI_CALL_MAX_RETRIES,
       );
+      expect(structuredCallArgs.modelConfig).toEqual({
+        reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+      });
       expect(structuredCallArgs.messages).toEqual([expectedHumanMessage]);
       expect(structuredCallArgs.messages).toHaveLength(1);
       expect(structuredCallArgs.agent.tools).toHaveLength(2);
@@ -323,6 +328,9 @@ describe("AiMovieRecommendationProvider", () => {
       );
       expect(startContext.maxRetries).toBe(
         AiRecommendationConstants.AI_CALL_MAX_RETRIES,
+      );
+      expect(startContext.reasoningEffort).toBe(
+        AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
       );
       const infoContext = VitestMockCallUtils.callArg<Record<string, unknown>>(
         vi.mocked(Logger.info).mock.calls,

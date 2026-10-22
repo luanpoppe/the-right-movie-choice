@@ -1,6 +1,7 @@
 import { AI, AIMessages } from "@luanpoppe/ai";
 import type { AICallParams } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import {
   IMovieRecommendationProvider,
@@ -314,6 +315,7 @@ export class AiMovieRecommendationProvider
       threadId: params.threadId,
       timeoutMs,
       maxRetries,
+      reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
     });
 
     const aiCallPromise = this.params.ai.callStructuredOutput({
@@ -323,6 +325,9 @@ export class AiMovieRecommendationProvider
       threadId: params.threadId,
       outputSchema: MovieRecommendationLlmSchema as never,
       maxRetries,
+      modelConfig: {
+        reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+      },
       agent: { tools: [lookupMoviesTool, searchCatalogTool] },
     });
     const result = await AiMovieRecommendationProvider.withTimeout(

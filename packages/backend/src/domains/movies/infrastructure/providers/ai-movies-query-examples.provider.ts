@@ -1,5 +1,6 @@
 import { AI } from "@luanpoppe/ai";
 import { Logger } from "@/lib/logger/logger";
+import { AiCallConstants } from "@/lib/ai/ai-call.constants";
 import { AiModels } from "@/lib/ai/ai-models";
 import { IMovieQueryExampleProvider } from "../../application/providers/movie-query-example.provider";
 import { MovieQueryExamplesSchema } from "../../domain/entities/movie-query-examples.entity";
@@ -14,7 +15,10 @@ export class AiMoviesQueryExamplesProvider
   async getQueryExamples() {
     const systemPrompt = MovieQueryExamplesPrompts.text();
     const temperature = MovieQueryExamplesPrompts.QUERY_EXAMPLES_TEMPERATURE;
-    const modelConfig = { temperature };
+    const modelConfig = {
+      temperature,
+      reasoningEffort: AiCallConstants.STRUCTURED_OUTPUT_REASONING_EFFORT,
+    };
     const startedAtMs = Date.now();
 
     try {
