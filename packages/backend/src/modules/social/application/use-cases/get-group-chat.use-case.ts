@@ -1,6 +1,7 @@
 import type { ChatHistoryEntity } from "@/core/entities/chat-history.entity";
 import type { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
 import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
+import type { MovieCatalogLookupService } from "@/domains/movies/infrastructure/providers/movie-catalog-lookup.service";
 import { ChatHistoryCatalogEnrichmentUtils } from "@/infrastructure/repositories/chat-history-catalog-enrichment.utils";
 import { Logger } from "@/lib/logger/logger";
 import type { GroupChatEntity } from "../../domain/entities/group-chat.entity";
@@ -23,6 +24,7 @@ export class GetGroupChatUseCase {
     private readonly groupChatRepository: IGroupChatRepository,
     private readonly chatHistoryRepository: IChatHistoryRepository,
     private readonly catalogRepository: IMovieCatalogRepository,
+    private readonly catalogLookup: MovieCatalogLookupService,
   ) {}
 
   async execute(
@@ -66,6 +68,7 @@ export class GetGroupChatUseCase {
     const messages = await ChatHistoryCatalogEnrichmentUtils.enrichMoviePosters(
       rawMessages,
       this.catalogRepository,
+      this.catalogLookup,
     );
 
     Logger.debug("Group chat retrieved", {

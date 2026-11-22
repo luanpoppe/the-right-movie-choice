@@ -6,6 +6,7 @@ import type { UserConversationEntity } from "../../../domain/entities/user-conve
 import { UserConversationNotFoundException } from "../../../domain/exceptions/user-conversation-not-found.exception";
 import type { IMovieCatalogRepository } from "../../../domain/repositories/movie-catalog.repository";
 import type { IUserConversationRepository } from "../../../domain/repositories/user-conversation.repository";
+import type { MovieCatalogLookupService } from "../../../infrastructure/providers/movie-catalog-lookup.service";
 
 vi.mock(
   "@/infrastructure/repositories/chat-history-catalog-enrichment.utils",
@@ -38,6 +39,7 @@ describe("GetUserConversationUseCase", () => {
   let userConversationRepository: IUserConversationRepository;
   let chatHistoryRepository: IChatHistoryRepository;
   let catalogRepository: IMovieCatalogRepository;
+  let catalogLookup: MovieCatalogLookupService;
   let useCase: GetUserConversationUseCase;
 
   beforeEach(() => {
@@ -64,10 +66,15 @@ describe("GetUserConversationUseCase", () => {
       upsert: vi.fn(),
     };
 
+    catalogLookup = {
+      findDetailsByTitle: vi.fn(),
+    } as unknown as MovieCatalogLookupService;
+
     useCase = new GetUserConversationUseCase(
       userConversationRepository,
       chatHistoryRepository,
       catalogRepository,
+      catalogLookup,
     );
   });
 

@@ -92,6 +92,9 @@ vi.mock(
       createConversationTitleGenerator: vi.fn(() => ({
         generateFromUserMessage: vi.fn(),
       })),
+      createCatalogLookup: vi.fn(() => ({
+        findDetailsByTitle: vi.fn(),
+      })),
     },
   }),
 );

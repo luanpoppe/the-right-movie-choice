@@ -6,6 +6,7 @@ import type { UserConversationEntity } from "../../domain/entities/user-conversa
 import { UserConversationNotFoundException } from "../../domain/exceptions/user-conversation-not-found.exception";
 import type { IMovieCatalogRepository } from "../../domain/repositories/movie-catalog.repository";
 import type { IUserConversationRepository } from "../../domain/repositories/user-conversation.repository";
+import type { MovieCatalogLookupService } from "../../infrastructure/providers/movie-catalog-lookup.service";
 
 export type GetUserConversationResult = {
   conversation: UserConversationEntity;
@@ -17,6 +18,7 @@ export class GetUserConversationUseCase {
     private userConversationRepository: IUserConversationRepository,
     private chatHistoryRepository: IChatHistoryRepository,
     private catalogRepository: IMovieCatalogRepository,
+    private catalogLookup: MovieCatalogLookupService,
   ) {}
 
   async execute(
@@ -41,6 +43,7 @@ export class GetUserConversationUseCase {
     const messages = await ChatHistoryCatalogEnrichmentUtils.enrichMoviePosters(
       rawMessages,
       this.catalogRepository,
+      this.catalogLookup,
     );
 
     Logger.debug("User conversation retrieved", {

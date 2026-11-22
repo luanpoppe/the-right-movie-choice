@@ -24,6 +24,8 @@ export class MakeGroupChatsHttpFactory {
     const userGroupRepository = new PrismaUserGroupRepository();
     const groupChatRepository = new PrismaGroupChatRepository();
     const catalogRepository = new PrismaMovieCatalogRepository();
+    const catalogLookup =
+      MakeGetMovieRecommendationUseCaseFactory.createCatalogLookup();
     const chatThreadRepository = new PostgresChatThreadRepository();
 
     const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
@@ -47,6 +49,7 @@ export class MakeGroupChatsHttpFactory {
       groupChatRepository,
       chatHistoryRepository,
       catalogRepository,
+      catalogLookup,
     );
     const updateGroupChatTitleUseCase = new UpdateGroupChatTitleUseCase(
       userGroupRepository,

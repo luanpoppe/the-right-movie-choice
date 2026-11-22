@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ChatHistoryEntity } from "@/core/entities/chat-history.entity";
 import type { IChatHistoryRepository } from "@/core/repositories/chat-history.repository";
 import type { IMovieCatalogRepository } from "@/domains/movies/domain/repositories/movie-catalog.repository";
+import type { MovieCatalogLookupService } from "@/domains/movies/infrastructure/providers/movie-catalog-lookup.service";
 import type { GroupChatEntity } from "../../../domain/entities/group-chat.entity";
 import type { GroupMemberEntity } from "../../../domain/entities/group-member.entity";
 import type { UserGroupEntity } from "../../../domain/entities/user-group.entity";
@@ -60,6 +61,7 @@ describe("GetGroupChatUseCase", () => {
   let groupChatRepository: IGroupChatRepository;
   let chatHistoryRepository: IChatHistoryRepository;
   let catalogRepository: IMovieCatalogRepository;
+  let catalogLookup: MovieCatalogLookupService;
   let useCase: GetGroupChatUseCase;
 
   beforeEach(() => {
@@ -106,11 +108,16 @@ describe("GetGroupChatUseCase", () => {
       upsert: vi.fn(),
     };
 
+    catalogLookup = {
+      findDetailsByTitle: vi.fn(),
+    } as unknown as MovieCatalogLookupService;
+
     useCase = new GetGroupChatUseCase(
       userGroupRepository,
       groupChatRepository,
       chatHistoryRepository,
       catalogRepository,
+      catalogLookup,
     );
   });
 

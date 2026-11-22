@@ -5,6 +5,7 @@ import { ChatHistoryAiMemoryRepository } from "@/infrastructure/repositories/cha
 import { PostgresChatThreadRepository } from "@/infrastructure/repositories/postgres-chat-thread.repository";
 import { JoseAccessTokenProvider } from "@/modules/auth/infrastructure/providers/jose-access-token.provider";
 import { CreateUserConversationUseCase } from "@/domains/movies/application/use-cases/create-user-conversation.use-case";
+import { MakeGetMovieRecommendationUseCaseFactory } from "@/domains/movies/infrastructure/factories/make-get-movie-recommendation-use-case.factory";
 import { DeleteUserConversationUseCase } from "@/domains/movies/application/use-cases/delete-user-conversation.use-case";
 import { GetUserConversationUseCase } from "@/domains/movies/application/use-cases/get-user-conversation.use-case";
 import { ListUserConversationsUseCase } from "@/domains/movies/application/use-cases/list-user-conversations.use-case";
@@ -19,6 +20,8 @@ export class MakeUserConversationHttpFactory {
     const accessTokenProvider = new JoseAccessTokenProvider();
     const userConversationRepository = new PrismaUserConversationRepository();
     const catalogRepository = new PrismaMovieCatalogRepository();
+    const catalogLookup =
+      MakeGetMovieRecommendationUseCaseFactory.createCatalogLookup();
     const chatThreadRepository = new PostgresChatThreadRepository();
 
     const sharedPostgresMemory = MovieRecommendationPostgresMemory.getShared();
@@ -39,6 +42,7 @@ export class MakeUserConversationHttpFactory {
       userConversationRepository,
       chatHistoryRepository,
       catalogRepository,
+      catalogLookup,
     );
     const updateUserConversationTitleUseCase =
       new UpdateUserConversationTitleUseCase(userConversationRepository);

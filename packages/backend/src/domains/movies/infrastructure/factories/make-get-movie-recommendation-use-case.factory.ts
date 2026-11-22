@@ -42,6 +42,21 @@ export class MakeGetMovieRecommendationUseCaseFactory {
     return new ConversationTitleGenerator(ai);
   }
 
+  static createCatalogLookup(): MovieCatalogLookupService {
+    const catalog = MakeTmdbHttpClientFactory.create();
+    const redis = new Redis();
+    const cache = new TmdbMovieDetailsCache(redis);
+    const repository = new PrismaMovieCatalogRepository();
+    const resolver = new MovieCatalogDetailsResolver(
+      cache,
+      repository,
+      catalog,
+      CatalogPersistEnqueuer.enqueue,
+    );
+
+    return new MovieCatalogLookupService(catalog, repository, cache, resolver);
+  }
+
   static create(options?: GetMovieRecommendationUseCaseOptions) {
     const config =
       MakeGetMovieRecommendationUseCaseFactory.buildAiConfig(options);
