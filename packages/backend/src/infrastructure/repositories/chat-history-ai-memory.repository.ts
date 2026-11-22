@@ -36,6 +36,12 @@ export class ChatHistoryAiMemoryRepository implements IChatHistoryRepository {
       if (role === "ai") {
         const parsedContent =
           ChatHistoryStructuredContentUtils.parseAiContent(content);
+        const isInvalidStructuredJson =
+          parsedContent.isInvalidStructuredJson === true;
+        if (isInvalidStructuredJson) {
+          continue;
+        }
+
         const movies = parsedContent.movies;
         const hasMovies = movies !== undefined && movies.length > 0;
         const messageText = parsedContent.message;

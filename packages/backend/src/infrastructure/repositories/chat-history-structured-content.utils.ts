@@ -6,6 +6,7 @@ import {
 export type ParsedAiHistoryContent = {
   message: string;
   movies?: MovieRecommendationEntity["movies"];
+  isInvalidStructuredJson?: boolean;
 };
 
 export class ChatHistoryStructuredContentUtils {
@@ -18,9 +19,15 @@ export class ChatHistoryStructuredContentUtils {
       return { message: content };
     }
 
+    const isStructuredJson =
+      typeof parsedJson === "object" && parsedJson !== null;
+    if (!isStructuredJson) {
+      return { message: content };
+    }
+
     const parseResult = MovieRecommendationLlmSchema.safeParse(parsedJson);
     if (!parseResult.success) {
-      return { message: content };
+      return { message: content, isInvalidStructuredJson: true };
     }
 
     const recommendation = parseResult.data;

@@ -199,6 +199,44 @@ describe("ChatHistoryAiMemoryRepository", () => {
     ]);
   });
 
+  it("ignora JSON de input de tool que não valida no schema de recomendação", async () => {
+    const toolInputContent = JSON.stringify({
+      queries: [{ query: "Take Shelter" }, { query: "The Divide" }],
+    });
+
+    getHistory.mockResolvedValue({
+      messages: [
+        MemoryHistoryFixtures.human("Quero filmes de apocalipse"),
+        MemoryHistoryFixtures.ai(toolInputContent),
+        MemoryHistoryFixtures.human("Quero filmes de apocalipse"),
+        MemoryHistoryFixtures.ai(
+          JSON.stringify({
+            response: "Vou sugerir estes filmes.",
+            movies: [],
+          }),
+        ),
+      ],
+    });
+
+    const history = await repository.getHistory(chatId);
+
+    expect(history).toEqual([
+      ["user", "Quero filmes de apocalipse"],
+      ["user", "Quero filmes de apocalipse"],
+      ["ai", "Vou sugerir estes filmes."],
+    ]);
+  });
+
+  it("mantém mensagem ai em texto simples que não é JSON", async () => {
+    getHistory.mockResolvedValue({
+      messages: [MemoryHistoryFixtures.ai("Resposta legada em texto")],
+    });
+
+    const history = await repository.getHistory(chatId);
+
+    expect(history).toEqual([["ai", "Resposta legada em texto"]]);
+  });
+
   it("ignora mensagens com role tool", async () => {
     getHistory.mockResolvedValue({
       messages: [
