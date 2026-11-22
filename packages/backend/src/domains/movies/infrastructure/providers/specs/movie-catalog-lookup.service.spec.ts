@@ -519,6 +519,111 @@ describe("MovieCatalogLookupService", () => {
     });
   });
 
+  describe("findDetailsByTitleForHistory", () => {
+    it("busca sem ano estrito e escolhe o hit dentro da tolerância", async () => {
+      const correctHit = MovieCatalogLookupFixtures.searchHit({
+        id: 199575,
+        title: "As Horas Finais",
+        year: 2014,
+      });
+      const remakeHit = MovieCatalogLookupFixtures.searchHit({
+        id: 994275,
+        title: "These Final Hours",
+        year: 2021,
+      });
+      const details = MovieCatalogLookupFixtures.details({ tmdbId: 199575 });
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([correctHit, remakeHit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      const result = await service.findDetailsByTitleForHistory({
+        query: "These Final Hours",
+        year: 2013,
+      });
+
+      expect(catalog.searchMovies).toHaveBeenCalledWith(
+        "These Final Hours",
+        1,
+        undefined,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        199575,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+      expect(result).toEqual({ found: true, details });
+    });
+
+    it("pula hit fora da tolerância e usa o próximo dentro de 2 anos", async () => {
+      const outsideHit = MovieCatalogLookupFixtures.searchHit({
+        id: 994275,
+        title: "These Final Hours",
+        year: 2021,
+      });
+      const correctHit = MovieCatalogLookupFixtures.searchHit({
+        id: 199575,
+        title: "As Horas Finais",
+        year: 2014,
+      });
+      const details = MovieCatalogLookupFixtures.details({ tmdbId: 199575 });
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([outsideHit, correctHit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      await service.findDetailsByTitleForHistory({
+        query: "These Final Hours",
+        year: 2013,
+      });
+
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        199575,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("usa o primeiro hit quando nenhum está na tolerância", async () => {
+      const firstHit = MovieCatalogLookupFixtures.searchHit({
+        id: 123,
+        title: "Filme Antigo",
+        year: 1999,
+      });
+      const details = MovieCatalogLookupFixtures.details({ tmdbId: 123 });
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([firstHit]),
+      );
+      vi.mocked(resolver.resolveByTmdbId).mockResolvedValue(details);
+
+      await service.findDetailsByTitleForHistory({
+        query: "Filme Antigo",
+        year: 2013,
+      });
+
+      expect(resolver.resolveByTmdbId).toHaveBeenCalledWith(
+        123,
+        DEFAULT_MOVIE_CATALOG_LANGUAGE,
+      );
+    });
+
+    it("devolve found false sem chamar resolver quando não há resultados", async () => {
+      vi.mocked(catalog.searchMovies).mockResolvedValue(
+        MovieCatalogLookupFixtures.searchPage([]),
+      );
+
+      const result = await service.findDetailsByTitleForHistory({
+        query: "Filme Inexistente",
+        year: 2013,
+      });
+
+      expect(result).toEqual({
+        found: false,
+        message: 'Nenhum filme encontrado para "Filme Inexistente".',
+      });
+      expect(resolver.resolveByTmdbId).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findDetailsByTitlesBatch", () => {
     it("2 fresh local hits via findByTitlesAndYears -> both found, cache.setMany called, no TMDB", async () => {
       const detailsA = MovieCatalogLookupFixtures.details({

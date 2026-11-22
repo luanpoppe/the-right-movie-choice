@@ -18,6 +18,7 @@ import { StringUtils } from "@/shared/utils/string.utils";
 
 import { MovieCatalogDetailsResolver } from "./movie-catalog-details.resolver";
 import { MovieCatalogBatchLookup } from "./batch-catalog-lookup";
+import { MovieSearchCandidateUtils } from "./movie-search-candidate.utils";
 
 export class MovieCatalogLookupService {
   constructor(
@@ -79,6 +80,73 @@ export class MovieCatalogLookupService {
 
       this.logFailure(
         "Busca da ficha por título no catálogo falhou",
+        durationMs,
+        error,
+      );
+      return this.miss(
+        "Não foi possível consultar o catálogo de filmes no momento.",
+      );
+    }
+  }
+
+  /**
+   * Resolve a ficha pelo título sem usar `primary_release_year` como filtro
+   * exato, escolhendo o primeiro hit dentro de 2 anos do ano informado. Usado
+   * no histórico, onde o ano gravado pela IA pode estar 1 ano fora do release.
+   */
+  async findDetailsByTitleForHistory(
+    input: MovieCatalogLookupInput,
+  ): Promise<MovieCatalogLookupResult> {
+    const isQueryEmpty = StringUtils.isEmptyString(input.query);
+    if (isQueryEmpty) {
+      return this.miss("Informe o nome de um filme para buscar no catálogo.");
+    }
+
+    const startedAtMs = Date.now();
+    const searchQuery = input.query;
+    const language = MovieCatalogLookupService.resolveLanguage(input.language);
+
+    try {
+      const searchPage = await this.catalog.searchMovies(
+        searchQuery,
+        1,
+        undefined,
+        language,
+      );
+      const candidate = MovieSearchCandidateUtils.pickBestByYear(
+        searchPage.results,
+        input.year,
+      );
+      const hasCandidate = candidate !== undefined;
+      if (!hasCandidate) {
+        return this.miss(`Nenhum filme encontrado para "${searchQuery}".`);
+      }
+
+      const details = await this.resolver.resolveByTmdbId(candidate.id, language);
+      const durationMs = Date.now() - startedAtMs;
+      this.logSuccess(
+        "Busca da ficha por título no histórico concluída",
+        durationMs,
+      );
+
+      return { found: true, details };
+    } catch (error) {
+      const durationMs = Date.now() - startedAtMs;
+      const isTmdbHttpError = error instanceof TmdbHttpException;
+
+      if (isTmdbHttpError) {
+        this.logFailure(
+          "Busca da ficha por título no histórico falhou (TMDB indisponível)",
+          durationMs,
+          error,
+        );
+        return this.miss(
+          "O catálogo de filmes está temporariamente indisponível. Tente novamente mais tarde.",
+        );
+      }
+
+      this.logFailure(
+        "Busca da ficha por título no histórico falhou",
         durationMs,
         error,
       );

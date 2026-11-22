@@ -74,7 +74,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
       upsert: vi.fn(),
     };
     catalogLookup = {
-      findDetailsByTitle: vi
+      findDetailsByTitleForHistory: vi
         .fn()
         .mockResolvedValue(ChatHistoryCatalogEnrichmentFixtures.lookupMiss()),
     } as unknown as MovieCatalogLookupService;
@@ -107,7 +107,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
       "https://image.tmdb.org/t/p/w500/poster.jpg",
     );
     expect(catalogRepository.findByTmdbId).toHaveBeenCalledWith(530385);
-    expect(catalogLookup.findDetailsByTitle).not.toHaveBeenCalled();
+    expect(catalogLookup.findDetailsByTitleForHistory).not.toHaveBeenCalled();
   });
 
   it("corrige tmdbId errado pelo título quando não há registro no catálogo", async () => {
@@ -120,7 +120,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
         imdbId: "tt2915134",
       },
     );
-    vi.mocked(catalogLookup.findDetailsByTitle).mockResolvedValue(
+    vi.mocked(catalogLookup.findDetailsByTitleForHistory).mockResolvedValue(
       ChatHistoryCatalogEnrichmentFixtures.lookupFound(resolvedDetails),
     );
 
@@ -146,7 +146,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
     );
 
     const enrichedMovie = enriched[0]?.[2]?.[0];
-    expect(catalogLookup.findDetailsByTitle).toHaveBeenCalledWith({
+    expect(catalogLookup.findDetailsByTitleForHistory).toHaveBeenCalledWith({
       query: "These Final Hours",
       year: 2013,
     });
@@ -166,7 +166,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
         posterPath: "/the-divide.jpg",
       },
     );
-    vi.mocked(catalogLookup.findDetailsByTitle).mockResolvedValue(
+    vi.mocked(catalogLookup.findDetailsByTitleForHistory).mockResolvedValue(
       ChatHistoryCatalogEnrichmentFixtures.lookupFound(resolvedDetails),
     );
 
@@ -181,7 +181,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
     );
 
     const enrichedMovie = enriched[0]?.[2]?.[0];
-    expect(catalogLookup.findDetailsByTitle).toHaveBeenCalledWith({
+    expect(catalogLookup.findDetailsByTitleForHistory).toHaveBeenCalledWith({
       query: "The Divide",
       year: 2011,
     });
@@ -207,7 +207,7 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
     );
 
     const enrichedMovie = enriched[0]?.[2]?.[0];
-    expect(catalogLookup.findDetailsByTitle).toHaveBeenCalledWith({
+    expect(catalogLookup.findDetailsByTitleForHistory).toHaveBeenCalledWith({
       query: "Filme Desconhecido",
     });
     expect(enrichedMovie?.tmdbId).toBe(999999);
@@ -228,6 +228,6 @@ describe("ChatHistoryCatalogEnrichmentUtils", () => {
 
     expect(enriched).toEqual(history);
     expect(catalogRepository.findByTmdbId).not.toHaveBeenCalled();
-    expect(catalogLookup.findDetailsByTitle).not.toHaveBeenCalled();
+    expect(catalogLookup.findDetailsByTitleForHistory).not.toHaveBeenCalled();
   });
 });

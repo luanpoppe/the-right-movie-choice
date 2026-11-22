@@ -105,7 +105,8 @@ export class ChatHistoryCatalogEnrichmentUtils {
       lookupInput.year = releaseYear;
     }
 
-    const lookupResult = await catalogLookup.findDetailsByTitle(lookupInput);
+    const lookupResult =
+      await catalogLookup.findDetailsByTitleForHistory(lookupInput);
     const isLookupMiss = lookupResult.found === false;
     if (isLookupMiss) {
       return { ...movie, posterPath: null };
